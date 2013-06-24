@@ -57,6 +57,7 @@ extern "C" void dvmJitToInterpBackwardBranch();
 
 /*
  * Initialize global breakpoint structures.
+ * 初始化全局的断点信息体并保存在全局的gDvm成员中
  */
 bool dvmBreakpointStartup()
 {
@@ -66,6 +67,7 @@ bool dvmBreakpointStartup()
 
 /*
  * Free resources.
+ * 释放断点信息体
  */
 void dvmBreakpointShutdown()
 {
@@ -78,16 +80,18 @@ void dvmBreakpointShutdown()
  *
  * The debugger may ask us to create the same breakpoint multiple times.
  * We only remove the breakpoint when the last instance is cleared.
+ * 单个断点的信息描述结构体
  */
 struct Breakpoint {
-    Method*     method;                 /* method we're associated with */
-    u2*         addr;                   /* absolute memory address */
-    u1          originalOpcode;         /* original 8-bit opcode value */
+    Method*     method;                 /* method we're associated with 当前断点所作用的方法*/
+    u2*         addr;                   /* absolute memory address 在内存中的相对地址*/
+    u1          originalOpcode;         /* original 8-bit opcode value  opcode*/
     int         setCount;               /* #of times this breakpoint was set */
 };
 
 /*
  * Set of breakpoints.
+ * 一系列断点信息
  */
 struct BreakpointSet {
     /* grab lock before reading or writing anything else in here */
@@ -96,11 +100,12 @@ struct BreakpointSet {
     /* vector of breakpoint structures */
     int         alloc;
     int         count;
-    Breakpoint* breakpoints;
+    Breakpoint* breakpoints;/*这里只是个指针，代表一片内存，所以这个地址开始的连续内存中可能存储着多个Breakpoint结构体*/
 };
 
 /*
  * Initialize a BreakpointSet.  Initially empty.
+ * 初始化断点信息体
  */
 static BreakpointSet* dvmBreakpointSetAlloc()
 {
@@ -114,6 +119,7 @@ static BreakpointSet* dvmBreakpointSetAlloc()
 
 /*
  * Free storage associated with a BreakpointSet.
+ * 释放断点信息体内存
  */
 static void dvmBreakpointSetFree(BreakpointSet* pSet)
 {
@@ -131,6 +137,7 @@ static void dvmBreakpointSetFree(BreakpointSet* pSet)
  * contention, because nothing in here can block.  However, it's possible
  * that the bytecode-updater code could become fancier in the future, so
  * we do the trylock dance as a bit of future-proofing.
+ * 为断点信息体加锁这里面用到Thread.cpp中的多数函数
  */
 static void dvmBreakpointSetLock(BreakpointSet* pSet)
 {
@@ -144,6 +151,7 @@ static void dvmBreakpointSetLock(BreakpointSet* pSet)
 
 /*
  * Unlock the breakpoint set.
+ * 解锁断点信息体
  */
 static void dvmBreakpointSetUnlock(BreakpointSet* pSet)
 {
@@ -152,6 +160,7 @@ static void dvmBreakpointSetUnlock(BreakpointSet* pSet)
 
 /*
  * Return the #of breakpoints.
+ * 获取当前设置了几个断点(如果一个断点被设置了多次，那么按一个算)
  */
 static int dvmBreakpointSetCount(const BreakpointSet* pSet)
 {
@@ -164,6 +173,8 @@ static int dvmBreakpointSetCount(const BreakpointSet* pSet)
  * The BreakpointSet's lock must be acquired before calling here.
  *
  * Returns the index of the breakpoint entry, or -1 if not found.
+ * 判断指定的地址有没有设置断点
+ * 如果设置过了那么返回代表其断点信息的结构体索引，否则返回-1
  */
 static int dvmBreakpointSetFind(const BreakpointSet* pSet, const u2* addr)
 {
@@ -184,6 +195,8 @@ static int dvmBreakpointSetFind(const BreakpointSet* pSet, const u2* addr)
  * The BreakpointSet's lock must be acquired before calling here.
  *
  * Returns "true" with the opcode in *pOrig on success.
+ * 判断并且获取指定地址是否设置了断点
+ * 如果设置了的话就返回true，从参数返回其原始opcode，否则返回false
  */
 static bool dvmBreakpointSetOriginalOpcode(const BreakpointSet* pSet,
     const u2* addr, u1* pOrig)
@@ -212,6 +225,13 @@ static bool dvmBreakpointSetOriginalOpcode(const BreakpointSet* pSet,
  * because that confuses the housekeeping.  We don't want to reject the
  * debugger's event request, and we want to be sure that there's exactly
  * one un-set operation for every set op.
+ * 判断当前设置断点的位置是不是一个技巧性的nop指令
+ * 因为有时候在可供调试的汇编代码里面会出现这样的情况
+ * 1.  OP_NOP:
+ * 2. 	some_ins
+ * 3.       ...
+ * 那么如果我们将断点设置在第一行的时候是没有意义的
+ * 他只是个标号而已
  */
 static bool instructionIsMagicNop(const u2* addr)
 {
@@ -229,6 +249,8 @@ static bool instructionIsMagicNop(const u2* addr)
  * The BreakpointSet's lock must be acquired before calling here.
  *
  * Returns "true" on success.
+ * 为指定的地址(实际上市方法基址+ offset)设置断点
+ * 如果这个地址已经设置了断点了那么增加计数就可以了
  */
 static bool dvmBreakpointSetAdd(BreakpointSet* pSet, Method* method,
     unsigned int instrOffset)
@@ -239,7 +261,13 @@ static bool dvmBreakpointSetAdd(BreakpointSet* pSet, Method* method,
     Breakpoint* pBreak;
 
     if (idx < 0) {
+	/*如果当前断点信息表里面存储的断点刚好用完了表的空间
+	* 那么就得临时的再分配一个空间来存储新的断点
+	*/
         if (pSet->count == pSet->alloc) {
+	    /*虽然是增量分配，但是实际上是重新分配
+	    * 所以这里我们要计算新的总体大小
+		*/
             int newSize = pSet->alloc + kBreakpointGrowth;
             Breakpoint* newVec;
 
@@ -307,6 +335,7 @@ static bool dvmBreakpointSetAdd(BreakpointSet* pSet, Method* method,
  * opcode is restored.
  *
  * The BreakpointSet's lock must be acquired before calling here.
+ * 移除指定地址处的断点
  */
 static void dvmBreakpointSetRemove(BreakpointSet* pSet, Method* method,
     unsigned int instrOffset)
@@ -360,6 +389,8 @@ static void dvmBreakpointSetRemove(BreakpointSet* pSet, Method* method,
  * verified.
  *
  * The BreakpointSet's lock must be acquired before calling here.
+ * 刷新一个类对象中所有方法涉及到的所有断点
+ * 为什么要刷新呢? 因为我们最开始存储的时候这个类可能在进行校验或者优化
  */
 static void dvmBreakpointSetFlush(BreakpointSet* pSet, ClassObject* clazz)
 {
@@ -389,6 +420,9 @@ static void dvmBreakpointSetFlush(BreakpointSet* pSet, ClassObject* clazz)
 
 /*
  * Do any debugger-attach-time initialization.
+ * 在调试器附加时做一些初始化(这里实际上只是输出下附加之前已经设置好的断点个数)
+ * 通常来说在调试器正式起作用之前就已经有断点的残余信息是不好的，但是并不影响后续的执行过程
+ * 所以这里只是输出下信息而已
  */
 void dvmInitBreakpoints()
 {
@@ -415,6 +449,7 @@ void dvmInitBreakpoints()
  * will be trying to remove them while we're in here.
  *
  * "addr" is the absolute address of the breakpoint bytecode.
+ * 指定地址设置断点
  */
 void dvmAddBreakAddr(Method* method, unsigned int instrOffset)
 {
@@ -433,6 +468,7 @@ void dvmAddBreakAddr(Method* method, unsigned int instrOffset)
  * the result of removing an entry from the event list, which is
  * synchronized, so it should not be possible for two threads to be
  * updating breakpoints at the same time.
+ * 清除指定地址的断点
  */
 void dvmClearBreakAddr(Method* method, unsigned int instrOffset)
 {
@@ -452,6 +488,7 @@ void dvmClearBreakAddr(Method* method, unsigned int instrOffset)
  * observed the absence of a breakpoint entry, we will also now observe
  * the restoration of the original opcode.  The fact that we're holding
  * the lock prevents other threads from confusing things further.)
+ * 获取指点断点地址处的opcode(这里提供的地址必须是设置了断点的地址)
  */
 u1 dvmGetOriginalOpcode(const u2* addr)
 {
@@ -477,6 +514,7 @@ u1 dvmGetOriginalOpcode(const u2* addr)
  * We don't want to modify the bytecode of a method before the verifier
  * gets a chance to look at it, so we postpone opcode replacement until
  * after verification completes.
+ * 刷新指定类对象关联的断点
  */
 void dvmFlushBreakpoints(ClassObject* clazz)
 {
@@ -499,6 +537,9 @@ void dvmFlushBreakpoints(ClassObject* clazz)
  * verify that it's suspended.
  *
  * This is only called from the JDWP thread.
+ * 添加一个单步事件
+ * 但是这些调试事件都是多线程处理的
+ * 所以如果当前的线程正在运行的话那么这个动作会被延迟一下
  */
 bool dvmAddSingleStep(Thread* thread, int size, int depth)
 {
@@ -603,6 +644,7 @@ bool dvmAddSingleStep(Thread* thread, int size, int depth)
 
 /*
  * Disable a single step event.
+ * 停止一个单步事件
  */
 void dvmClearSingleStep(Thread* thread)
 {
@@ -614,6 +656,7 @@ void dvmClearSingleStep(Thread* thread)
 /*
  * The interpreter just threw.  Handle any special subMode requirements.
  * All interpSave state must be valid on entry.
+ * 抛出一个异常
  */
 void dvmReportExceptionThrow(Thread* self, Object* exception)
 {
@@ -641,6 +684,7 @@ void dvmReportExceptionThrow(Thread* self, Object* exception)
  * The interpreter is preparing to do an invoke (both native & normal).
  * Handle any special subMode requirements.  All interpSave state
  * must be valid on entry.
+ * 当解释器准备进入一个方法的调用动作时处理一下
  */
 void dvmReportInvoke(Thread* self, const Method* methodToCall)
 {
@@ -653,6 +697,7 @@ void dvmReportInvoke(Thread* self, const Method* methodToCall)
  * dvmReportInvoke() and dvmReportPreNativeInvoke() will both
  * be called prior to the invoke.  fp is the Dalvik FP of the calling
  * method.
+ * 当解释器准备进入一个本地方法的调用的时候处理一下
  */
 void dvmReportPreNativeInvoke(const Method* methodToCall, Thread* self, u4* fp)
 {
@@ -676,6 +721,7 @@ void dvmReportPreNativeInvoke(const Method* methodToCall, Thread* self, u4* fp)
  * The interpreter has returned from a native invoke. Handle any
  * special subMode requirements.  fp is the Dalvik FP of the calling
  * method.
+ * 当解释器从一个本地方法的调用过程中出来的时候处理一下
  */
 void dvmReportPostNativeInvoke(const Method* methodToCall, Thread* self, u4* fp)
 {
@@ -692,6 +738,7 @@ void dvmReportPostNativeInvoke(const Method* methodToCall, Thread* self, u4* fp)
 /*
  * The interpreter has returned from a normal method.  Handle any special
  * subMode requirements.  All interpSave state must be valid on entry.
+ * 当解释器从一个普通的方法调用中出来的时候处理一下
  */
 void dvmReportReturn(Thread* self)
 {
