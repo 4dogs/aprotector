@@ -15,12 +15,16 @@
  */
 
 /*
- * Dalvik bytecode structural verifier.  The only public entry point
- * (except for a few shared utility functions) is dvmVerifyCodeFlow().
- *
- * TODO: might benefit from a signature-->class lookup cache.  Could avoid
- * some string-peeling and wouldn't need to compute hashes.
- */
+Dalvik bytecode structural verifier.  The only public entry point
+(except for a few shared utility functions) is dvmVerifyCodeFlow().
+
+TODO: might benefit from a signature-->class lookup cache.  Could avoid
+some string-peeling and wouldn't need to compute hashes.
+
+Dalvik字节结构校验器。唯一的公共入口点（）方法是 dvmVerifyCodeFlow()。
+
+TODO: 
+*/
 #include "Dalvik.h"
 #include "analysis/Liveness.h"
 #include "analysis/CodeVerify.h"
@@ -33,22 +37,34 @@
 
 
 /*
- * We don't need to store the register data for many instructions, because
- * we either only need it at branch points (for verification) or GC points
- * and branches (for verification + type-precise register analysis).
- */
+We don't need to store the register data for many instructions, because
+we either only need it at branch points (for verification) or GC points
+and branches (for verification + type-precise register analysis).
+
+寄存器跟踪模式：
+1. 寄存器分支模式（校验）
+2. 寄存器GC模式
+3. 寄存器All模式（校验 + 强类型寄存器分析）
+*/
 enum RegisterTrackingMode {
+	
     kTrackRegsBranches,
+ 
     kTrackRegsGcPoints,
+ 
     kTrackRegsAll
 };
 
 /*
- * Set this to enable dead code scanning.  This is not required, but it's
- * very useful when testing changes to the verifier (to make sure we're not
- * skipping over stuff) and for checking the optimized output from "dx".
- * The only reason not to do it is that it slightly increases the time
- * required to perform verification.
+Set this to enable dead code scanning.  This is not required, but it's
+very useful when testing changes to the verifier (to make sure we're not
+skipping over stuff) and for checking the optimized output from "dx".
+The only reason not to do it is that it slightly increases the time
+required to perform verification.
+
+设置启动死代码（无用代码）扫描。这不是必需的，但它是非常有用的，当测试校验器发生改变
+（确保我们不会忽略一些东西）并且检查“dx”优化的输出。唯一不这样做的理由是执行校验会略
+微增加时间。
  */
 #ifndef NDEBUG
 # define DEAD_CODE_SCAN  true
@@ -62,66 +78,118 @@ static bool gDebugVerbose = false;
     (0 | DRT_SHOW_LIVENESS /*| DRT_SHOW_REF_TYPES | DRT_SHOW_LOCALS*/)
 
 /*
- * We need an extra "pseudo register" to hold the return type briefly.  It
- * can be category 1 or 2, so we need two slots.
- */
+We need an extra "pseudo register" to hold the return type briefly.  It
+can be category 1 or 2, so we need two slots.
+
+我们需要额外的“伪寄存器”持有返回类型。它会分类为 1 or 2，因此我们需要2个“伪寄存器”。
+*/
 #define kExtraRegs  2
 #define RESULT_REGISTER(_insnRegCount)  (_insnRegCount)
 
 /*
- * Big fat collection of register data.
- */
+Big fat collection of register data.
+
+寄存器数据集合表
+*/
 typedef struct RegisterTable {
     /*
-     * Array of RegisterLine structs, one per address in the method.  We only
-     * set the pointers for certain addresses, based on instruction widths
-     * and what we're trying to accomplish.
-     */
+    Array of RegisterLine structs, one per address in the method.  We only
+    set the pointers for certain addresses, based on instruction widths
+    and what we're trying to accomplish.
+    
+    寄存器行结构数据，每一个方法中的地址。只需要设置确定地址的指针，基于指令宽度
+    和我们能做到的事情。
+    
+    行集合指针
+    */
     RegisterLine* registerLines;
 
     /*
-     * Number of registers we track for each instruction.  This is equal
-     * to the method's declared "registersSize" plus kExtraRegs.
-     */
+    Number of registers we track for each instruction.  This is equal
+    to the method's declared "registersSize" plus kExtraRegs.
+    
+    跟踪每一条指令的寄存器数量。等于方法声明的“寄存器数量” 加“伪寄存器”。
+    
+    寄存器数量
+    */
     size_t      insnRegCountPlus;
 
     /*
-     * Storage for a register line we're currently working on.
+    Storage for a register line we're currently working on.
+    
+    存储当前正在运行的寄存器行。
      */
     RegisterLine workLine;
 
     /*
-     * Storage for a register line we're saving for later.
+    Storage for a register line we're saving for later.
+    
+    存储保存的寄存器行。
      */
     RegisterLine savedLine;
 
     /*
-     * A single large alloc, with all of the storage needed for RegisterLine
-     * data (RegType array, MonitorEntries array, monitor stack).
-     */
+    A single large alloc, with all of the storage needed for RegisterLine
+    data (RegType array, MonitorEntries array, monitor stack).
+    
+    较大的内存分配，含所有寄存器行需要的数据（RegType array, MonitorEntries array, monitor stack）。
+    
+ 	  行内存分配指针
+    */
     void*       lineAlloc;
 } RegisterTable;
 
-
 /* fwd */
 #ifndef NDEBUG
+
+/*
+检查合并表
+*/
 static void checkMergeTab();
 #endif
+
+/*
+是否初始化方法
+*/
 static bool isInitMethod(const Method* meth);
+
+/*
+获取反射
+*/
 static RegType getInvocationThis(const RegisterLine* registerLine,\
     const DecodedInstruction* pDecInsn, VerifyError* pFailure);
+    
+/*
+校验寄存器类型
+*/
 static void verifyRegisterType(RegisterLine* registerLine, \
     u4 vsrc, RegType checkType, VerifyError* pFailure);
+    
+/*
+代码校验
+*/
 static bool doCodeVerification(VerifierData* vdata, RegisterTable* regTable);
+
+/*
+校验指令
+*/
 static bool verifyInstruction(const Method* meth, InsnFlags* insnFlags,\
     RegisterTable* regTable, int insnIdx, UninitInstanceMap* uninitMap,
     int* pStartGuess);
+
+/*
+查找通用父类
+*/
 static ClassObject* findCommonSuperclass(ClassObject* c1, ClassObject* c2);
 static void dumpRegTypes(const VerifierData* vdata, \
     const RegisterLine* registerLine, int addr, const char* addrName,
     const UninitInstanceMap* uninitMap, int displayFlags);
 
-/* bit values for dumpRegTypes() "displayFlags" */
+/* 
+bit values for dumpRegTypes() "displayFlags" 
+
+NOTE TODO:
+*/
 enum {
     DRT_SIMPLE          = 0,
     DRT_SHOW_REF_TYPES  = 0x01,
@@ -131,58 +199,152 @@ enum {
 
 
 /*
- * ===========================================================================
- *      RegType and UninitInstanceMap utility functions
- * ===========================================================================
- */
+===========================================================================
+     RegType and UninitInstanceMap utility functions
 
+		 寄存器类型和未初始化实例Map实用函数
+===========================================================================
+*/
+
+/*
+寄存器未知类型
+*/
 #define __  kRegTypeUnknown
+/*
+寄存器未初始化类型
+*/
 #define _U  kRegTypeUninit
+/*
+NOTE TODO：
+*/
 #define _X  kRegTypeConflict
+/*
+寄存器类型
+*/
 #define _0  kRegTypeZero
+/*
+寄存器1类型
+*/
 #define _1  kRegTypeOne
+/*
+寄存器Boolean类型
+*/
 #define _Z  kRegTypeBoolean
+/*
+寄存器Const位置类型
+*/
 #define _y  kRegTypeConstPosByte
+/*
+寄存器常量Byte类型
+*/
 #define _Y  kRegTypeConstByte
+/*
+寄存器常量位置Short类型
+*/
 #define _h  kRegTypeConstPosShort
+/*
+寄存器常量Short类型
+*/
 #define _H  kRegTypeConstShort
+/*
+寄存器常量Char类型
+*/
 #define _c  kRegTypeConstChar
+/*
+寄存器常量Integer类型
+*/
 #define _i  kRegTypeConstInteger
+/*
+NOTE TODO：
+*/
 #define _b  kRegTypePosByte
+/*
+寄存器Byte类型
+*/
 #define _B  kRegTypeByte
 #define _s  kRegTypePosShort
+/*
+寄存器Short类型
+*/
 #define _S  kRegTypeShort
+/*
+寄存器Char类型
+*/
 #define _C  kRegTypeChar
+/*
+寄存器Integer类型
+*/
 #define _I  kRegTypeInteger
+/*
+寄存器Float类型
+*/
 #define _F  kRegTypeFloat
+/*
+寄存器常量低位类型
+
+NOTE TODO：
+*/
 #define _N  kRegTypeConstLo
+/*
+寄存器常量高位类型
+
+NOTE TODO：
+*/
 #define _n  kRegTypeConstHi
+/*
+寄存器Long低位类型
+*/
 #define _J  kRegTypeLongLo
+/*
+寄存器Long高位类型
+*/
 #define _j  kRegTypeLongHi
+/*
+寄存器Double低位类型
+*/
 #define _D  kRegTypeDoubleLo
+/*
+寄存器Double高位类型
+*/
 #define _d  kRegTypeDoubleHi
 
 /*
- * Merge result table for primitive values.  The table is symmetric along
- * the diagonal.
- *
- * Note that 32-bit int/float do not merge into 64-bit long/double.  This
- * is a register merge, not a widening conversion.  Only the "implicit"
- * widening within a category, e.g. byte to short, is allowed.
- *
- * Dalvik does not draw a distinction between int and float, but we enforce
- * that once a value is used as int, it can't be used as float, and vice
- * versa. We do not allow free exchange between 32-bit int/float and 64-bit
- * long/double.
- *
- * Note that Uninit+Uninit=Uninit.  This holds true because we only
- * use this when the RegType value is exactly equal to kRegTypeUninit, which
- * can only happen for the zeroeth entry in the table.
- *
- * "Unknown" never merges with anything known.  The only time a register
- * transitions from "unknown" to "known" is when we're executing code
- * for the first time, and we handle that with a simple copy.
- */
+Merge result table for primitive values.  The table is symmetric along
+the diagonal.
+
+合并原始值结果表。该表沿对角线对称。
+
+Note that 32-bit int/float do not merge into 64-bit long/double.  This
+is a register merge, not a widening conversion.  Only the "implicit"
+widening within a category, e.g. byte to short, is allowed.
+
+注意，32位int/float不能合并到64位long/double。这是寄存器合并，不是位宽转换。
+只有同一个类别的“隐式”转换，例如：byte到short，是允许的。
+
+Dalvik does not draw a distinction between int and float, but we enforce
+that once a value is used as int, it can't be used as float, and vice
+versa. We do not allow free exchange between 32-bit int/float and 64-bit
+long/double.
+
+Dalvik没有在int和float之间做区别，但是我们强制当一个值被作为int使用时，它不能被
+用做flat使用，反之亦然。我们不允许32位int/float和64位long/double之间做自由转换。
+
+Note that Uninit+Uninit=Uninit.  This holds true because we only
+use this when the RegType value is exactly equal to kRegTypeUninit, which
+can only happen for the zeroeth entry in the table.
+
+注意，Uninit+Uninit=Uninit（未初始化 + 未初始化 = 未初始化）。这是正确的，因为我们
+仅在RegType值完全等于kRegTypeUninit时使用它，这仅发生在表的第0个入口。
+
+"Unknown" never merges with anything known.  The only time a register
+transitions from "unknown" to "known" is when we're executing code
+for the first time, and we handle that with a simple copy.
+
+“未知类型”绝不会和任何已知类型合并。当我们第一次执行代码，并且我们持有一份简单的拷贝，寄存器
+才唯一一次从“未知类型”向“已知类型”转换。
+
+类型合并表
+*/
 const char gDvmMergeTab[kRegTypeMAX][kRegTypeMAX] =
 {
     /* chk:  _  U  X  0  1  Z  y  Y  h  H  c  i  b  B  s  S  C  I  F  N  n  J  j  D  d */
@@ -241,8 +403,10 @@ const char gDvmMergeTab[kRegTypeMAX][kRegTypeMAX] =
 
 #ifndef NDEBUG
 /*
- * Verify symmetry in the conversion table.
- */
+Verify symmetry in the conversion table.
+
+校验类型转换表的对称性，从对称的对角线取值，如果类型不一致，执行dvmAbort()。
+*/
 static void checkMergeTab()
 {
     int i, j;
@@ -259,11 +423,15 @@ static void checkMergeTab()
 #endif
 
 /*
- * Determine whether we can convert "srcType" to "checkType", where
- * "checkType" is one of the category-1 non-reference types.
- *
- * Constant derived types may become floats, but other values may not.
- */
+Determine whether we can convert "srcType" to "checkType", where
+"checkType" is one of the category-1 non-reference types.
+
+Constant derived types may become floats, but other values may not.
+
+“checkType”是分类-1非引用类型中的一个，确定我们是否可以将“srcType”转换到“checkType”。
+
+NOTE TODO：
+*/
 static bool canConvertTo1nr(RegType srcType, RegType checkType)
 {
     static const char convTab
@@ -306,8 +474,10 @@ static bool canConvertTo1nr(RegType srcType, RegType checkType)
 }
 
 /*
- * Determine whether the category-2 types are compatible.
- */
+Determine whether the category-2 types are compatible.
+
+确定分类-2类型是否兼容。
+*/
 static bool canConvertTo2(RegType srcType, RegType checkType)
 {
     return ((srcType == kRegTypeConstLo || srcType == checkType) &&
@@ -315,30 +485,45 @@ static bool canConvertTo2(RegType srcType, RegType checkType)
 }
 
 /*
- * Determine whether or not "instrType" and "targetType" are compatible,
- * for purposes of getting or setting a value in a field or array.  The
- * idea is that an instruction with a category 1nr type (say, aget-short
- * or iput-boolean) is accessing a static field, instance field, or array
- * entry, and we want to make sure sure that the operation is legal.
- *
- * At a minimum, source and destination must have the same width.  We
- * further refine this to assert that "short" and "char" are not
- * compatible, because the sign-extension is different on the "get"
- * operations.
- *
- * We're not considering the actual contents of the register, so we'll
- * never get "pseudo-types" like kRegTypeZero or kRegTypePosShort.  We
- * could get kRegTypeUnknown in "targetType" if a field or array class
- * lookup failed.  Category 2 types and references are checked elsewhere.
- */
+Determine whether or not "instrType" and "targetType" are compatible,
+for purposes of getting or setting a value in a field or array.  The
+idea is that an instruction with a category 1nr type (say, aget-short
+or iput-boolean) is accessing a static field, instance field, or array
+entry, and we want to make sure sure that the operation is legal.
+
+确定“instrType”和“targetType”是否兼容，是为了获取或设置一个域或数组的值。
+这种方式是为了1nr类型分类的指令（aget-short 或 iput-boolean）访问静态域，
+实例域，或数组入口，同时要确保操作合法。
+
+At a minimum, source and destination must have the same width.  We
+further refine this to assert that "short" and "char" are not
+compatible, because the sign-extension is different on the "get"
+operations.
+
+至少，源类型和目的类型必须具有相同的宽度。我们进一步完善“short”和“char”
+不兼容这一断言，因为在“get”操作上，符号扩展是不同的。
+
+We're not considering the actual contents of the register, so we'll
+never get "pseudo-types" like kRegTypeZero or kRegTypePosShort.  We
+could get kRegTypeUnknown in "targetType" if a field or array class
+lookup failed.  Category 2 types and references are checked elsewhere.
+
+我们不考虑真实寄存器的内容，因此我们从不获取“伪类型”，像kRegTypeZero或 
+kRegTypePosShort。我们可以获取“目标类型”中的“未知寄存器类型”，如果域或
+数组类型检索失败。分类2的类型和引用在其它位置已被检查。
+
+检查类型是否一致（兼容）
+*/
 static bool checkFieldArrayStore1nr(RegType instrType, RegType targetType)
 {
     return (instrType == targetType);
 }
 
 /*
- * Convert a VM PrimitiveType enum value to the equivalent RegType value.
- */
+Convert a VM PrimitiveType enum value to the equivalent RegType value.
+
+转换VM原始类型枚举值到等价的寄存器类型值，默认返回未知寄存器类型。
+*/
 static RegType primitiveTypeToRegType(PrimitiveType primType)
 {
     switch (primType) {
@@ -359,9 +544,14 @@ static RegType primitiveTypeToRegType(PrimitiveType primType)
 }
 
 /*
- * Convert a const derived RegType to the equivalent non-const RegType value.
- * Does nothing if the argument type isn't const derived.
- */
+Convert a const derived RegType to the equivalent non-const RegType value.
+Does nothing if the argument type isn't const derived.
+
+转换const衍生的寄存器类型到等价的 non-const寄存器类型。
+如果参数类型不是const衍生类型则不作任何事情。
+
+const类型转换寄存器类型。
+*/
 static RegType constTypeToRegType(RegType constType)
 {
     switch (constType) {
@@ -378,12 +568,19 @@ static RegType constTypeToRegType(RegType constType)
 }
 
 /*
- * Given a 32-bit constant, return the most-restricted RegType enum entry
- * that can hold the value. The types used here indicate the value came
- * from a const instruction, and may not correctly represent the real type
- * of the value. Upon use, a constant derived type is updated with the
- * type from the use, which will be unambiguous.
- */
+Given a 32-bit constant, return the most-restricted RegType enum entry
+that can hold the value. The types used here indicate the value came
+from a const instruction, and may not correctly represent the real type
+of the value. Upon use, a constant derived type is updated with the
+type from the use, which will be unambiguous.
+
+给定一个32位常量，返回可以持有值most-restricted寄存器类型枚举入口.这里
+使用的类型表明值来自于const指令，并且不能代表实际类型的值。
+
+NOTE TODO：
+
+根据1个32值返回寄存器类型值。
+*/
 static char determineCat1Const(s4 value)
 {
     if (value < -32768)
@@ -407,17 +604,28 @@ static char determineCat1Const(s4 value)
 }
 
 /*
- * Create a new uninitialized instance map.
- *
- * The map is allocated and populated with address entries.  The addresses
- * appear in ascending order to allow binary searching.
- *
- * Very few methods have 10 or more new-instance instructions; the
- * majority have 0 or 1.  Occasionally a static initializer will have 200+.
- *
- * TODO: merge this into the static pass or initRegisterTable; want to
- * avoid walking through the instructions yet again just to set up this table
- */
+Create a new uninitialized instance map.
+
+The map is allocated and populated with address entries.  The addresses
+appear in ascending order to allow binary searching.
+
+Very few methods have 10 or more new-instance instructions; the
+majority have 0 or 1.  Occasionally a static initializer will have 200+.
+
+TODO: merge this into the static pass or initRegisterTable; want to
+avoid walking through the instructions yet again just to set up this table
+
+创建一个新的未出初始化的实例集合map。
+
+这个map分配并填充地址项。这些地址以升序方式出现，允许二进制搜索。
+
+极少的方法有10个或更多的new-instance指令；大多数有0个或1个。偶然会有200多静态
+初始化器。
+
+创建未初始化的实例集合map
+
+NOTE TODO：参考oo-->Object.h-->Method结构体
+*/
 UninitInstanceMap* dvmCreateUninitInstanceMap(const Method* meth,
     const InsnFlags* insnFlags, int newInstanceCount)
 {
@@ -433,13 +641,15 @@ UninitInstanceMap* dvmCreateUninitInstanceMap(const Method* meth,
     }
 
     /*
-     * Allocate the header and map as a single unit.
-     *
-     * TODO: consider having a static instance so we can avoid allocations.
-     * I don't think the verifier is guaranteed to be single-threaded when
-     * running in the VM (rather than dexopt), so that must be taken into
-     * account.
-     */
+    Allocate the header and map as a single unit.
+    
+    TODO: consider having a static instance so we can avoid allocations.
+    I don't think the verifier is guaranteed to be single-threaded when
+    running in the VM (rather than dexopt), so that must be taken into
+    account.
+    
+    作为一个单独的单元分配头和map。
+    */
     int size = offsetof(UninitInstanceMap, map) +
                 newInstanceCount * sizeof(uninitMap->map[0]);
     uninitMap = (UninitInstanceMap*)calloc(1, size);
@@ -453,8 +663,10 @@ UninitInstanceMap* dvmCreateUninitInstanceMap(const Method* meth,
     }
 
     /*
-     * Run through and find the new-instance instructions.
-     */
+    Run through and find the new-instance instructions.
+    
+    通过new-instance指令运行查找
+    */
     for (addr = 0; addr < insnsSize; /**/) {
         int width = dvmInsnGetWidth(insnFlags, addr);
 
@@ -471,23 +683,25 @@ UninitInstanceMap* dvmCreateUninitInstanceMap(const Method* meth,
 }
 
 /*
- * Free the map.
- */
+Free the map.
+
+释放未初始化实例map的内存
+*/
 void dvmFreeUninitInstanceMap(UninitInstanceMap* uninitMap)
 {
     free(uninitMap);
 }
 
 /*
- * Set the class object associated with the instruction at "addr".
- *
- * Returns the map slot index, or -1 if the address isn't listed in the map
- * (shouldn't happen) or if a class is already associated with the address
- * (bad bytecode).
- *
- * Entries, once set, do not change -- a given address can only allocate
- * one type of object.
- */
+Set the class object associated with the instruction at "addr".
+
+Returns the map slot index, or -1 if the address isn't listed in the map
+(shouldn't happen) or if a class is already associated with the address
+(bad bytecode).
+
+Entries, once set, do not change -- a given address can only allocate
+one type of object.
+*/
 static int setUninitInstance(UninitInstanceMap* uninitMap, int addr,
     ClassObject* clazz)
 {
@@ -3446,8 +3660,12 @@ static void verifyPrep()
 }
 
 /*
- * Entry point for the detailed code-flow analysis of a single method.
- */
+Entry point for the detailed code-flow analysis of a single method.
+
+单个方法详细代码-流分析入口点
+
+NOTE TODO：做代码-流流程图
+*/
 bool dvmVerifyCodeFlow(VerifierData* vdata)
 {
     bool result = false;

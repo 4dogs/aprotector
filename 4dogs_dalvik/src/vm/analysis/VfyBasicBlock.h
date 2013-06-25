@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0.
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,9 +15,11 @@
  */
 
 /*
- * Basic block functions, as used by the verifier.  (The names were chosen
- * to avoid conflicts with similar structures used by the compiler.)
- */
+Basic block functions, as used by the verifier.  (The names were chosen
+to avoid conflicts with similar structures used by the compiler.)
+
+基本（程序）块，校验器使用。（为避免命名冲突，选择编译器使用的相同结构。）                      
+*/
 #ifndef DALVIK_VFYBASICBLOCK_H_
 #define DALVIK_VFYBASICBLOCK_H_
 

@@ -774,6 +774,7 @@ void dvmReportReturn(Thread* self)
  * TODO: method entry/exit events are probably less common than location
  * breakpoints.  We may be able to speed things up a bit if we don't query
  * the event list unless we know there's at least one lurking within.
+ * 更新调试器信息
  */
 static void updateDebugger(const Method* method, const u2* pc, const u4* fp,
                            Thread* self)
@@ -787,6 +788,7 @@ static void updateDebugger(const Method* method, const u2* pc, const u4* fp,
      * (which gets handled at PERIOD_CHECKS time).  One place where this
      * needs to be correct is in dvmAddSingleStep().
      */
+     /*更新pc*/
     dvmExportPC(pc, fp);
 
     if (self->debugIsMethodEntry) {
@@ -1042,6 +1044,8 @@ void dvmDumpRegs(const Method* method, const u4* framePtr, bool inOnly)
  *
  * Returns 3 if we don't find a match (it's the size of the packed-switch
  * instruction).
+ * 查找指定的case值的偏移(也就是看看提供的case值匹配switch指令中的第几个分支)，如果找到就返回偏移，否则返回3
+ * 这个3是正好是packed-switch指令的长度
  */
 s4 dvmInterpHandlePackedSwitch(const u2* switchData, s4 testVal)
 {
@@ -1056,6 +1060,12 @@ s4 dvmInterpHandlePackedSwitch(const u2* switchData, s4 testVal)
      *  ushort size             number of entries in the table
      *  int first_key           first (and lowest) switch case value
      *  int targets[size]       branch targets, relative to switch opcode
+     * struct  packed-switch-payload {
+     *		ushort ident;   /* 值固定为0x0100 */
+     *		ushort size;    /* case数目 */
+     *		int first_key;  /* 初始case的值 */
+     *		int[] targets;  /* 每个case相对switch指令处的偏移 */
+     *	};
      *
      * Total size is (4+size*2) 16-bit code units.
      */
@@ -1095,6 +1105,8 @@ s4 dvmInterpHandlePackedSwitch(const u2* switchData, s4 testVal)
  *
  * Returns 3 if we don't find a match (it's the size of the sparse-switch
  * instruction).
+ * 查找指定的case值的偏移(也就是看看提供的case值匹配switch指令中的第几个分支)，如果找到就返回偏移，否则返回3
+ * 这个3是正好是sparse-switch指令的长度
  */
 s4 dvmInterpHandleSparseSwitch(const u2* switchData, s4 testVal)
 {
@@ -1109,7 +1121,12 @@ s4 dvmInterpHandleSparseSwitch(const u2* switchData, s4 testVal)
      *  ushort size             number of entries in the table; > 0
      *  int keys[size]          keys, sorted low-to-high; 32-bit aligned
      *  int targets[size]       branch targets, relative to switch opcode
-     *
+     * struct sparse-switch-payload {
+     * 	ushort ident;   /* 值固定为0x0200 */
+     *  	ushort size;    /* case数目 */
+     *		int[] keys; /* 每个case的值，顺序从低到高 */
+     *		int[] targets;  /* 每个case相对switch指令处的偏移 */
+     *	 };
      * Total size is (2+size*4) 16-bit code units.
      */
 
@@ -1167,6 +1184,7 @@ s4 dvmInterpHandleSparseSwitch(const u2* switchData, s4 testVal)
  * exactly what we want for short/char data.  For byte data we need to undo
  * the swap, and for 4- or 8-byte values we need to swap pieces within
  * each word.
+ * 拷贝数据，主要是在fill-array-data时候使用
  */
 static void copySwappedArrayData(void* dest, const u2* src, u4 size, u2 width)
 {
@@ -1220,6 +1238,7 @@ static void copySwappedArrayData(void* dest, const u2* src, u4 size, u2 width)
  *
  * Returns true if job is completed, otherwise false to indicate that
  * an exception has been thrown.
+ * 用指定的数据来填充数组
  */
 bool dvmInterpHandleFillArrayData(ArrayObject* arrayObj, const u2* arrayData)
 {
@@ -1264,6 +1283,7 @@ bool dvmInterpHandleFillArrayData(ArrayObject* arrayObj, const u2* arrayData)
  * "method" is executing invoke-method with "thisClass" as its first argument.
  *
  * Returns NULL with an exception raised on failure.
+ * 通过methodIdx这个索引来查找到指定的对应方法
  */
 Method* dvmInterpFindInterfaceMethod(ClassObject* thisClass, u4 methodIdx,
     const Method* method, DvmDex* methodClassDex)
@@ -1341,6 +1361,7 @@ Method* dvmInterpFindInterfaceMethod(ClassObject* thisClass, u4 methodIdx,
  * Helpers for dvmThrowVerificationError().
  *
  * Each returns a newly-allocated string.
+ * 通过索引来获取类名
  */
 #define kThrowShow_accessFromClass     1
 static std::string classNameFromIndex(const Method* method, int ref,
@@ -1373,6 +1394,10 @@ static std::string classNameFromIndex(const Method* method, int ref,
 
     return result;
 }
+
+/*
+* 通过索引获取域名 
+*/
 static std::string fieldNameFromIndex(const Method* method, int ref,
     VerifyErrorRefType refType, int flags)
 {
@@ -1398,6 +1423,10 @@ static std::string fieldNameFromIndex(const Method* method, int ref,
     }
     return dotName + "." + fieldName;
 }
+
+/*
+* 通过索引来获取方法名
+*/
 static std::string methodNameFromIndex(const Method* method, int ref,
     VerifyErrorRefType refType, int flags)
 {
@@ -1433,6 +1462,7 @@ static std::string methodNameFromIndex(const Method* method, int ref,
  *
  * "kind" indicates the kind of failure encountered by the verifier.  It
  * has two parts, an error code and an indication of the reference type.
+ * 抛出一个异常(invoke-verification-error指令使用)
  */
 void dvmThrowVerificationError(const Method* method, int kind, int ref)
 {
@@ -1664,6 +1694,7 @@ void dvmArmSafePointCallback(Thread* thread, SafePointCallback funct,
 /*
  * One-time initialization at thread creation.  Here we initialize
  * useful constants.
+ * 初始化解释器的一些状态
  */
 void dvmInitInterpreterState(Thread* self)
 {
@@ -1913,6 +1944,8 @@ void dvmCheckBefore(const u2 *pc, u4 *fp, Thread* self)
  *
  * The interpreted stack frame, which holds the method arguments, has
  * already been set up.
+ * 解释器解释循环的主入口，通过传递一个指定的方法作为参数
+ * 执行的结果存放在pResult里面
  */
 void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
 {
@@ -1986,6 +2019,9 @@ void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
         dvmAbort();
     }
 
+   /*这里判断解释器的执行模式
+   * 一个是fast一个是portable
+   */
     typedef void (*Interpreter)(Thread*);
     Interpreter stdInterp;
     if (gDvm.executionMode == kExecutionModeInterpFast)
@@ -1999,9 +2035,10 @@ void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
     else
         stdInterp = dvmInterpretPortable;
 
-    // Call the interpreter
+    // Call the interpreter 正式的进入指定类型的解释器
     (*stdInterp)(self);
 
+    /*保存执行结果*/
     *pResult = self->interpSave.retval;
 
     /* Restore interpreter state from previous activation */
