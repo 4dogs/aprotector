@@ -156,59 +156,102 @@ struct UninitInstanceMap {
 #define kUninitThisArgSlot  0
 
 /*
- * Various bits of data used by the verifier and register map generator.
- */
+Various bits of data used by the verifier and register map generator.
+
+各种校验器和寄存器map生成器使用的数据位。
+
+校验数据结构体
+
+NOTE TODO：参考oo-->Object.h中Method结构体
+NOTE TODO：参考-->VerifySub.h中指令标识InsnFlags
+*/
 struct VerifierData {
     /*
-     * The method we're working on.
-     */
+    The method we're working on.
+    
+    方法结构体指针
+    */
     const Method*   method;
 
     /*
-     * Number of code units of instructions in the method.  A cache of the
-     * value calculated by dvmGetMethodInsnsSize().
-     */
+    Number of code units of instructions in the method.  A cache of the
+    value calculated by dvmGetMethodInsnsSize().
+    
+    方法中指令代码单元的数量。通过dvmGetMethodInsnsSize()计算缓存值。
+    
+    指令数
+    */
     u4              insnsSize;
 
     /*
-     * Number of registers we track for each instruction.  This is equal
-     * to the method's declared "registersSize".  (Does not include the
-     * pending return value.)
-     */
+    Number of registers we track for each instruction.  This is equal
+    to the method's declared "registersSize".  (Does not include the
+    pending return value.)
+    
+    我们跟踪每一条指令的寄存器数量。等于方法声明的“registersSize（寄存器数量）”。
+    （不要包含返回值）
+    
+    指令寄存器数
+    */
     u4              insnRegCount;
 
     /*
-     * Instruction widths and flags, one entry per code unit.
-     */
+    Instruction widths and flags, one entry per code unit.
+    
+    指令宽度和标识，每个代码带单元一个标识
+    
+    指令标识指针
+    */
     InsnFlags*      insnFlags;
 
     /*
-     * Uninitialized instance map, used for tracking the movement of
-     * objects that have been allocated but not initialized.
-     */
+    Uninitialized instance map, used for tracking the movement of
+    objects that have been allocated but not initialized.
+    
+    未初始化的实例map，用于跟踪已分配内存但未初始化的对象。
+    
+    未初始化实例map
+    */
     UninitInstanceMap* uninitMap;
 
     /*
-     * Array of RegisterLine structs, one entry per code unit.  We only need
-     * entries for code units that hold the start of an "interesting"
-     * instruction.  For register map generation, we're only interested
-     * in GC points.
-     */
+    Array of RegisterLine structs, one entry per code unit.  We only need
+    entries for code units that hold the start of an "interesting"
+    instruction.  For register map generation, we're only interested
+    in GC points.
+    
+    寄存器行结构体数组，每个代码单元一行。我们只需要持有“感兴趣”的指令
+    开始的代码单元行。对于寄存器map生成，我们只关注[GC points]
+    
+    寄存器行(s)指针
+    */
     RegisterLine*   registerLines;
 
     /*
-     * The number of occurrences of specific opcodes.
-     */
+    The number of occurrences of specific opcodes.
+    
+    已出现的具体操作码的个数
+    
+    新实例个数
+    */
     size_t          newInstanceCount;
+    
+    /*
+		
+		NOTE TODO：
+		*/
     size_t          monitorEnterCount;
 
     /*
-     * Array of pointers to basic blocks, one entry per code unit.  Used
-     * for liveness analysis.
-     */
+    Array of pointers to basic blocks, one entry per code unit.  Used
+    for liveness analysis.
+    
+    基本块指针数组，每个代码单元一个。为生命周期分析使用。
+    
+    NOTE TODO：参考-->VfyBasicBlock.h中VfyBasicBlock结构体
+    */
     VfyBasicBlock** basicBlocks;
 };
-
 
 /* table with static merge logic for primitive types */
 extern const char gDvmMergeTab[kRegTypeMAX][kRegTypeMAX];
