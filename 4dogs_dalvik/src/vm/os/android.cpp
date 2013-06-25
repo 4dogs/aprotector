@@ -44,7 +44,12 @@ static const int kNiceValues[10] = {
     ANDROID_PRIORITY_URGENT_DISPLAY + 2,
     ANDROID_PRIORITY_URGENT_DISPLAY         /* 10 (MAX_PRIORITY) */
 };
-
+/*
+ *更改系统线程的优先级来对应线程对象
+ *首先新的权限大于等于ANDROID_PRIORITY_BACKGROUND则需要改变系统线程权限为SP_BACKGROUND
+ *若新的权限小于ANDROID_PRIORITY_BACKGROUND并且当前线程权限大于等于ANDROID_PRIORITY_BACKGROUND，则更改系统线程权限为SP_FOREGROUND
+ *然后设置需要更改的线程权限
+ */
 void os_changeThreadPriority(Thread* thread, int newPriority)
 {
     if (newPriority < 1 || newPriority > 10) {
@@ -70,6 +75,10 @@ void os_changeThreadPriority(Thread* thread, int newPriority)
     }
 }
 
+/*
+ *通过查询系统权限获取当前线程的权限
+ *先获取系统权限sysprio，通过sysprio对比kNiceValues，获取到当前线程的权限。
+*/
 int os_getThreadPriorityFromSystem()
 {
     errno = 0;
@@ -92,6 +101,10 @@ int os_getThreadPriorityFromSystem()
     return jprio;
 }
 
+/*
+ *提升当前线程的权限
+ *若当前权限大于ANDROID_PRIORITY_NORMAL则说明权限很低，若权限大于等于ANDROID_PRIORITY_BACKGROUND则设置系统线程权限SP_FOREGROUND，设置当前线程权限ANDROID_PRIORITY_NORMAL
+ */
 int os_raiseThreadPriority()
 {
     /* Get the priority (the "nice" value) of the current thread.  The
@@ -125,6 +138,10 @@ int os_raiseThreadPriority()
     return INT_MAX;
 }
 
+/*
+ *撤销os_raiseThreadPriority所更改的权限
+ *oldThreadPriority是oldThreadPriority返回的值，若大于等于ANDROID_PRIORITY_BACKGROUND则设置系统线程为SP_BACKGROUND
+*/
 void os_lowerThreadPriority(int oldThreadPriority)
 {
     if (setpriority(PRIO_PROCESS, 0, oldThreadPriority) != 0) {
