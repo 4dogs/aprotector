@@ -22,6 +22,7 @@
 
 /*
  * Stash the dalvik PC in the frame.  Called  during interpretation.
+ * 将指定的pc保存在当前的fp指向的堆栈保存区域内
  */
 INLINE void dvmExportPC(const u2* pc, const u4* fp)
 {
