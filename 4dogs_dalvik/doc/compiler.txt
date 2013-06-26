@@ -1,7 +1,10 @@
 [整体介绍]
-JIT即Just In Time的缩写，是JAVA虚拟机优化技术的一种，此模块即实现dalvik虚拟机的JIT实现。据官方称，此技术可提速5倍。
-JIT只能与FAST模式的解释器配置起作用。用于将Dalvik字节码转换成本地平台的代码。有两种方式触发Jit的启用，一种是method模式，一种是track模式，前者用于将热点过多的函数
+Jit即Just In Time的缩写，是JAVA虚拟机优化技术的一种，此模块即实现dalvik虚拟机的Jit实现。据官方称，此技术可提速5倍。
+Jit只能与FAST模式的解释器配置起作用。用于将Dalvik字节码转换成本地平台的代码。有两种方式触发Jit的启用，一种是method模式，一种是track模式，前者用于将热点过多的函数
 整体编译为本地代码，后者用于将某个热点过多的代码块编译为本地代码。
+Jit的启动与卸载由dvmJitStartup和dvmJitShutdown函数完成，它们位于“dalvik/vm/interp/Jit.cpp”中，会由“dalvik/vm/Init.cpp”中的dvmStartup和dvmShutdown调用。在启动时首先调用dvmCompilerStartup(位于"daivik/vm/compiler/Compiler.cpp")来启动Compiler线程；当虚拟机关闭时，需要调用dvmCompilerShutdown函数来卸载。
+
 <dalvik/vm/compiler/Compiler.cpp>
+JIT编译器主要实现的场所
 <dalvik/vm/compiler/Frontend.cpp>
 用于实现method与trace两种模式触发的实现
