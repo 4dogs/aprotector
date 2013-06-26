@@ -34,6 +34,7 @@
  *
  * Currently this doesn't do much, since we don't need to zero out the
  * stack (and we really don't want to if it was created with mmap).
+ * 在一个线程中初始化解释器堆栈
  */
 bool dvmInitInterpStack(Thread* thread, int stackSize)
 {
@@ -59,6 +60,14 @@ bool dvmInitInterpStack(Thread* thread, int stackSize)
  * We start by inserting a "break" frame, which ensures that the interpreter
  * hands control back to us after the function we call returns or an
  * uncaught exception is thrown.
+ *
+ *
+ * <<<<<<<Native method ---> Native method>>>>>>>>>>>>>>>>>>
+ * 对于这两种情形，一般会往解释栈中推入两个帧。
+ * 第一个帧是中断帧，中断帧保证函数调用完或者有未捕获的异常抛出时
+ * ，控制权能交回到Dalvik；第二个函数帧才是给函数是用的。如何区分两者呢？
+ * 对函数帧而言，SatckSaveArea中的method指针指向对应的method区域，而中断帧的method指针为空。
+ * 在计算当前线程的栈帧深度时，中断帧被直接忽略掉，因为它仅是Dalvik为了能从错误中恢复的一种保护措施，并不代表真正的函数调用。
  */
 static bool dvmPushInterpFrame(Thread* self, const Method* method)
 {
@@ -70,10 +79,12 @@ static bool dvmPushInterpFrame(Thread* self, const Method* method)
     assert(!dvmIsNativeMethod(method));
     assert(!dvmIsAbstractMethod(method));
 
+    /*所需求的栈大小*/
     stackReq = method->registersSize * 4        // params + locals
-                + sizeof(StackSaveArea) * 2     // break frame + regular frame
+                + sizeof(StackSaveArea) * 2     // break frame + regular frame //两个框架
                 + method->outsSize * 4;         // args to other methods
-
+                
+    /*获取当前栈指针的位置*/
     if (self->interpSave.curFrame != NULL)
         stackPtr = (u1*) SAVEAREA_FROM_FP(self->interpSave.curFrame);
     else
@@ -135,6 +146,10 @@ static bool dvmPushInterpFrame(Thread* self, const Method* method)
  * This actually pushes two frames; the first is a "break" frame.
  *
  * The top frame has additional space for JNI local reference tracking.
+ *
+ *
+ *<<<<<<<<<<<<Java method ---> Native method>>>>>>>>>>>>>>>>>>>
+ *
  */
 bool dvmPushJNIFrame(Thread* self, const Method* method)
 {
@@ -211,6 +226,10 @@ bool dvmPushJNIFrame(Thread* self, const Method* method)
  * the stack that has no ins, outs, or locals, and no break frame above it.
  * It's strictly used for tracking JNI local refs, and will be popped off
  * by dvmPopFrame if it's not removed explicitly.
+ * 就是预留一片空间用来记录JNI局部引用
+ * 这个函数会被PushLocalFrame 用到
+ * 在释放的时候有对应的函数，但是如果释放不完全的话
+ * 那么就最终会被dvmPopFrame来处理
  */
 bool dvmPushLocalFrame(Thread* self, const Method* method)
 {
@@ -220,7 +239,7 @@ bool dvmPushLocalFrame(Thread* self, const Method* method)
 
     assert(dvmIsNativeMethod(method));
 
-    stackReq = sizeof(StackSaveArea);       // regular frame
+    stackReq = sizeof(StackSaveArea);       // regular frame 仅仅是一个保存区域
 
     assert(self->interpSave.curFrame != NULL);
     stackPtr = (u1*) SAVEAREA_FROM_FP(self->interpSave.curFrame);
@@ -271,6 +290,7 @@ bool dvmPushLocalFrame(Thread* self, const Method* method)
  *
  * If we've gone too far, the previous frame is either a break frame or
  * an interpreted frame.  Either way, the method pointer won't match.
+ * 弹出被PushLocalFrame 压入的栈框架
  */
 bool dvmPopLocalFrame(Thread* self)
 {
@@ -305,6 +325,8 @@ bool dvmPopLocalFrame(Thread* self)
  * popping multiple method frames before we find the break.
  *
  * Returns "false" if there was no frame to pop.
+ * 弹出栈框架(应该是包含一个方法框架和中断框架)
+ * 如果JNI的Push/PopLocalFrame等没有处理完全，那么会出现连续弹出多个方法框架直到遇到中断框架
  */
 static bool dvmPopFrame(Thread* self)
 {
@@ -351,6 +373,7 @@ static bool dvmPopFrame(Thread* self)
  * Common code for dvmCallMethodV/A and dvmInvokeMethod.
  *
  * Pushes a call frame on, advancing self->interpSave.curFrame.
+ * 插入一个调用框架(通过调用dvmCallMethodV/A and dvmInvokeMethod时发生)
  */
 static ClassObject* callPrep(Thread* self, const Method* method, Object* obj,
     bool checkAccess)
@@ -724,6 +747,7 @@ Object* dvmInvokeMethod(Object* obj, const Method* method,
     }
 #endif
 
+    /*如果是native函数那么直接执行，否则的话就进入解释器*/
     if (dvmIsNativeMethod(method)) {
         TRACE_METHOD_ENTER(self, method);
         /*
@@ -836,6 +860,8 @@ int dvmLineNumFromPC(const Method* method, u4 relPc)
  * Compute the frame depth.
  *
  * Excludes "break" frames.
+ * 计算框架的总深度，因为一旦发生一个互相的调用，就会push一个框架
+ * 但是中断框架不计算在内，因为他没有构成一个调用
  */
 int dvmComputeExactFrameDepth(const void* fp)
 {
@@ -857,6 +883,7 @@ int dvmComputeExactFrameDepth(const void* fp)
  *
  * Useful for implementing single-step debugger modes, which may need to
  * call this for every instruction.
+ * 计算模糊的框架深度(主要是单步调试模式使用)
  */
 int dvmComputeVagueFrameDepth(Thread* thread, const void* fp)
 {
@@ -871,6 +898,7 @@ int dvmComputeVagueFrameDepth(Thread* thread, const void* fp)
  * Get the calling frame.  Pass in the current fp.
  *
  * Skip "break" frames and reflection invoke frames.
+ * 获取调用者的框架指针(中断框架和反射调用框架除外)
  */
 void* dvmGetCallerFP(const void* curFrame)
 {
@@ -904,6 +932,7 @@ retry:
  * Get the caller's class.  Pass in the current fp.
  *
  * This is used by e.g. java.lang.Class.
+ * 获取调用者所属的类
  */
 ClassObject* dvmGetCallerClass(const void* curFrame)
 {
@@ -921,6 +950,7 @@ ClassObject* dvmGetCallerClass(const void* curFrame)
  *
  * This is used by e.g. java.lang.Class, which wants to know about the
  * class loader of the method that called it.
+ * 获取调用者的上级调用者所属类
  */
 ClassObject* dvmGetCaller2Class(const void* curFrame)
 {
@@ -945,6 +975,7 @@ ClassObject* dvmGetCaller2Class(const void* curFrame)
  *
  * This is used by e.g. java.lang.Class, which wants to know about the
  * class loader of the method that called it.
+ * 获取调用者上级的上级所属类
  */
 ClassObject* dvmGetCaller3Class(const void* curFrame)
 {
@@ -971,7 +1002,8 @@ ClassObject* dvmGetCaller3Class(const void* curFrame)
  * stack trace.  Pass in the current frame ptr.  Break frames are
  * skipped, but reflection invocations are not.
  *
- * The current frame will be in element 0.
+ * The current frame will be in element 0
+ * 将当前框架中的所有方法.填充到一个数组
  */
 void dvmFillStackTraceArray(const void* fp, const Method** array, size_t length)
 {
@@ -997,6 +1029,7 @@ void dvmFillStackTraceArray(const void* fp, const Method** array, size_t length)
  * finished doing its processing.  This is because the catch handler may
  * need to resolve classes, which requires calling into the class loader if
  * the classes aren't already in the "initiating loader" list.
+ * 栈溢出时候抛出异常
  */
 void dvmHandleStackOverflow(Thread* self, const Method* method)
 {
@@ -1183,6 +1216,7 @@ static void printWaitMessage(const DebugOutputTarget* target, const char* detail
  * an updated version in the fame's "xtra.currentPc", but it's unreliable.
  *
  * Note "framePtr" could be NULL in rare circumstances.
+ * 循环递归转储栈框架信息
  */
 static void dumpFrames(const DebugOutputTarget* target, void* framePtr,
     Thread* thread)
@@ -1299,6 +1333,7 @@ static void dumpFrames(const DebugOutputTarget* target, void* framePtr,
 
 /*
  * Dump the stack for the specified thread.
+ * 转储指定进程的栈框架信息
  */
 void dvmDumpThreadStack(const DebugOutputTarget* target, Thread* thread)
 {
@@ -1315,6 +1350,7 @@ void dvmDumpThreadStack(const DebugOutputTarget* target, Thread* thread)
  * work reasonably well on a single-CPU system.
  *
  * There is a small chance that calling here will crash the VM.
+ * 转储正在运行中的指定进程的栈框架信息
  */
 void dvmDumpRunningThreadStack(const DebugOutputTarget* target, Thread* thread)
 {
@@ -1382,6 +1418,7 @@ void dvmDumpRunningThreadStack(const DebugOutputTarget* target, Thread* thread)
 
 /*
  * Dump the native stack for the specified thread.
+ * 转储指定进程的本地栈信息
  */
 void dvmDumpNativeStack(const DebugOutputTarget* target, pid_t tid)
 {
