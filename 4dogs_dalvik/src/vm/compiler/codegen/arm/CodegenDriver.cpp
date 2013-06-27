@@ -4603,16 +4603,31 @@ gen_fallthrough:
  * Accept the work and start compiling.  Returns true if compilation
  * is attempted.
  */
+/**
+ * @brief 进行编译工作
+ * @param work 订单的指针
+ * @retval 0 表示失败
+ * @retval 1 表示成功
+ * @note 由"vm/compiler/Compiler.cpp"中的compilerThreadStart线程函数进行调用
+ * 这里也只是做一些常规检查以及订单类型的检查，订单类型并没有处理method的类型
+ * 通过dvmCompilerTrace进行对Trace模式下的编译。此函数位于
+ * "vm/compiler/Frontend.cpp"中。
+ */
 bool dvmCompilerDoWork(CompilerWorkOrder *work)
 {
     JitTraceDescription *desc;
     bool isCompile;
     bool success = true;
 
+	/* 如果代码缓冲区已经满了则直接退出 */
     if (gDvmJit.codeCacheFull) {
         return false;
     }
 
+	/* 
+	 * 检查订单类型 
+	 * 从下面的case可以看出没有对method的编译
+	 */
     switch (work->kind) {
         case kWorkOrderTrace:
             isCompile = true;
@@ -4622,7 +4637,7 @@ bool dvmCompilerDoWork(CompilerWorkOrder *work)
                                         work->bailPtr, 0 /* no hints */);
             break;
         case kWorkOrderTraceDebug: {
-            bool oldPrintMe = gDvmJit.printMe;
+            bool oldPrintMe = gDvmJit.printMe;		/* 开来编译调试版本与发布版本区别也在于此 是否打印调试信息 */
             gDvmJit.printMe = true;
             isCompile = true;
             /* Start compilation with maximally allowed trace length */

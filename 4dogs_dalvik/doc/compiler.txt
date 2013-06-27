@@ -4,7 +4,32 @@ Jit只能与FAST模式的解释器配置起作用。用于将Dalvik字节码转�
 整体编译为本地代码，后者用于将某个热点过多的代码块编译为本地代码。
 Jit的启动与卸载由dvmJitStartup和dvmJitShutdown函数完成，它们位于“dalvik/vm/interp/Jit.cpp”中，会由“dalvik/vm/Init.cpp”中的dvmStartup和dvmShutdown调用。在启动时首先调用dvmCompilerStartup(位于"daivik/vm/compiler/Compiler.cpp")来启动Compiler线程；当虚拟机关闭时，需要调用dvmCompilerShutdown函数来卸载。
 
+[相关宏介绍]
+WITH_JIT 只有在编译时打开此宏，JIT模块才能编译进虚拟机中
+WITH_JIT_TUNING 打开此宏后会统计编译信息。在发布版本时可以关闭，用于调试。
+
+
+[编译流程图]
+以trace模式为例
+dvmCompilerStartup -> compilerThreadStart(线程) -> dvmCompilerDoWork(codegen/arm|mips|x86) -> dvmCompileTrace
+
 <dalvik/vm/compiler/Compiler.cpp>
 JIT编译器主要实现的场所
+入口函数为dvmCompilerStartup,此函数被主目录下的Init.cpp文件调用产生编译初始化。这个函数会开辟一条compilerThreadStart
+的线程用于等待编译订单。取得订单后，会对编译代码缓冲区进行检查，在检查通过后
+会调用dvmCompilerDoWork进行编译工作，这个函数在vm/compiler/codegen目录下的
+mips,arm两个目录的CodegenDriver.cpp以及x86目录的CodegenInterface.cpp中都各有
+实现，可以看出这个函数是针对平台而言的。
+
+<dalvik/vm/compiler/codegen/arm/CodegenDriver.cpp>
+这个模块的主要功能是编译在arm平台下的代码
+
 <dalvik/vm/compiler/Frontend.cpp>
-用于实现method与trace两种模式触发的实现
+从文件名的可以看出这是编译器前端部分的操作，将源代码先翻译成中间代码
+用于实现method与trace两种模式编译的实现,其中重要的接口函数有dvmCompileTrace
+dvmCompileMethod。
+
+<dalvik/vm/compiler/IntermediateRep.cpp>
+在编译的过程中，有两级指令，一个是中间指令MIR，一个是低级别指令LIR。并且
+在编译过程中，有一个被称作为BasicBlock的数据结构来保存以上的信息，来辅助
+完成编译，这个模块就是针对BasicBlock链表进行操作的。

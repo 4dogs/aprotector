@@ -126,14 +126,15 @@ typedef struct CallsiteInfo {
 } CallsiteInfo;
 
 typedef struct MIR {
-    DecodedInstruction dalvikInsn;
-    unsigned int width;
-    unsigned int offset;
-    struct MIR *prev;
-    struct MIR *next;
+    DecodedInstruction dalvikInsn;			/* dalvik指令解码结构 */
+    unsigned int width;						/* 指令长度 */
+    unsigned int offset;					/* 在dalvik字节代码中的偏移 */
+    struct MIR *prev;						/* 上一条指令 */
+    struct MIR *next;						/* 下一条指令 */
     struct SSARepresentation *ssaRep;
-    int OptimizationFlags;
+    int OptimizationFlags;					/* 优化选项 */
     int seqNum;
+	/* 这个联合体用于找到调用此函数的函数callee */
     union {
         // Used by the inlined insn from the callee to find the mother method
         const Method *calleeMethod;
