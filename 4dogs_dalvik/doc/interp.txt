@@ -1,5 +1,5 @@
 ﻿[整体介绍]
-Interpreter的主架构实现，调用mterp目录中的bytecode，完成虚拟机指令的执行。
+Interpreter的主架构实现，调用mterp目录中的bytecode，完成虚拟机指令的执行。同时提供了JIT需求的一些功能的实现。在该主架构中也会涉及到jit的调用。
 
 解释器解释执行一个java字节码的过程如下：
 1.AndroidRuntime::start -> startVm()
