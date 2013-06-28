@@ -63,5 +63,8 @@ Low addresses (0x00000000)
 
 High addresses (0xffffffff)
 
+<dalvik\vm\interp\InterpState.h>
+dalvik 虚拟机中解释器相关的定义（包括类型定义，函数声明以及内敛函数等等）
+
 <dalvik\vm\interp\Jit.cpp>
 JIT相关，供外界调用的入口。
