@@ -1,7 +1,67 @@
 ﻿[整体介绍]
+Interpreter的主架构实现，调用mterp目录中的bytecode，完成虚拟机指令的执行。
+
+解释器解释执行一个java字节码的过程如下：
+1.AndroidRuntime::start -> startVm()
+2.JNIEnv::CallStaticVoidMethod -> 
+3.JNINativeInterface::CallStaticVoidMethodV -> 
+4.vm/interp/Stack.cpp/dvmCallMethodV ->
+5.vm/interp/interp.cpp/dvmInterpret -> 
+6.dvmInterpretPortable 或者 dvmMterpStd
+
+解释：
+1.创建并启动虚拟机实例，Dalvik虚拟机在Zygote进程中启动完成之后，就会获得一个JavaVM实例和一个JNIEnv实例。获得的JavaVM实例就是用来描述Zygote进程的Dalvik虚拟机实例，而获得的JNIEnv实例描述的是Zygote进程的主线程的JNI环境。
+
+2.Zygote进程就会通过前面获得的JNIEnv实例的成员函数CallStaticVoidMethod来调用com.android.internal.os.ZygoteInit类的静态成员函数main。这就相当于是将com.android.internal.os.ZygoteInit类的静态成员函数main作为Java代码的入口点。
+
+3.JNINativeInterface是一个结构体，它的成员变量CallStaticVoidMethodV是一个函数指针。CallStaticVoidMethodV的实现很简单，它通过调用另外一个函数dvmCallMethodV来执行由参数jclazz和methodID所描述的Java代码
+
+4.函数dvmCallMethodV首先检查参数method描述的函数是否是一个JNI方法。如果是的话，那么它所指向的一个Method对象的成员变量nativeFunc就指向该JNI方法的地址，因此就可以直接对它进行调用。否则的话，就说明参数method描述的是一个Java函数，这时候就需要继续调用函数dvmInterpret来执行它的代码。
+
+5.dvmInterpret中判断当前选定的执行模式
+
+6.跳转到具体的解释器中执行，解释完成指定的Java函数之后，获得的返回值就保存在上述InterpState结构体的成员变量retval中。
 
 [dalvik\vm\interp\interp.cpp]
-实现解释器的入口功能，同时由于在解释过程中需要和调试器进行交互，因此提供了一些调试功能函数的实现.
+实现解释器的入口功能，同时由于在解释过程中需要和调试器进行交互，因此提供了一些调试功能函数的实现.最主要的就是根据当前的系统设置来确定虚拟机运行模式（fast，jit，portable），不同的模式进入不同的解释器入口。虽然有三种运行模式，但是实际上仅仅是两个入口（dvmMterpStd和dvmInterpretPortable，详见dvmInterpret函数的实现）。
 
 [dalvik\vm\interp\Stack.cpp]
-定义了Dalvik栈的初始化，帧入栈，帧出栈和栈的dump等操作.
+定义了Dalvik栈的初始化，帧入栈，帧出栈和栈的dump等操作.帧有三种基本类型（函数帧，中断帧，本地索引帧）
+
+下面是一个简单的实例帧的分布情况
+Low addresses (0x00000000)
+
+                     +- - - - - - - - -+
+                     -  out0           -
+                     +-----------------+  <-- stack ptr (top of stack)
+                     +  VM-specific    +
+                     +  internal goop  +
+                     +-----------------+  <-- curFrame: FP for cur function
+                     +  v0 == local0   +
++-----------------+  +-----------------+
++  out0           +  +  v1 == in0      +
++-----------------+  +-----------------+
++  out1           +  +  v2 == in1      +
++-----------------+  +-----------------+
++  VM-specific    +
++  internal goop  +
++-----------------+  <-- frame ptr (FP) for previous function
++  v0 == local0   +
++-----------------+
++  v1 == local1   +
++-----------------+
++  v2 == in0      +
++-----------------+
++  v3 == in1      +
++-----------------+
++  v4 == in2      +
++-----------------+
+-                 -
+-                 -
+-                 -
++-----------------+  <-- interpStackStart
+
+High addresses (0xffffffff)
+
+<dalvik\vm\interp\Jit.cpp>
+JIT相关，供外界调用的入口。
