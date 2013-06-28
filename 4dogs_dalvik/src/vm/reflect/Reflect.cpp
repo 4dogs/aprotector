@@ -16,6 +16,9 @@
 /*
  * Basic reflection calls and utility functions.
  */
+/*
+ * 基本的反射调用和工具函数
+ */
 #include "Dalvik.h"
 
 #include <stdlib.h>
@@ -28,6 +31,13 @@
  * To verify this, we either need to ensure that the class has only one
  * instance field, or we need to look up the field by name and verify
  * that it comes first.  The former is simpler, and should work.
+ */
+
+/*
+ * 我们需要未装箱的原始类型作为一些反射原料
+ *
+ * 验证Dalvik虚拟机中存在相应的装箱类，并且这些装箱类有且仅有一个成员变量，这个成员变量是用来描述对应的数字值的。
+ * 这些装箱类包括java.lang.Boolean、java.lang.Character、java.lang.Float、java.lang.Double、java.lang.Byte、java.lang.Short、java.lang.Integer和java.lang.Long。
  */
 bool dvmValidateBoxClasses()
 {
@@ -46,7 +56,8 @@ bool dvmValidateBoxClasses()
 
     for (ccp = classes; *ccp != NULL; ccp++) {
         ClassObject* clazz;
-
+		
+		/* 使用指定类加载器来查找给出描述名称的类 */
         clazz = dvmFindClassNoInit(*ccp, NULL);
         if (clazz == NULL) {
             ALOGE("Couldn't find '%s'", *ccp);
@@ -121,6 +132,9 @@ static ClassObject* convertSignaturePartToClass(char** pSignature,
  *
  * "defClass" is the method's class, which is needed to make class loaders
  * happy.
+ */
+/*
+ * 转换一个方法签名到数组类
  */
 static ArrayObject* convertSignatureToClassArray(char** pSignature,
     ClassObject* defClass)

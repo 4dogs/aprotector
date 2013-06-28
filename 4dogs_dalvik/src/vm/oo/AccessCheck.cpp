@@ -16,10 +16,19 @@
 /*
  * Check access to fields and methods.
  */
+/*
+ * 检查访问的字段和方法
+ *
+ */
 #include "Dalvik.h"
 
 /*
  * Return the #of initial characters that match.
+ */
+/*
+ * 返回首字母匹配的状态(1,or 0)
+ * 
+ * 如果'str1'首字母为空则为0;如果'str1'与'str2'的首字母相同则为1，反之为0
  */
 static int strcmpCount(const char* str1, const char* str2)
 {
@@ -35,6 +44,10 @@ static int strcmpCount(const char* str1, const char* str2)
 
 /*
  * Returns "true" if the two classes are in the same runtime package.
+ */
+/*
+ * 如果这两个类在同一个运行时包里面，则返回"true"
+ *
  */
 bool dvmInSamePackage(const ClassObject* class1, const ClassObject* class2)
 {
@@ -85,6 +98,10 @@ bool dvmInSamePackage(const ClassObject* class1, const ClassObject* class2)
 /*
  * Validate method/field access.
  */
+/*
+ * 验证方法和字段的访问
+ *
+ */
 static bool checkAccess(const ClassObject* accessFrom,
     const ClassObject* accessTo, u4 accessFlags)
 {
@@ -122,6 +139,12 @@ static bool checkAccess(const ClassObject* accessFrom,
  * inner classes can be marked "private" or "protected", so we don't need
  * to check for it here.)
  */
+/*
+ *
+ * 判断'accessFrom'类是否被允许去访问'clazz' 
+ *
+ * 如果'clazz'是public的或者在一个相同的包里它将被允许访问.(仅仅内部类能被标记为'private' or 'protected',因些我们在它这儿不需要去检查、判断)
+ */
 bool dvmCheckClassAccess(const ClassObject* accessFrom,
     const ClassObject* clazz)
 {
@@ -133,6 +156,11 @@ bool dvmCheckClassAccess(const ClassObject* accessFrom,
 /*
  * Determine whether the "accessFrom" class is allowed to get at "method".
  */
+/*
+ *
+ * 判断'accessFrom'类是否被允许去访问'method'
+ *
+ */
 bool dvmCheckMethodAccess(const ClassObject* accessFrom, const Method* method)
 {
     return checkAccess(accessFrom, method->clazz, method->accessFlags);
@@ -140,6 +168,11 @@ bool dvmCheckMethodAccess(const ClassObject* accessFrom, const Method* method)
 
 /*
  * Determine whether the "accessFrom" class is allowed to get at "field".
+ */
+/*
+ *
+ * 判断'accessFrom'类是否被允许去访问'field'
+ *
  */
 bool dvmCheckFieldAccess(const ClassObject* accessFrom, const Field* field)
 {

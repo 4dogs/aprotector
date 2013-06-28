@@ -27,6 +27,13 @@
  * "resolved stuff" tables for static fields and methods, because they do
  * not perform initialization.)
  */
+/*
+ * 解析类，方法 ，字段和字符串
+ *
+ * 根据'VM'规范,类可能通过'new ','getstatic','pubstatic','invokestatic'指令被初始化
+ * 如果我们要解析静态方法或静态字段，那我们将在这儿进行初始化校验
+ *
+ */
 #include "Dalvik.h"
 
 #include <stdlib.h>
@@ -59,6 +66,24 @@
  * use class constants not resolved by the bytecode verifier.
  *
  * Returns NULL with an exception raised on failure.
+ */
+/*
+ * 解析一个类文件
+ *
+ * 查找类所对应的'classIdx','classIdx'映射一个类字符串，它可能被相同的'.dex'文件所引用.在不同的'.dex'文件中，可能通过类加载器、或者通过虚拟机生成.
+ * 
+ * 因为'DexTypeId'与涉及的'.dex'文件相关联，所以我们不得不去解析一些类，甚至它可能从多个不同的'.dex'类文件中被提及.'.dex'文件关联不同的类加载器，所以这个属性是必须的.
+ *
+ * 我们从查找到的'.dex'文件的'resolved class'表中缓冲一份拷贝.今后在备用查询'classIdx'时将会更快.
+ *
+ * 注意， 这个'referrer'可能和这个过程有关.
+ *
+ * 传统的虚拟机可以在这儿去做访问检查.但是在Dalvik类中，'.dex'文件的所有类的常量池是被共享的，我们依赖校验机去对我们做检查
+ *
+ * 不要初始化类
+ *
+ * 如果这个调用是执行 'const-class'或'instance-of'指令的直接结果，'fromUnverifiedConstant'应该仅仅被设置.使用一个类常量不通过字节校验器解析
+ *
  */
 ClassObject* dvmResolveClass(const ClassObject* referrer, u4 classIdx,
     bool fromUnverifiedConstant)
@@ -173,6 +198,14 @@ ClassObject* dvmResolveClass(const ClassObject* referrer, u4 classIdx,
  * If this is a static method, we ensure that the method's class is
  * initialized.
  */
+/*
+ * 解析方法
+ *
+ * 查找方法所对应的'methodRef'. 我们使用'referrer'去'.dex'文件的常量池中查找,'methodRef'是个索引.同样我们也使用他的类加载器.在不同的'.dex'文件中方法可能被很好的解析
+ * 
+ * 如果这是一个静态方法，我们确信一个类方法将被初始化
+ *
+ */
 Method* dvmResolveMethod(const ClassObject* referrer, u4 methodIdx,
     MethodType methodType)
 {
@@ -284,6 +317,10 @@ Method* dvmResolveMethod(const ClassObject* referrer, u4 methodIdx,
  *
  * Returns NULL with an exception raised on failure.
  */
+/*
+ * 解析一个与接口相关的方法
+ *
+ */
 Method* dvmResolveInterfaceMethod(const ClassObject* referrer, u4 methodIdx)
 {
     DvmDex* pDvmDex = referrer->pDvmDex;
@@ -386,6 +423,10 @@ Method* dvmResolveInterfaceMethod(const ClassObject* referrer, u4 methodIdx)
  * Returns NULL and throws an exception on error (no such field, illegal
  * access).
  */
+/*
+ * 解析相关的实例化字段
+ *
+ */
 InstField* dvmResolveInstField(const ClassObject* referrer, u4 ifieldIdx)
 {
     DvmDex* pDvmDex = referrer->pDvmDex;
@@ -447,6 +488,10 @@ InstField* dvmResolveInstField(const ClassObject* referrer, u4 ifieldIdx)
  * in the Dex struct will have the wrong type.  We trivially cast it here.
  *
  * Causes the field's class to be initialized.
+ */
+/*
+ * 解析相关的静态字段. '.dex'文件格式在静态字段和实例化字段之间不作区分,因些,在解析DEX结构时将会有错误类型，我们通常在这儿转换它
+ *
  */
 StaticField* dvmResolveStaticField(const ClassObject* referrer, u4 sfieldIdx)
 {
@@ -514,6 +559,12 @@ StaticField* dvmResolveStaticField(const ClassObject* referrer, u4 sfieldIdx)
  * java/lang/String object, not a bunch of characters, which means the
  * first time we get here we need to create an interned string.
  */
+/*
+ * 解析相关的字符串.
+ *
+ * 查找字符串是容易的. 我们需要返回一个java/lang/String对象而不是一串字符串.这意味首我们在这儿第一次使用，我们需要去创建一个'an interned string'
+ *
+ */
 StringObject* dvmResolveString(const ClassObject* referrer, u4 stringIdx)
 {
     DvmDex* pDvmDex = referrer->pDvmDex;
@@ -564,6 +615,10 @@ bail:
 
 /*
  * For debugging: return a string representing the methodType.
+ */
+/*
+ * 返回方法字符 (eg.传入METHOD_VIRTUAL，则返回'virtual')
+ *
  */
 const char* dvmMethodTypeStr(MethodType methodType)
 {

@@ -16,6 +16,10 @@
 /*
  * Array objects.
  */
+/*
+ * 针对数组对象的一些操作
+ *
+ */
 #include "Dalvik.h"
 
 #include <stdlib.h>
@@ -34,6 +38,11 @@ static ClassObject* createArrayClass(const char* descriptor, Object* loader);
  * Pass in the array class and the width of each element.
  *
  * On failure, returns NULL with an exception raised.
+ */
+/*
+ * 为一个新的数组对象分配空间，这是一个最简单的分配方式.
+ *
+ * 执行失败, 一个异常发生,返回NULL 
  */
 static ArrayObject* allocArray(ClassObject* arrayClass, size_t length,
     size_t elemWidth, int allocFlags)
@@ -68,6 +77,10 @@ static ArrayObject* allocArray(ClassObject* arrayClass, size_t length,
  * Create a new array, given an array class.  The class may represent an
  * array of references or primitives.
  */
+/*
+ * 创建一个新的数组，指定一个数组类，这个类可能是一个数组的引用或者是基本的类型
+ *
+ */
 ArrayObject* dvmAllocArrayByClass(ClassObject* arrayClass,
     size_t length, int allocFlags)
 {
@@ -87,6 +100,10 @@ ArrayObject* dvmAllocArrayByClass(ClassObject* arrayClass,
 /*
  * Find the array class for "elemClassObj", which could itself be an
  * array class.
+ */
+/*
+ * 查找数组类的'elemClassObj',这本身可能就是一个数组类
+ *
  */
 ClassObject* dvmFindArrayClassForElement(ClassObject* elemClassObj)
 {
@@ -109,6 +126,11 @@ ClassObject* dvmFindArrayClassForElement(ClassObject* elemClassObj)
  * Create a new array that holds primitive types.
  *
  * "type" is the primitive type letter, e.g. 'I' for int or 'J' for long.
+ */
+/*
+ * 创建一个新的原生数组类型. 'type'是一个原生的类型字符. 例如. 'I'是int类型 或 'J'是long类型
+ *
+ *
  */
 ArrayObject* dvmAllocPrimitiveArray(char type, size_t length, int allocFlags)
 {
@@ -167,6 +189,11 @@ ArrayObject* dvmAllocPrimitiveArray(char type, size_t length, int allocFlags)
  *
  * The dimension we're creating is in dimensions[0], so when we recurse
  * we advance the pointer.
+ */
+/*
+ *  递归地创建一个多维数组.每个元素可能是一个对象或者原始数据类型
+ *
+ *  当我们创建的尺寸是在'dimensions[0]'中，我们需要递归的移动指针
  */
 ArrayObject* dvmAllocMultiArray(ClassObject* arrayClass, int curDim,
     const int* dimensions)
@@ -240,6 +267,10 @@ ArrayObject* dvmAllocMultiArray(ClassObject* arrayClass, int curDim,
  *
  * If the element class doesn't exist, we return NULL (no exception raised).
  */
+/*
+ * 查找一个数组类，通过名称(e.g. '[I') ,如果数组不存在，我们将创建它;如果类元素不存在，我们将返回NULL
+ *
+ */
 ClassObject* dvmFindArrayClass(const char* descriptor, Object* loader)
 {
     ClassObject* clazz;
@@ -271,6 +302,12 @@ ClassObject* dvmFindArrayClass(const char* descriptor, Object* loader)
  * always comes from the base element class.
  *
  * Returns NULL with an exception raised on failure.
+ */
+/*
+ * 创建一个数组类,(即. 类对象数组,本身不能是数组).'descriptor' 参数值类似于'[C' or '[Ljava/lang/String;'
+ *
+ * 如果'descriptor'关联到一个原生数组，那么查找内部生成类对象的原始类型
+ *
  */
 static ClassObject* createArrayClass(const char* descriptor, Object* loader)
 {
@@ -489,6 +526,10 @@ static ClassObject* createArrayClass(const char* descriptor, Object* loader)
  * Copy the entire contents of one array of objects to another.  If the copy
  * is impossible because of a type clash, we fail and return "false".
  */
+/*
+ * 拷贝全部的内容到另一个对象数组中;如果无法完成复制，那是因为类型发生冲突;失败后，我们将返回'false'
+ *
+ */
 bool dvmCopyObjectArray(ArrayObject* dstArray, const ArrayObject* srcArray,
     ClassObject* dstElemClass)
 {
@@ -517,6 +558,10 @@ bool dvmCopyObjectArray(ArrayObject* dstArray, const ArrayObject* srcArray,
  * Copy the entire contents of an array of boxed primitives into an
  * array of primitives.  The boxed value must fit in the primitive (i.e.
  * narrowing conversions are not allowed).
+ */
+/*
+ * 拷贝一个已装箱的数组全部内容到一个原始数组，这个装箱值必须是适合的 (i.e. 缩小转换是不允许的)
+ *
  */
 bool dvmUnboxObjectArray(ArrayObject* dstArray, const ArrayObject* srcArray,
     ClassObject* dstElemClass)
@@ -593,6 +638,10 @@ bool dvmUnboxObjectArray(ArrayObject* dstArray, const ArrayObject* srcArray,
  * Returns the width, in bytes, required by elements in instances of
  * the array class.
  */
+/*
+ * 以字节为单位返回宽度.实例化数组类中的元素是必须的
+ *
+ */
 size_t dvmArrayClassElementWidth(const ClassObject* arrayClass)
 {
     const char *descriptor;
@@ -620,6 +669,10 @@ size_t dvmArrayClassElementWidth(const ClassObject* arrayClass)
     return 0;  /* Quiet the compiler. */
 }
 
+/*
+ * 返回数组对象的大小
+ *
+ **/
 size_t dvmArrayObjectSize(const ArrayObject *array)
 {
     assert(array != NULL);

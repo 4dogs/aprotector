@@ -16,6 +16,9 @@
 /*
  * instanceof, checkcast, etc.
  */
+/*
+ * 类型检测、转换
+ */
 #include "Dalvik.h"
 
 #include <stdlib.h>
@@ -29,6 +32,10 @@
 
 /*
  * Number of entries in instanceof cache.  MUST be a power of 2.
+ */
+/*
+ * 类实例缓冲条目的大小，必须是2的倍数
+ *
  */
 #define INSTANCEOF_CACHE_SIZE   1024
 
@@ -77,6 +84,11 @@ void dvmInstanceofShutdown()
  *
  * "subDim" is usually just sub->dim, but for some kinds of checks we want
  * to pass in a non-array class and pretend that it's an array.
+ */
+/*
+ * 判断'subElemClass'是否是'clazz'的实例，这两个都是数组.
+ * 
+ * 'subDim'字面量意思就是 sub->dim,如果没有一些类型的检测,我们想要去传递一个非数组类型，那么就假设成它是一个数组
  */
 static int isArrayInstanceOfArray(const ClassObject* subElemClass, int subDim,
     const ClassObject* clazz)
@@ -134,6 +146,10 @@ static int isArrayInstanceOfArray(const ClassObject* subElemClass, int subDim,
  *
  * "clazz" could be an array class, interface, or simple class.
  */
+/* 
+ * 判断 'sub' 是否是 'clazz' 的子类，并且是否为数组类
+ * 'clazz'可以是一个数组，接口或者是普通类
+ */
 static int isArrayInstanceOf(const ClassObject* sub, const ClassObject* clazz)
 {
     assert(dvmIsArrayClass(sub));
@@ -167,6 +183,10 @@ static int isArrayInstanceOf(const ClassObject* sub, const ClassObject* clazz)
  *
  * "clazz" could be a class or an interface.
  */
+/*
+ * 判断 'class'否实现了'interface' 这个接口，如果为true,则返回1,
+ * 'clazz' 可以是一个类或者接口
+ */
 int dvmImplements(const ClassObject* clazz, const ClassObject* interface)
 {
     int i;
@@ -193,6 +213,11 @@ int dvmImplements(const ClassObject* clazz, const ClassObject* interface)
  *
  * Note that "objectClass" could be an array, but objectClass->elementClass
  * is always a non-array type.
+ */
+/*
+ * 判断我们是否可以把一个对象放入数组，基于类的层次，这个对象本身可能是一个数组，这意味着我们不得不注意数组实例化规则
+ *
+ * 注意，'objectClass'可以是一个数组，但objectClass指向的elementClass不可以是一个数组类型
  */
 bool dvmCanPutArrayElement(const ClassObject* objectClass,
     const ClassObject* arrayClass)
@@ -221,6 +246,9 @@ bool dvmCanPutArrayElement(const ClassObject* objectClass,
 /*
  * Perform the instanceof calculation.
  */
+/*
+ * 执行一些实例化结果判断，例如:判断一个类是否实现了某个接口,....
+ */
 static inline int isInstanceof(const ClassObject* instance,
     const ClassObject* clazz)
 {
@@ -237,6 +265,10 @@ static inline int isInstanceof(const ClassObject* instance,
 /*
  * Do the instanceof calculation, pulling the result from the cache if
  * possible.
+ */
+/*
+ * 执行实例化结果判断,if可能的话,从缓冲中获取结果值
+ *
  */
 int dvmInstanceofNonTrivial(const ClassObject* instance,
     const ClassObject* clazz)

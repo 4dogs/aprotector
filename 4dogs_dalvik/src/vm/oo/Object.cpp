@@ -17,12 +17,21 @@
 /*
  * Operations on an Object.
  */
+/*
+ * 针对对象的一些操作，如在类,父类,接口中查找它的指定的虚方法,静态方法,.....
+ *
+ */
 #include "Dalvik.h"
 
 /*
  * Find a matching field, in the current class only.
  *
  * Returns NULL if the field can't be found.  (Does not throw an exception.)
+ */
+
+/*
+ * 仅在当前的类中查找所匹配的实例字段，如果没有找到则返回为NULL
+ *
  */
 InstField* dvmFindInstanceField(const ClassObject* clazz,
     const char* fieldName, const char* signature)
@@ -58,6 +67,11 @@ InstField* dvmFindInstanceField(const ClassObject* clazz,
  *
  * Returns NULL if the field can't be found.  (Does not throw an exception.)
  */
+/*
+ * 在当前的类或者它的父类中查找所匹配的实例字段
+ *
+ * 通过接口去查找不是必要的，因为接口字段是固有的 (public/static/final)
+ */
 InstField* dvmFindInstanceFieldHier(const ClassObject* clazz,
     const char* fieldName, const char* signature)
 {
@@ -81,6 +95,11 @@ InstField* dvmFindInstanceFieldHier(const ClassObject* clazz,
  * Find a matching field, in this class or an interface.
  *
  * Returns NULL if the field can't be found.  (Does not throw an exception.)
+ */
+/*
+ * 在当前类或者接口中查找所匹配的静态字段，如果没有找到则返回为NULL
+ *
+ * 
  */
 StaticField* dvmFindStaticField(const ClassObject* clazz,
     const char* fieldName, const char* signature)
@@ -111,6 +130,10 @@ StaticField* dvmFindStaticField(const ClassObject* clazz,
  * Find a matching field, in this class or a superclass.
  *
  * Returns NULL if the field can't be found.  (Does not throw an exception.)
+ */
+/*
+ * 在当前的类或者父类中查找相匹配的静态字段，如果没有找到才返回值为NULL
+ *
  */
 StaticField* dvmFindStaticFieldHier(const ClassObject* clazz,
     const char* fieldName, const char* signature)
@@ -162,6 +185,12 @@ StaticField* dvmFindStaticFieldHier(const ClassObject* clazz,
  * During verification we need to recognize and reject certain unusual
  * situations, and we won't see them unless we walk the lists this way.
  */
+/*
+ * 在当前的类或者父类中查找相匹配的字段 ，我们能在当前类中查找出实例字段和静态字段列表，
+ * 
+ * 如果在这儿还是没有找到，那我们检查它的直接接口，然后以递归的形式查他的父类，这儿的顺序在VM规范中是规定的
+ *
+ */
 Field* dvmFindFieldHier(const ClassObject* clazz, const char* fieldName,
     const char* signature)
 {
@@ -204,6 +233,11 @@ Field* dvmFindFieldHier(const ClassObject* clazz, const char* fieldName,
 /*
  * Compare the given name, return type, and argument types with the contents
  * of the given method. This returns 0 if they are equal and non-zero if not.
+ */
+
+/*
+ * 比较名称。以较特定的方法，参数、内容和返回值，如果他们相等或者不等于0，则返回0
+ *
  */
 static inline int compareMethodHelper(Method* method, const char* methodName,
     const char* returnType, size_t argCount, const char** argTypes)
@@ -254,6 +288,10 @@ static inline int compareMethodHelper(Method* method, const char* methodName,
 /*
  * Get the count of arguments in the given method descriptor string,
  * and also find a pointer to the return type.
+ */
+/*
+ * 按照指定的方法描述来获取参数的个数，并且找到一个指针的返回类型
+ *
  */
 static inline size_t countArgsAndFindReturnType(const char* descriptor,
     const char** pReturnType)
@@ -328,6 +366,10 @@ static inline size_t countArgsAndFindReturnType(const char* descriptor,
  * Copy the argument types into the given array using the given buffer
  * for the contents.
  */
+/*
+ * 拷贝参数类型进入指定的数组，使用特定'buffer'作为内容
+ *
+ */
 static inline void copyTypes(char* buffer, const char** argTypes,
     size_t argCount, const char* descriptor)
 {
@@ -361,6 +403,10 @@ static inline void copyTypes(char* buffer, const char** argTypes,
 /*
  * Look for a match in the given class. Returns the match if found
  * or NULL if not.
+ */
+/*
+ * 在指定的类中，根据描述查找匹配的方法
+ *
  */
 static Method* findMethodInListByDescriptor(const ClassObject* clazz,
     bool findVirtual, bool isHier, const char* name, const char* descriptor)
@@ -422,6 +468,10 @@ static Method* findMethodInListByDescriptor(const ClassObject* clazz,
  * list to search through.  If the match can come from either list, use
  * MATCH_UNKNOWN to scan both.
  */
+/* 
+ * 在指定的类中查找匹配方法，如果找到则返回所匹配到的方法，反之，返回NULL
+ * 'wantedType'应该是虚方法或者是'direct'方法，指定它到列表中去查找;但如果想要用任意一个类型进行匹配，那么使用'MATCH_UNKNOWN'参数来扫描两个
+ */
 static Method* findMethodInListByProto(const ClassObject* clazz,
     MethodType wantedType, bool isHier, const char* name, const DexProto* proto)
 {
@@ -465,6 +515,11 @@ static Method* findMethodInListByProto(const ClassObject* clazz,
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
  */
+/*
+ * 在指定的类中查找虚方法，不要试图到它的父类中查找
+ *  
+ * 如果找不到则返回NULL (不抛出异常)
+ */
 Method* dvmFindVirtualMethodByDescriptor(const ClassObject* clazz,
     const char* methodName, const char* descriptor)
 {
@@ -485,6 +540,12 @@ Method* dvmFindVirtualMethodByDescriptor(const ClassObject* clazz,
  * Does not chase into the superclass.
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
+ */
+/*
+ * 在指定的类中查找虚方法，仅通过方法名称;这仅仅是在有限的情况下使用，例如,当要查找一个注解类的成员
+ *
+ * 不要试图进入它的父类中进行查找
+ * 如果方法没有找到则返回为NULL (找不到也不会抛出异常)
  */
 Method* dvmFindVirtualMethodByName(const ClassObject* clazz,
     const char* methodName)
@@ -508,6 +569,10 @@ Method* dvmFindVirtualMethodByName(const ClassObject* clazz,
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
  */
+/*
+ * 在指定的类中查找虚方法，不要试图进入父类中查询， 如果方法没有被找到，则返回NULL (找不到也不会抛出异常)
+ *
+ */
 Method* dvmFindVirtualMethod(const ClassObject* clazz, const char* methodName,
     const DexProto* proto)
 {
@@ -520,6 +585,12 @@ Method* dvmFindVirtualMethod(const ClassObject* clazz, const char* methodName,
  * superclass.  Does not examine interfaces.
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
+ */
+/*
+ *
+ * 在指定的类中根据'descriptor'查找虚方法，如果没有找到它，则尝试到它的父类中查找，不会检查它的接口(不进入接口中查找)
+ * 如果方法没有找到，则返回NULL (没有找到也不会抛出异常信息)
+ * 
  */
 Method* dvmFindVirtualMethodHierByDescriptor(const ClassObject* clazz,
     const char* methodName, const char* descriptor)
@@ -534,6 +605,11 @@ Method* dvmFindVirtualMethodHierByDescriptor(const ClassObject* clazz,
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
  */
+/*
+ * 在指定的类中查找虚方法,如果没有找到它，则尝试到它的父类中查找，不会检查它的接口(不进入接口中查找)
+ * 如果方法没有找到，则返回NULL (没有找到也不会抛出异常信息)
+ *
+ */
 Method* dvmFindVirtualMethodHier(const ClassObject* clazz,
     const char* methodName, const DexProto* proto)
 {
@@ -545,6 +621,12 @@ Method* dvmFindVirtualMethodHier(const ClassObject* clazz,
  * Find a method in an interface.  Searches superinterfaces.
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
+ */
+/*
+ * 在指定的接口中，根据'descriptor'查找匹配的方法，找不到则在它的父接口中继续查找
+ *
+ * 如果方法没有被找到则返回NULL (方法没有被查找到，也不会抛出异常信息)
+ *
  */
 Method* dvmFindInterfaceMethodHierByDescriptor(const ClassObject* iface,
     const char* methodName, const char* descriptor)
@@ -569,6 +651,11 @@ Method* dvmFindInterfaceMethodHierByDescriptor(const ClassObject* iface,
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
  */
+/*
+ * 在指定的接口和它的父接口中查找方法 ，如果方法没有找到则返回NULL (没有找到也不会抛出一个异常)
+ *
+ *
+ */
 Method* dvmFindInterfaceMethodHier(const ClassObject* iface,
     const char* methodName, const DexProto* proto)
 {
@@ -591,6 +678,11 @@ Method* dvmFindInterfaceMethodHier(const ClassObject* iface,
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
  */
+/*
+ * 查找 'direct' 方法, 'direct'方法包括 (static,private,or '<*init>')
+ * 如果方法没有找到则返回NULL (没有找到也不会抛出一个异常)
+ *
+ */
 Method* dvmFindDirectMethodByDescriptor(const ClassObject* clazz,
     const char* methodName, const char* descriptor)
 {
@@ -605,6 +697,12 @@ Method* dvmFindDirectMethodByDescriptor(const ClassObject* clazz,
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
  */
+/*
+ * 查找 'direct' 方法,如果没有找到它，则尝试进入它的父类中查找，这仅仅适合静态方法,[but will work for all direct methods]
+ *
+ * 如果方法没有找到则返回NULL (没有找到也不会抛出一个异常)
+ *
+ */
 Method* dvmFindDirectMethodHierByDescriptor(const ClassObject* clazz,
     const char* methodName, const char* descriptor)
 {
@@ -616,6 +714,11 @@ Method* dvmFindDirectMethodHierByDescriptor(const ClassObject* clazz,
  * Find a "direct" method (static or "<*init>").
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
+ */
+/*
+ * 查找'direct'方法,(static or '<*init>')
+ *
+ * 如果方法没有找到则返回NULL (没有找到也不会抛出一个异常)
  */
 Method* dvmFindDirectMethod(const ClassObject* clazz, const char* methodName,
     const DexProto* proto)
@@ -629,6 +732,11 @@ Method* dvmFindDirectMethod(const ClassObject* clazz, const char* methodName,
  * superclass.
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
+ */
+/*
+ * 在指定的类中查找'direct'方法，如果没有找到，则尝试进入它的父类中查找
+ *
+ * 如果方法没有找到则返回NULL (没有找到也不会抛出一个异常)
  */
 Method* dvmFindDirectMethodHier(const ClassObject* clazz,
     const char* methodName, const DexProto* proto)
@@ -650,6 +758,14 @@ Method* dvmFindDirectMethodHier(const ClassObject* clazz,
  *
  * Returns NULL if the method can't be found.  (Does not throw an exception.)
  */
+
+/*
+ * 在指定的类中查找虚方法或者静态方法，如果没有找到它，则尝试进入它的父类，这与VM规范中方法查询顺序相获配,
+ * 但它是不针对接口扫描(这应该在完成函数之后被完成)
+ *
+ * 在大多数情况下，我们知道，我们查询的是静态字段或者实例字段两者任何一个，并且这儿没有设置通过两种类型同时进行
+ * 查询.在校验期间，我们需要去识别和拒绝某些不正常的情况，并且除非我们以这种方式运行，否则我们将没法看到它们
+ */
 Method* dvmFindMethodHier(const ClassObject* clazz, const char* methodName,
     const DexProto* proto)
 {
@@ -668,6 +784,13 @@ Method* dvmFindMethodHier(const ClassObject* clazz, const char* methodName,
  * original Method.
  *
  * (This is used for reflection and JNI "call method" calls.)
+ */
+/*
+ * 在'clazz'中，我们有一个方法指向另一个方法，但它可能指向派生类中的一个方法，我们想要从虚拟函数表中找到实际入口,如果'class'是一个接口，我们不得不在短时间内做更多的挖掘
+ *
+ * 对于'direct'方法(private / constructor).我们仅仅返回原生态方法
+ *  
+ * (这里被适用于反射和JNI调用)
  */
 const Method* dvmGetVirtualizedMethod(const ClassObject* clazz,
     const Method* meth)
@@ -724,6 +847,10 @@ const Method* dvmGetVirtualizedMethod(const ClassObject* clazz,
 /*
  * Get the source file for a method.
  */
+/*
+ * 获取方法的源文件
+ *
+ */
 const char* dvmGetMethodSourceFile(const Method* meth)
 {
     /*
@@ -736,6 +863,10 @@ const char* dvmGetMethodSourceFile(const Method* meth)
 
 /*
  * Dump some information about an object.
+ */
+/*
+ * dump一些关于某个对象的信息
+ *
  */
 void dvmDumpObject(const Object* obj)
 {
