@@ -1,0 +1,145 @@
+    
+    上一次分析到通过 /vm/analysis/DexVerify.cpp-->dvmVerifyClass(ClassObject* clazz)入口点进入到类校验。类校验到底做了哪些事情？先来看下DexVerify.h头文件
+1.DexClass校验模式
+enum DexClassVerifyMode {
+    VERIFY_MODE_UNKNOWN = 0, /* 未知校验模式 */
+    VERIFY_MODE_NONE, /* 非校验模式 */
+    VERIFY_MODE_REMOTE, /* 远程校验模式 */
+    VERIFY_MODE_ALL /* ALL校验模式 */
+}
+2.struct VerifierStats 调试方法的校验计数器
+    这里应该是校验器采用不同校验模式对classfile类文件进行校验。结构体struct VerifierStats被于Debugging调试，记录了很多细节（参见github相关类注释），包括了类相关方法、指令、寄存器、表等成员。
+3.通过头文件声明的2个方法可以看出，dvmVerifyClass()执行了校验的主要校验逻辑，通过其它模块或工具类辅助；dvmFreeRegisterMap()对应于VM目录 /vm/analysis下RegisterMap.cpp文件
+/*
+校验->类
+*/
+bool dvmVerifyClass(ClassObject* clazz);
+/*
+释放寄存器集合(Map)空间
+*/
+void dvmFreeRegisterMap(RegisterMap* pMap);
+
+... 再次回到DexVerify.cpp->verifyMethod()方法，查看注释
+/*
+Perform verification on a single method.
+执行单个方法的校验
+We do this in three passes:
+ (1) Walk through all code units, determining instruction locations,
+     widths, and other characteristics.
+ (2) Walk through all code units, performing static checks on
+     operands.
+ (3) Iterate through the method, checking type safety and looking
+     for code flow problems.
+校验分3次处理：
+ (1) 遍历所有代码单元，确定指令位置，宽度，和其它特征。
+ (2) 遍历所有代码单元，对[op](操作码or操作数？)执行静态检查。
+ (3) 通过方法迭代，检查类型安全并且寻找代码流的问题。
+
+Some checks may be bypassed depending on the verification mode.  We can't
+turn this stuff off completely if we want to do "exact" GC.
+
+一些检查可以避免，这取决于校验模式。我们不能完全关闭这些校验，如果想做“精确”GC？
+*/
+static bool verifyMethod(Method* meth) 
+{
+    ... 
+    通过加红部分我们了解到类校验的基本处理流程和原理，通过遍历代码单元做处理和通过方法迭代处理代码流的问题。为了使目的更加明确，我们定义了几个可供后续修改和完善的问题，带着问题往下进行，当整个模块阅读完成时，可能会解决我们的问题。
+1.代码单元的结构？
+2.如何遍历？
+3.如果定位特征？有哪些特征？
+4.静态检查做了些什么？
+5.如何进行方法迭代？
+6.类型安全检查有哪些和必要性？
+7.什么是代码流？
+8.代码流会出现什么问题？
+    ... 
+    /*
+    Verifier state blob.  Various values will be cached here so we
+    can avoid expensive lookups and pass fewer arguments around.
+    数据校验器数据结构体。不同的值将被缓存到这里，因此我们可以通过极少的参数进行更有效查找。
+    可以缓存数据。其结构参见于CodeVerify.h头文件。
+    */
+    VerifierData vdata;
+    --> /vm/analysis/Verify.h 这是一个比较重要的结构体，做特别说明
+
+ 
+struct VerifierData	   
+const Method*             method	   
+u4                        insnsSize	   
+u4                        insnRegCount	   
+InsnFlags*               insnFlags	   
+UninitInstanceMap*     uninitMap	   
+RegisterLine*            registerLines	   
+size_t                   newInstanceCount	   
+size_t                   monitorEnterCount	   
+VfyBasicBlock**          basicBlocks	 
+
+/*
+Various bits of data used by the verifier and register map generator.
+各种校验器和寄存器map生成器使用的数据。
+校验数据结构体
+NOTE TODO：参考oo-->Object.h中Method结构体
+NOTE TODO：参考-->VerifySub.h中指令标识InsnFlags
+*/
+struct VerifierData {
+    /*
+    The method we're working on.
+    方法结构体指针
+    */
+    const Method*   method;
+    /*
+    Number of code units of instructions in the method.  A cache of the
+    value calculated by dvmGetMethodInsnsSize().
+    方法中指令代码单元的数量。通过dvmGetMethodInsnsSize()计算缓存值。
+    指令数
+    */
+    u4              insnsSize;
+    /*
+    Number of registers we track for each instruction.  This is equal
+    to the method's declared "registersSize".  (Does not include the
+    pending return value.)
+    我们跟踪每一条指令的寄存器数量。等于方法声明的“registersSize（寄存器数量）”。
+    （不要包含返回值）
+    指令寄存器数
+    */ 
+    u4              insnRegCount;
+    /*
+    Instruction widths and flags, one entry per code unit.
+    指令宽度和标识，每个代码带单元一个标识
+    指令标识指针
+    */
+    InsnFlags*      insnFlags;
+    /*
+    Uninitialized instance map, used for tracking the movement of
+    objects that have been allocated but not initialized.
+    未初始化的实例map，用于跟踪已分配内存但未初始化的对象。
+    */
+    UninitInstanceMap* uninitMap;
+    /*
+    Array of RegisterLine structs, one entry per code unit.  We only need
+    entries for code units that hold the start of an "interesting"
+    instruction.  For register map generation, we're only interested
+    in GC points.
+    寄存器行结构体数组，每个代码单元一行。我们只需要持有“感兴趣”的指令
+    开始的代码单元行。对于寄存器map生成，我们只关注[GC points]
+    寄存器行(s)指针
+    */
+    RegisterLine*   registerLines;
+    /*
+    The number of occurrences of specific opcodes.
+    已出现的具体操作码的个数
+    新实例个数
+    */
+    size_t          newInstanceCount;
+    size_t          monitorEnterCount;
+    /*
+    Array of pointers to basic blocks, one entry per code unit.  Used
+    for liveness analysis.
+    基本块指针数组，每个代码单元一个。为生命周期分析使用。
+    NOTE TODO：参考-->VfyBasicBlock.h中VfyBasicBlock结构体
+    */
+    VfyBasicBlock** basicBlocks; 
+};
+    一个较为复杂的结构体，包含了方法结构、指令、寄存器、实例、基本单元结构等。先看一下它的引用结构，然后结束这一篇分析。
+
+ 图例参考具体日志，txt文档不能粘图。

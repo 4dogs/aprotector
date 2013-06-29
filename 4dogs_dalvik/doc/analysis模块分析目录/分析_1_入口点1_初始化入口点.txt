@@ -1,0 +1,259 @@
+    vm/analysis目录是Dalvik源码下的分析模块，其主要功能是完成分析和校验字节流等功能。为了能尽快入手分析，先从入口点跟踪阅读源码，了解analysis大致的运行流程。运行流程会涉及到Dalvik其它模块或代码部分，只做大致说明：
+  
+    从Dalvik原始入口来看，/vm/Main.cpp --> main()
+  
+/*
+ * Start VM.  The current thread becomes the main thread of the VM.
+ */
+ if (JNI_CreateJavaVM(&vm, &env, &initArgs) < 0) {
+     fprintf(stderr, "Dalvik VM init failed (check log file)\n");
+     goto bail;
+ }
+
+    这里是最早的入口点，创建并启动JAVA虚拟机，当前线程成为虚拟机的主线程。
+
+--> dalvikvm/vm/jni.cpp, jni.cpp是一个重要文件，有几个方法需要注意：
+
+/*
+ * Create a new VM instance.
+ *
+ * The current thread becomes the main VM thread.  We return immediately,
+ * which effectively means the caller is executing in a native method.
+ */
+jint JNI_CreateJavaVM(JavaVM** p_vm, JNIEnv** p_env, void* vm_args) {
+    const JavaVMInitArgs* args = (JavaVMInitArgs*) vm_args;
+    if (args->version < JNI_VERSION_1_2) {
+        return JNI_EVERSION;
+    }
+.....
+
+/*
+ * Create a JNIEnv for the main thread.  We need to have something set up
+ * here because some of the class initialization we do when starting
+ * up the VM will call into native code.
+ */
+JNIEnvExt* pEnv = (JNIEnvExt*) dvmCreateJNIEnv(NULL);
+
+    JNIEnv:JNI环境上下文，承载各种环境引用，也是JNI接口必需参数之一，参见java调用JNI。为主线程创建JNI环境上下文。这里需要做一些构建工作，因为当启动虚拟机调用本地代码时，有一些class类要完成初始化；因此要尽量提前导出JNIEnvExt指针供后面使用。
+
+/* Initialize VM. */
+gDvm.initializing = true;
+std::string status =
+        dvmStartup(argc, argv.get(), args->ignoreUnrecognized, (JNIEnv*)pEnv);
+gDvm.initializing = false;
+
+    这里初始化虚拟机，无疑是最重要的部分，-->dvmStartup(),几乎所有的初始化工作都在这里完成了，包括analysis模块的入口点之一。
+
+--> /vm/Init.cpp
+/*
+ * VM initialization.  Pass in any options provided on the command line.
+ * Do not pass in the class name or the options for the class.
+ *
+ * Returns 0 on success.
+ */
+std::string dvmStartup(int argc, const char* const argv[],
+        bool ignoreUnrecognized, JNIEnv* pEnv)
+{
+    ScopedShutdown scopedShutdown;
+
+    完成虚拟机初始化工作，并且处理几乎所有来自命令行的选项。
+... 
+
+    以下是一些命令行处理云云，analysis主要关注这里。
+/*
+ * Initialize components.
+ */
+dvmQuasiAtomicsStartup();
+
+... 只关注其中几个分支：dvmRegisterMapStartup 寄存器集合（map）初始化
+ 
+if (!dvmRegisterMapStartup()) {
+    return "dvmRegisterMapStartup failed";
+}
+
+    下面是dvmRegisterMapStartup初始化的实现，看起没做什么；这里分配并返回了寄存器统计数据的指针。
+
+--> /vm/analysis/RegisterMap.cpp
+/*
+ * Prepare some things.
+ */
+bool dvmRegisterMapStartup()
+{
+#ifdef REGISTER_MAP_STATS
+    MapStats* pStats = calloc(1, sizeof(MapStats));
+    gDvm.registerMapStats = pStats;
+#endif
+    return true;
+}
+
+跳转回来继续看，--> /vm/Init.cpp 第二个分支点
+
+/*
+ * Explicitly initialize java.lang.Class.  This doesn't happen
+ * automatically because it's allocated specially (it's an instance
+ * of itself).  Must happen before registration of system natives,
+ * which make some calls that throw assertions if the classes they
+ * operate on aren't initialized.
+ */
+if (!dvmInitClass(gDvm.classJavaLangClass)) {
+    return "couldn't initialized java.lang.Class";
+}
+
+    初始化java.lang.Class。它不会自动初始化，因为它的分配比较特别（它是自身的实例）。必须在系统本地注册前完成初始化，当进行一些调用，如果操作一些没有初始化的类，会抛出断言。（系统本地注册？）
+
+--> /vm/oo/Class.cpp
+
+/**
+ * ...
+ * 
+ * 这里翻译较多且相对复杂，后续补充
+ * 
+ * TODO：这个方法相对于analysis模块非常重要，详细看 ...
+ */
+bool dvmInitClass(ClassObject* clazz)
+{
+...
+    /*
+     * If the class hasn't been verified yet, do so now.
+     */
+    if (clazz->status < CLASS_VERIFIED) {
+
+    ... 如果该类未校验，开始做校验
+
+        /*
+         * If we're in an "erroneous" state, throw an exception and bail.
+         */
+        if (clazz->status == CLASS_ERROR) {
+
+        ... 如果类状态发生错误，抛出异常并goto
+
+            throwEarlierClassFailure(clazz);
+            goto bail_unlock;
+        }
+
+        assert(clazz->status == CLASS_RESOLVED);
+        assert(!IS_CLASS_FLAG_SET(clazz, CLASS_ISPREVERIFIED));
+	  
+        ... 检查校验模式
+
+        if (gDvm.classVerifyMode == VERIFY_MODE_NONE ||
+            (gDvm.classVerifyMode == VERIFY_MODE_REMOTE &&
+             clazz->classLoader == NULL))
+        {
+            /* advance to "verified" state */
+            ALOGV("+++ not verifying class %s (cl=%p)",
+                clazz->descriptor, clazz->classLoader);
+            clazz->status = CLASS_VERIFIED;
+            goto noverify;
+        }
+
+        if (!gDvm.optimizing)
+            ALOGV("+++ late verify on %s", clazz->descriptor);
+
+        /*
+         * We're not supposed to optimize an unverified class, but during
+         * development this mode was useful.  We can't verify an optimized
+         * class because the optimization process discards information.
+         */
+        if (IS_CLASS_FLAG_SET(clazz, CLASS_ISOPTIMIZED)) { 
+
+         ... 不能优化未校验的类；如果发现一个类优化过却没有经过校验，则跳转校验失败
+
+            ALOGW("Class '%s' was optimized without verification; "
+                 "not verifying now",
+                clazz->descriptor);
+            ALOGW("  ('rm /data/dalvik-cache/*' and restart to fix this)");
+            goto verify_failed;
+        }
+
+        clazz->status = CLASS_VERIFYING;
+
+	  ... 这里开启类校验，同时标识类状态，dvmVerifyClass() ,这里终于看到我们analysis分析模块的其中一个入口点了。“FindClass(...)”函数也是一个入口点，目前只分析dvmVerifyClass()。
+
+        if (!dvmVerifyClass(clazz)) {
+verify_failed:
+            dvmThrowVerifyError(clazz->descriptor);
+            dvmSetFieldObject((Object*) clazz,
+                OFFSETOF_MEMBER(ClassObject, verifyErrorClass),
+                (Object*) dvmGetException(self)->clazz);
+            clazz->status = CLASS_ERROR;
+            goto bail_unlock;
+        }
+
+        clazz->status = CLASS_VERIFIED;
+    }
+
+--> /vm/analysis/DexVerify.cpp，analysis模块分析入口点之一
+
+/*
+ * Verify a class.
+ *
+ * By the time we get here, the value of gDvm.classVerifyMode should already
+ * have been factored in.  If you want to call into the verifier even
+ * though verification is disabled, that's your business.
+ *
+ * Returns "true" on success.
+ */
+bool dvmVerifyClass(ClassObject* clazz)
+{
+   
+... 校验类，传入类对象引用指针。当处理到这个方法，gDvm.classVerifyMode的值应该已经被做过处理，成功返回“true”。
+
+    /*
+    根据类状态判断是否进过校验，不作双重校验
+    */
+    if (dvmIsClassVerified(clazz)) {
+        ALOGD("Ignoring duplicate verify attempt on %s", clazz->descriptor);
+        return true;
+    }
+
+    /*
+    校验类实例的所有直接方法				
+    */
+    for (i = 0; i < clazz->directMethodCount; i++) {
+        if (!verifyMethod(&clazz->directMethods[i])) {
+            LOG_VFY("Verifier rejected class %s", clazz->descriptor);
+            return false;
+        }
+    }
+    /*
+    校验类实例的所有虚方法
+    */
+    for (i = 0; i < clazz->virtualMethodCount; i++) {
+        if (!verifyMethod(&clazz->virtualMethods[i])) {
+            LOG_VFY("Verifier rejected class %s", clazz->descriptor);
+            return false;
+        }
+    }
+    return true;
+}
+
+    总结：入口点1分析到这里，描述一下大概的流程；从Dalvik下main()函数入口点进入，通过JNI_CreateJavaVM()函数启动并创建虚拟机，做参数，选项等处理。调用JNI本地方法 dvmCreateJNIEnv(NULL)初始化并返回JNIEnv上下文环境，随后调用dvmStartup(...)启动虚拟机做真正初始化等操作。dvmStartup(...)将Dalvik各大组件按次序依次进行初始化，启动dvmClassStartup()进行引导类加载器初始化完成一些后续校验的先决条件，之后调用dvmInitClass(gDvm.classJavaLangClass)进入DexVerify.cpp进行类初始化并完成类校验，包括方法校验等其它校验。
+main()
+|
+JNI_CreateJavaVM()
+|
+dvmCreateJNIEnv(NULL)
+|
+dvmStartup(...)
+|
+dvmClassStartup()
+|
+dvmInitClass(gDvm.classJavaLangClass)
+|
+DexVerify.cpp
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
