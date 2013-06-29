@@ -789,58 +789,77 @@ struct DvmJitGlobals {
      *
      * This mutex also guards both read and write of curJitTableEntries.
      */
+	/*
+	 * 写入的顺序：
+	 *	1) codeAddr
+	 *	2) dPC
+	 *	3) chain [如果必要的化]
+	 * 这个mutex也对读写curJitTableEntries进行读写保护
+	 */
     pthread_mutex_t tableLock;
 
     /* The JIT hash table.  Note that for access speed, copies of this pointer
      * are stored in each thread. */
+	/* JIT HASH表。为了快速的进行访问，每条线程都存在这个表的一份拷贝 */
     struct JitEntry *pJitEntryTable;
 
     /* Array of compilation trigger threshold counters */
+	/* 编译的触发阀值计数器队列  */
     unsigned char *pProfTable;
 
     /* Trace profiling counters */
+	/* Trace profiling 计数器 */
     struct JitTraceProfCounters *pJitTraceProfCounters;
 
     /* Copy of pProfTable used for temporarily disabling the Jit */
+	/* pProfTable的一份拷贝在临时关闭JIT时使用 */
     unsigned char *pProfTableCopy;
 
     /* Size of JIT hash table in entries.  Must be a power of 2 */
+	/* JIT HASH表的項数。必须是2的N次方 */
     unsigned int jitTableSize;
 
     /* Mask used in hash function for JitTable.  Should be jitTableSize-1 */
+	/* 在JitTable中的hash函数的掩码。应该被设置为jitTableSize-1 */
     unsigned int jitTableMask;
 
     /* How many entries in the JitEntryTable are in use */
+	/* 有多少JitEntryTable項被使用 */
     unsigned int jitTableEntriesUsed;
 
     /* Bytes allocated for the code cache */
+	/* 代码缓冲的数量 */
     unsigned int codeCacheSize;
 
     /* Trigger for trace selection */
+	/* 触发选定trace的阀值 */
     unsigned short threshold;
 
     /* JIT Compiler Control */
-    bool               haltCompilerThread;
-    bool               blockingMode;
-    bool               methodTraceSupport;
-    bool               genSuspendPoll;
-    Thread*            compilerThread;
-    pthread_t          compilerHandle;
-    pthread_mutex_t    compilerLock;
+	/* JIT编译器控制 */
+    bool               haltCompilerThread;			/* 关闭编译器线程 */
+    bool               blockingMode;				/* 阻塞模式 */
+    bool               methodTraceSupport;			/* 函数Trace支持 */
+    bool               genSuspendPoll;				/* 产生挂起 */
+    Thread*            compilerThread;				/* 编译器线程 */
+    pthread_t          compilerHandle;				/* 编译器线程句柄 */
+    pthread_mutex_t    compilerLock;				/* 编译器线程锁 */
     pthread_mutex_t    compilerICPatchLock;
-    pthread_cond_t     compilerQueueActivity;
-    pthread_cond_t     compilerQueueEmpty;
-    volatile int       compilerQueueLength;
+    pthread_cond_t     compilerQueueActivity;		/* 编译器队列激活 */
+    pthread_cond_t     compilerQueueEmpty;			/* 编译器队列空 */
+    volatile int       compilerQueueLength;			/* 编译器队列长度 */
     int                compilerHighWater;
-    int                compilerWorkEnqueueIndex;
-    int                compilerWorkDequeueIndex;
+    int                compilerWorkEnqueueIndex;	/* 编译器入列索引 */
+    int                compilerWorkDequeueIndex;	/* 编译器出列索引 */
     int                compilerICPatchIndex;
 
     /* JIT internal stats */
-    int                compilerMaxQueued;
-    int                translationChains;
+	/* JIT 内部状态 */
+    int                compilerMaxQueued;			/* 编译器的最大队列 */
+    int                translationChains;			/* 转换链 */
 
     /* Compiled code cache */
+	/* 以编译的代码缓冲 */
     void* codeCache;
 
     /*
@@ -855,79 +874,109 @@ struct DvmJitGlobals {
     void *inflightBaseAddr;
 
     /* Translation cache version (protected by compilerLock */
+	/* 转换缓冲版本（被compilerLock所保护 */
     int cacheVersion;
 
     /* Bytes used by the code templates */
+	/* 代码模板的使用量 */
     unsigned int templateSize;
 
     /* Bytes already used in the code cache */
+	/* 在代码缓冲区中已经使用的字节数 */
     unsigned int codeCacheByteUsed;
 
     /* Number of installed compilations in the cache */
+	/* 已经在缓存中编译的数量 */
     unsigned int numCompilations;
 
     /* Flag to indicate that the code cache is full */
+	/* 代码缓冲区是否已经满了 */
     bool codeCacheFull;
 
     /* Page size  - 1 */
+	/* 页大小 - 1 */
     unsigned int pageSizeMask;
 
     /* Lock to change the protection type of the code cache */
+	/* 在对编译代码缓冲时使用的mutex */
     pthread_mutex_t    codeCacheProtectionLock;
 
     /* Number of times that the code cache has been reset */
+	/* 代码缓冲区重设时间次数 */
     int numCodeCacheReset;
 
     /* Number of times that the code cache reset request has been delayed */
+	/* 代码缓冲区重设延迟次数 */
     int numCodeCacheResetDelayed;
 
     /* true/false: compile/reject opcodes specified in the -Xjitop list */
+	/* true/false: 编译/丢弃 opcodes对于指定的 -Xjitop列表 */
     bool includeSelectedOp;
 
     /* true/false: compile/reject methods specified in the -Xjitmethod list */
+	/* true/false: 编译/丢弃 方法通过指定的参数 -Xjitmethod列表 */
     bool includeSelectedMethod;
 
     /* true/false: compile/reject traces with offset specified in the -Xjitoffset list */
+	/* true/false: 编译/丢弃 traces模式对于使用 -Xjitoffset列表中的偏移 */
     bool includeSelectedOffset;
 
     /* Disable JIT for selected opcodes - one bit for each opcode */
+	/* 关闭  JIT 对于选中的opcodes，每个位对应一个OPCODE */
     char opList[(kNumPackedOpcodes+7)/8];
 
     /* Disable JIT for selected methods */
+	/* 关闭 JIT 对于选定的函数 */
     HashTable *methodTable;
 
     /* Disable JIT for selected classes */
+	/* 关闭 JIT 对于选定的类 */
     HashTable *classTable;
 
     /* Disable JIT for selected offsets */
-    unsigned int pcTable[COMPILER_PC_OFFSET_SIZE];
-    int num_entries_pcTable;
+	/* 
+	 * 关闭 JIT为选中的偏移
+	 * 这个表里的数据成对出现
+	 * 每項都是一个范围[低偏移，高偏移]
+	 * 在编译过程中比对，如果在这个范围内才进行编译
+	 */
+    unsigned int pcTable[COMPILER_PC_OFFSET_SIZE];	/* 偏移表 */
+    int num_entries_pcTable;						/* 偏移数量 */
 
     /* Flag to dump all compiled code */
+	/* 调试使用，打印编译状态 */
     bool printMe;
 
     /* Flag to dump compiled binary code in bytes */
+	/* 打印编译后的2进制代码 */
     bool printBinary;
 
     /* Per-process debug flag toggled when receiving a SIGUSR2 */
+	/* 预处理调试标识开关当接收到一个SIGUSR2信号 */
     bool receivedSIGUSR2;
 
     /* Trace profiling mode */
+	/* Trace profiling模式 */
     TraceProfilingModes profileMode;
 
     /* Periodic trace profiling countdown timer */
+	/* 周期性trace profiling 倒计时计时器 */
     int profileCountdown;
 
     /* Vector to disable selected optimizations */
+	/* 关闭选定的优化 */
     int disableOpt;
 
     /* Table to track the overall and trace statistics of hot methods */
+	/* 跟踪热点函数的trace统计信息HASH表 */
     HashTable*  methodStatsTable;
 
     /* Filter method compilation blacklist with call-graph information */
+	/* 通过调用图检查过滤掉的函数 */
     bool checkCallGraph;
 
     /* New translation chain has been set up */
+	/* 新的转换链被设置 */
     volatile bool hasNewChain;
 
 #if defined(WITH_SELF_VERIFICATION)
@@ -936,12 +985,15 @@ struct DvmJitGlobals {
 #endif
 
     /* Framework or stand-alone? */
+	/* Framework独立运行？ */
     bool runningInAndroidFramework;
 
     /* Framework callback happened? */
+	/* 已经开启Framework回调 */
     bool alreadyEnabledViaFramework;
 
     /* Framework requests to disable the JIT for good */
+	/* 关闭JIT */
     bool disableJit;
 
 #if defined(SIGNATURE_BREAKPOINT)
@@ -952,6 +1004,7 @@ struct DvmJitGlobals {
 
 #if defined(WITH_JIT_TUNING)
     /* Performance tuning counters */
+	/* 性能监视计数，用于测试程序 */
     int                addrLookupsFound;
     int                addrLookupsNotFound;
     int                noChainExit[kNoChainExitLast];
@@ -979,18 +1032,21 @@ struct DvmJitGlobals {
 #endif
 
 #if defined(ARCH_IA32)
+	/* 优化级别 */
     JitOptLevel        optLevel;
 #endif
 
     /* Place arrays at the end to ease the display in gdb sessions */
 
     /* Work order queue for compilations */
+	/* 编译订单序列 */
     CompilerWorkOrder compilerWorkQueue[COMPILER_WORK_QUEUE_SIZE];
 
     /* Work order queue for predicted chain patching */
     ICPatchWorkOrder compilerICPatchQueue[COMPILER_IC_PATCH_QUEUE_SIZE];
 };
 
+/* 整个虚拟机中唯一的全局JIT实例 */
 extern struct DvmJitGlobals gDvmJit;
 
 #if defined(WITH_JIT_TUNING)

@@ -187,11 +187,19 @@ typedef enum DataFlowAnalysisMode {
     kPostOrderDOMTraversal,     // Dominator tree / Post-Order
 } DataFlowAnalysisMode;
 
+/**
+ * @brief 编译时的函数状态
+ */
 typedef struct CompilerMethodStats {
+	/* 函数体指针 */
     const Method *method;       // Used as hash entry signature
+	/* dalvik字节码数量 */
     int dalvikSize;             // # of bytes for dalvik bytecodes
+	/* 已经编译的dalvik字节码数量 */
     int compiledDalvikSize;     // # of compiled dalvik bytecodes
+	/* 产生的本地代码数量 */
     int nativeSize;             // # of bytes for produced native code
+	/* 属性 */
     int attributes;             // attribute vector
 } CompilerMethodStats;
 

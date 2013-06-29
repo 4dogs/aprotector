@@ -20,26 +20,34 @@
 #include "Dalvik.h"
 
 /* Each arena page has some overhead, so take a few bytes off 8k */
+/* 每个arena内存块的默认大小 */
 #define ARENA_DEFAULT_SIZE 8100
 
 /* Allocate the initial memory block for arena-based allocation */
 bool dvmCompilerHeapInit(void);
 
+/**
+ * @brief Arena内存块
+ */
 typedef struct ArenaMemBlock {
-    size_t blockSize;
-    size_t bytesAllocated;
-    struct ArenaMemBlock *next;
-    char ptr[0];
+    size_t blockSize;				/* 内存块大小 */
+    size_t bytesAllocated;			/* 已经分配的内存块大小 */
+    struct ArenaMemBlock *next;		/* 下一个节点 */
+    char ptr[0];					/* 内存块... */
 } ArenaMemBlock;
 
 void *dvmCompilerNew(size_t size, bool zero);
 
 void dvmCompilerArenaReset(void);
 
+/**
+ * @brief 可扩展链表结构
+ * @note 用于实现动态数组的结构
+ */
 typedef struct GrowableList {
-    size_t numAllocated;
-    size_t numUsed;
-    intptr_t *elemList;
+    size_t numAllocated;				/* 当前分配的内存大小 */
+    size_t numUsed;						/* 当前的使用情况 */
+    intptr_t *elemList;					/* 缓冲区 */
 } GrowableList;
 
 typedef struct GrowableListIterator {

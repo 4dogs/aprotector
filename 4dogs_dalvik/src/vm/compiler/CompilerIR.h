@@ -47,6 +47,9 @@ typedef struct RegLocation {
 #define INVALID_SREG (-1)
 #define INVALID_REG (0x3F)
 
+/**
+ * @brief 基本块的类型
+ */
 typedef enum BBType {
     /* For coding convenience reasons chaining cell types should appear first */
     kChainingCellNormal = 0,
@@ -118,13 +121,19 @@ typedef enum {
 #define MIR_CALLEE                      (1 << kMIRCallee)
 #define MIR_INVOKE_METHOD_JIT           (1 << kMIRInvokeMethodJIT)
 
+/**
+ * @brief 调用者信息
+ */
 typedef struct CallsiteInfo {
-    const char *classDescriptor;
-    Object *classLoader;
-    const Method *method;
-    LIR *misPredBranchOver;
+    const char *classDescriptor;			/* 类描述 */
+    Object *classLoader;					/* 此函数所属于的类对象 */
+    const Method *method;					/* 函数体指针 */
+    LIR *misPredBranchOver;					/* LIR结构指针 */
 } CallsiteInfo;
 
+/**
+ * @brief 中间指令结构
+ */
 typedef struct MIR {
     DecodedInstruction dalvikInsn;			/* dalvik指令解码结构 */
     unsigned int width;						/* 指令长度 */
@@ -137,8 +146,10 @@ typedef struct MIR {
 	/* 这个联合体用于找到调用此函数的函数callee */
     union {
         // Used by the inlined insn from the callee to find the mother method
+		/* 被调用者的函数体结构指针 */
         const Method *calleeMethod;
         // Used by the inlined invoke to find the class and method pointers
+		/* 调用者的调用信息 */
         CallsiteInfo *callsiteInfo;
     } meta;
 } MIR;
@@ -153,19 +164,30 @@ typedef enum BlockListType {
     kSparseSwitch,
 } BlockListType;
 
+/**
+ * @brief 编译工程中将参与编译的基础块
+ * @note 这个结构用于参与到编译工作中，用于
+ *	产生中间语言。可以参见"compiler/Frontend.cpp"
+ *	中的dvmCompileTrace或者dvmCompileMethod函数
+ */
 typedef struct BasicBlock {
     int id;
     bool visited;
     bool hidden;
+	/* 指令的在每个热点路径代码段的偏移 */
     unsigned int startOffset;
+	/* 被调用者callee的函数结构体指针 */
     const Method *containingMethod;     // For blocks from the callee
+	/* 基础块类型 */
     BBType blockType;
+	/* 由于长度限制的基本块表结尾 */
     bool needFallThroughBranch;         // For blocks ended due to length limit
+	/* 基本块需要对齐，以4字节对齐 */
     bool isFallThroughFromInvoke;       // True means the block needs alignment
-    MIR *firstMIRInsn;
-    MIR *lastMIRInsn;
-    struct BasicBlock *fallThrough;
-    struct BasicBlock *taken;
+    MIR *firstMIRInsn;					/* 第一个MIR指令结构 */
+    MIR *lastMIRInsn;					/* 最后一个MIR指令结构 */
+    struct BasicBlock *fallThrough;		/* 如果当前指令是顺序执行则指向下一个顺序执行的基本块 */
+    struct BasicBlock *taken;			/* 如果是一个分支指令则指向目的基本块 */
     struct BasicBlock *iDom;            // Immediate dominator
     struct BasicBlockDataFlow *dataFlowInfo;
     BitVector *predecessors;
@@ -173,6 +195,7 @@ typedef struct BasicBlock {
     BitVector *iDominated;              // Set nodes being immediately dominated
     BitVector *domFrontier;             // Dominance frontier
     struct {                            // For one-to-many successors like
+		/* 交互并且异常处理 */
         BlockListType blockListType;    // switch and exception handling
         GrowableList blocks;
     } successorBlockList;
@@ -198,14 +221,20 @@ typedef enum AssemblerStatus {
     kRetryHalve
 } AssemblerStatus;
 
+/**
+ * @brief 编译单元结构
+ * @note 用于在编译过程中保存编译信息
+ */
 typedef struct CompilationUnit {
-    int numInsts;
-    int numBlocks;
-    GrowableList blockList;
-    const Method *method;
+    int numInsts;						/* 一个订单的指令数量 */
+    int numBlocks;						/* 在编译过程中基础块的数量 */
+    GrowableList blockList;				/* 基础块链表 */
+    const Method *method;				/* 编译属于哪个函数 */
 #ifdef ARCH_IA32
+	/* 在X86体系下触发异常指令所属的基础块的ID */
     int exceptionBlockId;               // the block corresponding to exception handling
 #endif
+	/* 编译订单信息的描述 */
     const JitTraceDescription *traceDesc;
     LIR *firstLIRInsn;
     LIR *lastLIRInsn;
@@ -213,7 +242,7 @@ typedef struct CompilationUnit {
     LIR *classPointerList;              // Relocatable
     int numClassPointers;
     LIR *chainCellOffsetLIR;
-    GrowableList pcReconstructionList;
+    GrowableList pcReconstructionList;	/* 重构链表 */
     int headerSize;                     // bytes before the first code ptr
     int dataOffset;                     // starting offset of literal pool
     int totalSize;                      // header + code size
@@ -234,7 +263,7 @@ typedef struct CompilationUnit {
     LIR *chainingCellBottom;
     struct RegisterPool *regPool;
     int optRound;                       // round number to tell an LIR's age
-    jmp_buf *bailPtr;
+    jmp_buf *bailPtr;					/* 异常处理 */
     JitInstructionSetType instructionSet;
     /* Number of total regs used in the whole cUnit after SSA transformation */
     int numSSARegs;
@@ -260,7 +289,7 @@ typedef struct CompilationUnit {
      */
     const u2 *switchOverflowPad;
 
-    JitMode jitMode;
+    JitMode jitMode;					/* method|trace模式 */
     int numReachableBlocks;
     int numDalvikRegisters;             // method->registersSize + inlined
     BasicBlock *entryBlock;

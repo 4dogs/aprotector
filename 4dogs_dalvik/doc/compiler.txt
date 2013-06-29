@@ -7,7 +7,9 @@ Jit的启动与卸载由dvmJitStartup和dvmJitShutdown函数完成，它们位�
 [相关宏介绍]
 WITH_JIT 只有在编译时打开此宏，JIT模块才能编译进虚拟机中
 WITH_JIT_TUNING 打开此宏后会统计编译信息。在发布版本时可以关闭，用于调试。
-
+WITH_SELF_VERIFICATION 开启自身校验。
+ARCH_IA32 定义在X86体系下所用到的代码
+SIGNATURE_BREAKPOINT 调试所用
 
 [编译流程图]
 以trace模式为例
@@ -29,7 +31,16 @@ mips,arm两个目录的CodegenDriver.cpp以及x86目录的CodegenInterface.cpp�
 用于实现method与trace两种模式编译的实现,其中重要的接口函数有dvmCompileTrace
 dvmCompileMethod。
 
+一个最重要的函数即是dvmCompileTrace函数，这个函数完成了所有编译器的前端操作
+dvmCompileMethod函数与之类似。
+此函数流程如下：
+1.获取JIT订单的基本信息，获取要编译源代码的首地址以及要编译指令的数量
+2.
+
 <dalvik/vm/compiler/IntermediateRep.cpp>
 在编译的过程中，有两级指令，一个是中间指令MIR，一个是低级别指令LIR。并且
 在编译过程中，有一个被称作为BasicBlock的数据结构来保存以上的信息，来辅助
 完成编译，这个模块就是针对BasicBlock链表进行操作的。
+
+<dalvik/vm/compiler/Utility.cpp>
+用于一些辅助编译模块的工具函数，例如动态数组等

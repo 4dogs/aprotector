@@ -17,10 +17,16 @@
 #include "Dalvik.h"
 #include "CompilerInternals.h"
 
+/* Arena内存块 */
 static ArenaMemBlock *arenaHead, *currentArena;
-static int numArenaBlocks;
+static int numArenaBlocks;	/* Arena块数量 */
 
 /* Allocate the initial memory block for arena-based allocation */
+/**
+ * @brief 对arena内存区域的初始化
+ * @retval 0 失败
+ * @retval 1 成功
+ */
 bool dvmCompilerHeapInit(void)
 {
     assert(arenaHead == NULL);
@@ -87,6 +93,9 @@ retry:
 }
 
 /* Reclaim all the arena blocks allocated so far */
+/**
+ * @brief 回收所有arena块分配的内存
+ */
 void dvmCompilerArenaReset(void)
 {
     ArenaMemBlock *block;
@@ -98,6 +107,11 @@ void dvmCompilerArenaReset(void)
 }
 
 /* Growable List initialization */
+/**
+ * @brief 初始化一个动态链表
+ * @param gList 链表的头
+ * @param initLength 初始化的数量
+ */
 void dvmInitGrowableList(GrowableList *gList, size_t initLength)
 {
     gList->numAllocated = initLength;
@@ -123,12 +137,19 @@ static void expandGrowableList(GrowableList *gList)
 }
 
 /* Insert a new element into the growable list */
+/**
+ * @brief 插入一个新的元素到数组中
+ * @param gList 链表的头指针
+ * @param elem 元素的指针
+ */
 void dvmInsertGrowableList(GrowableList *gList, intptr_t elem)
 {
     assert(gList->numAllocated != 0);
     if (gList->numUsed == gList->numAllocated) {
+		/* 扩展数组内存 */
         expandGrowableList(gList);
     }
+	/* 增加元素 */
     gList->elemList[gList->numUsed++] = elem;
 }
 
@@ -292,6 +313,15 @@ BitVector* dvmCompilerAllocBitVector(unsigned int startBits, bool expandable)
  *
  * NOTE: this is the sister implementation of dvmSetBit. In this version
  * memory is allocated from the compiler arena.
+ */
+/**
+ * @brief 标记指定位作为"set"
+ * @param pBits 位向量
+ * @param num 第几个block
+ * @retval 0 失败
+ * @retval 1 成功
+ * @note 返回0如果位在向量范围以外并且这里设计的不允许被扩展。
+ *	这个是dvmSetBit的扩展实现。在这个版本中内存在arena区域分配。
  */
 bool dvmCompilerSetBit(BitVector *pBits, unsigned int num)
 {
