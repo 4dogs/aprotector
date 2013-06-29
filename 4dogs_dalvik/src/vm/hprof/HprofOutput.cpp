@@ -64,6 +64,16 @@
  * NOTE: ctx is expected to have been zeroed out prior to calling this
  * function.
  */
+
+/*
+ *bref:初始化一个HPROF上下文结构.
+ *param[ctx]:HPROF上下文结构，应该初始化为0.
+ *param[fileName]:dump 的文件名.
+ *param[fd]:dump的文件描述.
+ *param[writeHeader]:头信息描述.
+ *param[directToDdms]:ddms相关，设置后将dump信息发送给ddms服务.
+*/
+
 void hprofContextInit(hprof_context_t *ctx, char *fileName, int fd,
                       bool writeHeader, bool directToDdms)
 {
@@ -126,6 +136,12 @@ void hprofContextInit(hprof_context_t *ctx, char *fileName, int fd,
     }
 }
 
+/*
+ *bref:将hprof_recode_t结构体信息写入到文件.
+ *param[rec]:hprof_recode_t结构体指针.
+ *param[fp]:写入的文件描述.
+ *return: 返回0.
+*/
 int hprofFlushRecord(hprof_record_t *rec, FILE *fp)
 {
     if (rec->dirty) {
@@ -152,11 +168,17 @@ int hprofFlushRecord(hprof_record_t *rec, FILE *fp)
     return 0;
 }
 
+/*
+ *bref:从hprof_context_t中获取record与输出文件描述，然后将recode写入文件.
+*/
 int hprofFlushCurrentRecord(hprof_context_t *ctx)
 {
     return hprofFlushRecord(&ctx->curRec, ctx->memFp);
 }
 
+/*
+ *bref:填充hprof_record_t结构体.
+*/
 int hprofStartNewRecord(hprof_context_t *ctx, u1 tag, u4 time)
 {
     hprof_record_t *rec = &ctx->curRec;
@@ -177,6 +199,9 @@ int hprofStartNewRecord(hprof_context_t *ctx, u1 tag, u4 time)
     return 0;
 }
 
+/*
+ *bref:为record结构体的body重新分配内存.
+*/
 static inline int guaranteeRecordAppend(hprof_record_t *rec, size_t nmore)
 {
     size_t minSize;
@@ -204,6 +229,9 @@ static inline int guaranteeRecordAppend(hprof_record_t *rec, size_t nmore)
     return 0;
 }
 
+/*
+ *bref:将u1内存块copy到record的body成员.
+*/
 int hprofAddU1ListToRecord(hprof_record_t *rec, const u1 *values,
                            size_t numValues)
 {
@@ -220,6 +248,9 @@ int hprofAddU1ListToRecord(hprof_record_t *rec, const u1 *values,
     return 0;
 }
 
+/*
+ *bref:将u类型数据copy到record的body成员.
+*/
 int hprofAddU1ToRecord(hprof_record_t *rec, u1 value)
 {
     int err;
@@ -234,6 +265,9 @@ int hprofAddU1ToRecord(hprof_record_t *rec, u1 value)
     return 0;
 }
 
+/*
+ *bref:再record里添加utf8类型的字符串.
+*/
 int hprofAddUtf8StringToRecord(hprof_record_t *rec, const char *str)
 {
     /* The terminating NUL character is NOT written.
@@ -242,6 +276,9 @@ int hprofAddUtf8StringToRecord(hprof_record_t *rec, const char *str)
     return hprofAddU1ListToRecord(rec, (const u1 *)str, strlen(str));
 }
 
+/*
+ *bref:将u2类型的内存copy到record的body里.
+*/
 int hprofAddU2ListToRecord(hprof_record_t *rec, const u2 *values,
                            size_t numValues)
 {
@@ -262,11 +299,17 @@ int hprofAddU2ListToRecord(hprof_record_t *rec, const u2 *values,
     return 0;
 }
 
+/*
+ *bref:将u2类型的数据记录到record.
+*/
 int hprofAddU2ToRecord(hprof_record_t *rec, u2 value)
 {
     return hprofAddU2ListToRecord(rec, &value, 1);
 }
 
+/*
+ *bref:将u4类型的数据列表记录到record.
+*/
 int hprofAddU4ListToRecord(hprof_record_t *rec, const u4 *values,
                            size_t numValues)
 {
@@ -287,11 +330,17 @@ int hprofAddU4ListToRecord(hprof_record_t *rec, const u4 *values,
     return 0;
 }
 
+/*
+ *bref:记录u4类型的数据到record.
+*/
 int hprofAddU4ToRecord(hprof_record_t *rec, u4 value)
 {
     return hprofAddU4ListToRecord(rec, &value, 1);
 }
 
+/*
+ *bref:记录u8类型的数据列表到record.
+*/
 int hprofAddU8ListToRecord(hprof_record_t *rec, const u8 *values,
                            size_t numValues)
 {
@@ -312,6 +361,9 @@ int hprofAddU8ListToRecord(hprof_record_t *rec, const u8 *values,
     return 0;
 }
 
+/*
+ *bref:将u8类型的数据记录到record.
+*/
 int hprofAddU8ToRecord(hprof_record_t *rec, u8 value)
 {
     return hprofAddU8ListToRecord(rec, &value, 1);

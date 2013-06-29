@@ -35,6 +35,14 @@
 
 #define kHeadSuffix "-hptemp"
 
+/*
+ *@brief:  做一些初始化的操作，分配一个保存hprof需要的信息的内存，即hprof_context_t.
+ *@return: 返回一个hprof_context_t指针指向的内存. 
+ *@param[outputFileName]:输出文件名.
+ *@param[fd]:是一个FILE类型的指针。
+ *@param[directToDdms]:如果directToDdms设置了，hprof_context_t的fileName与fd会被忽略，否则filename必须有效，若fd>0仅可用于调试信息。
+*/
+
 hprof_context_t* hprofStartup(const char *outputFileName, int fd,
                               bool directToDdms)
 {
@@ -58,6 +66,13 @@ hprof_context_t* hprofStartup(const char *outputFileName, int fd,
 /*
  * Finish up the hprof dump.  Returns true on success.
  */
+
+/*
+ *@bref: 先将hprof_recode_t写入文件，此信息是top-level hprof纪录。然后再将sting与class输出.然后写一个虚拟堆栈跟踪纪录供分析工具分析。最后打开输出文件，将head与tail复制到文件。
+ *@tailCtx: hprof_context_t指向的内存。
+ *@retavl 0: 完成 hprof dump失败。
+ *@retavl 0: 完成 hprof dump成功。
+*/
 bool hprofShutdown(hprof_context_t *tailCtx)
 {
     /* flush the "tail" portion of the output */
@@ -157,6 +172,11 @@ bool hprofShutdown(hprof_context_t *tailCtx)
 /*
  * Free any heap-allocated items in "ctx", and then free "ctx" itself.
  */
+
+/*
+ *bref:清理hprof_context_t指向的内存块.
+ *param[ctx]:执行hprof_context_t指向的内存块.
+*/
 void hprofFreeContext(hprof_context_t *ctx)
 {
     assert(ctx != NULL);
@@ -174,6 +194,13 @@ void hprofFreeContext(hprof_context_t *ctx)
 /*
  * Visitor invoked on every root reference.
  */
+/*
+ *bref:内部调用hprofMarkRootObject.处理mark的跟堆对象。
+ *param[addr]:Object的地址.
+ *param[threadId]:gcThreadSerialNumber.
+ *param[type]:gcScanStats.
+ *param[arg]:hprof_context_t *.
+*/
 static void hprofRootVisitor(void *addr, u4 threadId, RootType type, void *arg)
 {
     static const hprof_heap_tag_t xlate[] = {
@@ -214,6 +241,12 @@ static void hprofRootVisitor(void *addr, u4 threadId, RootType type, void *arg)
 /*
  * Visitor invoked on every heap object.
  */
+
+/*
+ *bref:内部调用hprofDumpHeapObject.dump已使用的堆的信息。
+ *param[obj]:heap对象.
+ *param[arg]:hprof_context_t类型.
+*/
 static void hprofBitmapCallback(Object *obj, void *arg)
 {
     assert(obj != NULL);
@@ -234,6 +267,15 @@ static void hprofBitmapCallback(Object *obj, void *arg)
  *
  * Returns 0 on success, or an error code on failure.
  */
+
+/*
+ *bref:将跟堆与使用的堆信息写入文件。fd>0时，将写入fd表示的文件，directToDdms设置了，则数据将发送到DDMS(Dalvik Debug Monitor Service 调试监控服务).
+ *param[fileName]:输出文件.
+ *param[fd]:文件描述，类型为FILE＊.
+ *param[directToDdms]:ddms相关.
+ *retval 0: 成功.
+ *retval 1: 返回错误码。
+*/
 int hprofDumpHeap(const char* fileName, int fd, bool directToDdms)
 {
     hprof_context_t *ctx;
