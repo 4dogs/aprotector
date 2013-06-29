@@ -21,6 +21,12 @@
 #include "CompilerInternals.h"
 #include "Dataflow.h"
 
+/**
+ * @brief 确定当前的指针是一个有效的指令
+ * @param codePtr 指向一个dalvik字节码流
+ * @retval 0 不是有效指令
+ * @retval 1 是有效指令
+ */
 static inline bool contentIsInsn(const u2 *codePtr) {
     u2 instr = *codePtr;
     Opcode opcode = (Opcode)(instr & 0xff);
@@ -35,6 +41,13 @@ static inline bool contentIsInsn(const u2 *codePtr) {
 /*
  * Parse an instruction, return the length of the instruction
  */
+/*
+ * @brief分析一条dalvik指令，并返回指令的长度
+ * @param codePtr dalvik字节码流指针
+ * @param decInsn 解码指令结构
+ * @param printMe 是否打印调试信息
+ * @return 指令长度
+ */
 static inline int parseInsn(const u2 *codePtr, DecodedInstruction *decInsn,
                             bool printMe)
 {
@@ -47,6 +60,7 @@ static inline int parseInsn(const u2 *codePtr, DecodedInstruction *decInsn,
     Opcode opcode = dexOpcodeFromCodeUnit(instr);
 
     dexDecodeInstruction(codePtr, decInsn);
+	/* 打印反汇编指令的信息 */
     if (printMe) {
         char *decodedString = dvmCompilerGetDalvikDisassembly(decInsn, NULL);
         ALOGD("%p: %#06x %s", codePtr, opcode, decodedString);
@@ -54,11 +68,27 @@ static inline int parseInsn(const u2 *codePtr, DecodedInstruction *decInsn,
     return dexGetWidthFromOpcode(opcode);
 }
 
+/** @brief 未知的目标 */
 #define UNKNOWN_TARGET 0xffffffff
 
 /*
  * Identify block-ending instructions and collect supplemental information
  * regarding the following instructions.
+ */
+/**
+ * @brief 寻找基本块的边界
+ * @param caller 指向调用者的函数体结构
+ * @param insn MIR结构的当前指令
+ * @param curOffset 在dalvik字节码指令流的偏移
+ * @param target 要输出的目标在dalvik字节码指令流的偏移
+ * @param isInvoke 是否是调用指令
+ * @param callee 被调用者的函数体结构
+ * @retval 0 失败
+ * @retval 1 成功
+ * @note 处理调用指令与分支指令，如果是调用指令则参数callee返回被调用函数的
+ *	函数体，isInvoke为true。参数target返回跳转目标在字节码流中的偏移。
+ *	如果当前指令是VOID，RETURN，THROW三种指令则不进行处理。并且target返回
+ *	0xffffffff。
  */
 static inline bool findBlockBoundary(const Method *caller, MIR *insn,
                                      unsigned int curOffset,
@@ -67,28 +97,43 @@ static inline bool findBlockBoundary(const Method *caller, MIR *insn,
 {
     switch (insn->dalvikInsn.opcode) {
         /* Target is not compile-time constant */
+		/* 目标不是编译内容 */
         case OP_RETURN_VOID:
         case OP_RETURN:
         case OP_RETURN_WIDE:
         case OP_RETURN_OBJECT:
         case OP_THROW:
-          *target = UNKNOWN_TARGET;
-          break;
+			/*
+			 * 从这里可以看出如果指令是空指令（VOID）
+			 * 返回指令（RETURN，RETURN_WIDE，RETURN_OBJECT，RETURN_OBJECT）
+			 * 异常抛出指令（THROW）
+			 * 都不可以进行编译
+			 */
+			*target = UNKNOWN_TARGET;
+			break;
         case OP_INVOKE_VIRTUAL:
         case OP_INVOKE_VIRTUAL_RANGE:
         case OP_INVOKE_INTERFACE:
         case OP_INVOKE_INTERFACE_RANGE:
         case OP_INVOKE_VIRTUAL_QUICK:
         case OP_INVOKE_VIRTUAL_QUICK_RANGE:
+			/*
+			 * 这里是调用虚接口
+			 */
             *isInvoke = true;
             break;
         case OP_INVOKE_SUPER:
         case OP_INVOKE_SUPER_RANGE: {
+			/*
+			 * 这里是调用父类
+			 */
             int mIndex = caller->clazz->pDvmDex->
-                pResMethods[insn->dalvikInsn.vB]->methodIndex;
+                pResMethods[insn->dalvikInsn.vB]->methodIndex;			/* 从DEX文件头中的函数常量池中取出父类的函数ID */
             const Method *calleeMethod =
-                caller->clazz->super->vtable[mIndex];
+                caller->clazz->super->vtable[mIndex];					/* 通过类ID从调用者的虚表中取出函数结构 */
 
+			
+			/* 如果是native函数，应该是通过JNI接口调用的 */
             if (calleeMethod && !dvmIsNativeMethod(calleeMethod)) {
                 *target = (unsigned int) calleeMethod->insns;
             }
@@ -98,6 +143,7 @@ static inline bool findBlockBoundary(const Method *caller, MIR *insn,
         }
         case OP_INVOKE_STATIC:
         case OP_INVOKE_STATIC_RANGE: {
+			/* 调用静态方法 */
             const Method *calleeMethod =
                 caller->clazz->pDvmDex->pResMethods[insn->dalvikInsn.vB];
 
@@ -110,6 +156,7 @@ static inline bool findBlockBoundary(const Method *caller, MIR *insn,
         }
         case OP_INVOKE_SUPER_QUICK:
         case OP_INVOKE_SUPER_QUICK_RANGE: {
+			/* 调用父类函数 */
             const Method *calleeMethod =
                 caller->clazz->super->vtable[insn->dalvikInsn.vB];
 
@@ -122,6 +169,7 @@ static inline bool findBlockBoundary(const Method *caller, MIR *insn,
         }
         case OP_INVOKE_DIRECT:
         case OP_INVOKE_DIRECT_RANGE: {
+			/* 直接调用函数 */
             const Method *calleeMethod =
                 caller->clazz->pDvmDex->pResMethods[insn->dalvikInsn.vB];
             if (calleeMethod && !dvmIsNativeMethod(calleeMethod)) {
@@ -134,6 +182,7 @@ static inline bool findBlockBoundary(const Method *caller, MIR *insn,
         case OP_GOTO:
         case OP_GOTO_16:
         case OP_GOTO_32:
+			/* GOTO指令 */
             *target = curOffset + (int) insn->dalvikInsn.vA;
             break;
 
@@ -143,6 +192,7 @@ static inline bool findBlockBoundary(const Method *caller, MIR *insn,
         case OP_IF_GE:
         case OP_IF_GT:
         case OP_IF_LE:
+			/* IF指令 */
             *target = curOffset + (int) insn->dalvikInsn.vC;
             break;
 
@@ -152,6 +202,7 @@ static inline bool findBlockBoundary(const Method *caller, MIR *insn,
         case OP_IF_GEZ:
         case OP_IF_GTZ:
         case OP_IF_LEZ:
+			/* IF指令不等于的情况 */
             *target = curOffset + (int) insn->dalvikInsn.vB;
             break;
 
@@ -161,6 +212,9 @@ static inline bool findBlockBoundary(const Method *caller, MIR *insn,
     return true;
 }
 
+/**
+ * @brief 确定一条指令是GOTO指令
+ */
 static inline bool isGoto(MIR *insn)
 {
     switch (insn->dalvikInsn.opcode) {
@@ -191,6 +245,9 @@ static inline bool isUnconditionalBranch(MIR *insn)
 
 /*
  * dvmHashTableLookup() callback
+ */
+/**
+ * @brief dvmHashtableLoopup函数的回调函数用于比较两个函数的大小
  */
 static int compareMethod(const CompilerMethodStats *m1,
                          const CompilerMethodStats *m2)
@@ -1161,6 +1218,9 @@ static void processCanThrow(CompilationUnit *cUnit, BasicBlock *curBlock,
  * TODO: implementation will be revisited when the trace builder can provide
  * whole-method traces.
  */
+/**
+ * @brief method模式的编译，类似dvmCompileTrace
+ */
 bool dvmCompileMethod(const Method *method, JitTranslationInfo *info)
 {
     CompilationUnit cUnit;
@@ -1449,6 +1509,9 @@ static bool exhaustTrace(CompilationUnit *cUnit, BasicBlock *curBlock)
 }
 
 /* Compile a loop */
+/**
+ * @brief 编译一个循环
+ */
 static bool compileLoop(CompilationUnit *cUnit, unsigned int startOffset,
                         JitTraceDescription *desc, int numMaxInsts,
                         JitTranslationInfo *info, jmp_buf *bailPtr,
@@ -1633,92 +1696,120 @@ static bool searchClassTablePrefix(const Method* method) {
  * first and they will be passed to the codegen routines to convert Dalvik
  * bytecode into machine code.
  */
+/**
+ * @brief trace模式的编译函数
+ * @param desc 指向一个JitTraceDescription结构的指针，此值从订单处获得
+ * @param numMaxInsts 最大的编译代码数量 
+ * @param info 指向一个编译成功后保存编译结果的结构JitTranslationInfo
+ * @param bailPtr 用于异常处理，jmp_buf的指针
+ * @param optHints
+ * @note 主要的入口点来实现trace模式的编译。首先基本代码被构建并且它们将被传递到
+ * codegen目录的对应代码将dalvik字节码转换成本地的机器代码。
+ */
 bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
                      JitTranslationInfo *info, jmp_buf *bailPtr,
                      int optHints)
 {
-    const DexCode *dexCode = dvmGetMethodCode(desc->method);
-    const JitTraceRun* currRun = &desc->trace[0];
-    unsigned int curOffset = currRun->info.frag.startOffset;
+    const DexCode *dexCode = dvmGetMethodCode(desc->method);	/* 获取函数代码 */
+    const JitTraceRun* currRun = &desc->trace[0];				/* 取出热点代码信息 */
+    unsigned int curOffset = currRun->info.frag.startOffset;	/* 获取在代码段的偏移 */
     unsigned int startOffset = curOffset;
-    unsigned int numInsts = currRun->info.frag.numInsts;
-    const u2 *codePtr = dexCode->insns + curOffset;
+    unsigned int numInsts = currRun->info.frag.numInsts;		/* 获取指令的数量 */		
+    const u2 *codePtr = dexCode->insns + curOffset;				/* 获取要编译的开始指针 */
     int traceSize = 0;  // # of half-words
     const u2 *startCodePtr = codePtr;
     BasicBlock *curBB, *entryCodeBB;
     int numBlocks = 0;
-    static int compilationId;
-    CompilationUnit cUnit;
+    static int compilationId;									/* 编译ID号 */
+    CompilationUnit cUnit;										/* 编译单元结构，用于整个编译期间记录信息 */
     GrowableList *blockList;
 #if defined(WITH_JIT_TUNING)
     CompilerMethodStats *methodStats;
 #endif
 
     /* If we've already compiled this trace, just return success */
+	/* 如果以前编译过这个代码，并且没有丢弃结构则直接返回成功 */
     if (dvmJitGetTraceAddr(startCodePtr) && !info->discardResult) {
         /*
          * Make sure the codeAddress is NULL so that it won't clobber the
          * existing entry.
          */
+		/* 确保codeAddress设置为NULL */
         info->codeAddress = NULL;
         return true;
     }
 
     /* If the work order is stale, discard it */
+	/* 如果订单是之前的订单则丢弃它 */
     if (info->cacheVersion != gDvmJit.cacheVersion) {
         return false;
     }
 
-    compilationId++;
+    compilationId++;		/* 编译ID增加 */
     memset(&cUnit, 0, sizeof(CompilationUnit));
 
 #if defined(WITH_JIT_TUNING)
     /* Locate the entry to store compilation statistics for this method */
+	/* 保存编译源代码所在函数的信息到编译统计表 */
     methodStats = dvmCompilerAnalyzeMethodBody(desc->method, false);
 #endif
 
     /* Set the recover buffer pointer */
+	/* 设置jmp_buf指针，异常时使用 */
     cUnit.bailPtr = bailPtr;
 
     /* Initialize the printMe flag */
+	/* 初始化打印信息标志 */
     cUnit.printMe = gDvmJit.printMe;
 
     /* Setup the method */
+	/* 设置对应的函数体 */
     cUnit.method = desc->method;
 
     /* Store the trace descriptor and set the initial mode */
+	/* 保存trace描述并且设置编译单元的初始化模式 */
     cUnit.traceDesc = desc;
     cUnit.jitMode = kJitTrace;
 
     /* Initialize the PC reconstruction list */
+	/* 初始化PC重建列表 */
     dvmInitGrowableList(&cUnit.pcReconstructionList, 8);
 
     /* Initialize the basic block list */
+	/* 初始化基本块列表 */
     blockList = &cUnit.blockList;
     dvmInitGrowableList(blockList, 8);
 
     /* Identify traces that we don't want to compile */
+	/* 识别不编译的traces */
     if (gDvmJit.classTable) {
         bool classFound = searchClassTablePrefix(desc->method);
         if (gDvmJit.classTable && gDvmJit.includeSelectedMethod != classFound) {
             return false;
         }
     }
+
+	/* 如果存在函数记录表 */
     if (gDvmJit.methodTable) {
+		/* 类名 + 函数名 */
         int len = strlen(desc->method->clazz->descriptor) +
                   strlen(desc->method->name) + 1;
         char *fullSignature = (char *)dvmCompilerNew(len, true);
         strcpy(fullSignature, desc->method->clazz->descriptor);
         strcat(fullSignature, desc->method->name);
 
-        int hashValue = dvmComputeUtf8Hash(fullSignature);
+        int hashValue = dvmComputeUtf8Hash(fullSignature);				/* 进行hash操作 */
 
         /*
          * Doing three levels of screening to see whether we want to skip
          * compiling this method
          */
+		/*
+		 * 是否是要跳过编译这个函数的三种等级
+		 */
 
         /* First, check the full "class;method" signature */
+		/* 第一，检查整个"class;method"签名,确定函数是否已经在表之中了 */
         bool methodFound =
             dvmHashTableLookup(gDvmJit.methodTable, hashValue,
                                fullSignature, (HashCompareFunc) strcmp,
@@ -1726,6 +1817,7 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
             NULL;
 
         /* Full signature not found - check the enclosing class */
+		/* 函数名签名没有找到 - 单检查类名 */
         if (methodFound == false) {
             int hashValue = dvmComputeUtf8Hash(desc->method->clazz->descriptor);
             methodFound =
@@ -1734,6 +1826,7 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
                                (HashCompareFunc) strcmp, false) !=
                 NULL;
             /* Enclosing class not found - check the method name */
+			/* 类名没有找到，则直接检查函数名 */
             if (methodFound == false) {
                 int hashValue = dvmComputeUtf8Hash(desc->method->name);
                 methodFound =
@@ -1746,6 +1839,7 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
                  * Debug by call-graph is enabled. Check if the debug list
                  * covers any methods on the VM stack.
                  */
+				/* 如果还没有找到则查看call-graph是否开启。检查在调试列表上虚拟机栈中的函数 */
                 if (methodFound == false && gDvmJit.checkCallGraph == true) {
                     methodFound =
                         filterMethodByCallGraph(info->requestingThread,
@@ -1764,7 +1858,16 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
          * 2) If includeSelectedMethod == true, the method does not match the
          *    full and partial signature stored in the hash table.
          */
+		/*
+		 * 在以下条件下，trace将受到*保护*
+		 * 编译仅包含single-step指令从解释器。
+		 * 1) 如果includeSelectedMethod == false，函数签名必须匹配"类名+函数名"
+		 *	或者部分的签名在hash表中。
+		 * 2) 如果includeSelectedMethod == true, 那么函数签名可以不用在hash表中匹配。
+		 */
+		/* 存在函数表并且函数必须被找到才可以 */
         if (gDvmJit.methodTable && gDvmJit.includeSelectedMethod != methodFound) {
+			/* 如果是X86架构直接返回false */
 #ifdef ARCH_IA32
             return false;
 #else
@@ -1772,8 +1875,10 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
 #endif
         } else {
             /* Compile the trace as normal */
+			/* 正常的编译trace */
 
             /* Print the method we cherry picked */
+			/* 打印信息 */
             if (gDvmJit.includeSelectedMethod == true) {
                 cUnit.printMe = true;
             }
@@ -1781,32 +1886,39 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
     }
 
     // Each pair is a range, check whether curOffset falls into a range.
+	/* 检查trace的偏移是否在合法的范围内 */
     bool includeOffset = (gDvmJit.num_entries_pcTable < 2);
     for (int pcOff = 0; pcOff < gDvmJit.num_entries_pcTable; ) {
+		/* 最后的边界检查，由于是成对的增加计数 */
         if (pcOff+1 >= gDvmJit.num_entries_pcTable) {
           break;
         }
+		/* 成对的匹配一个是上界，一个是下界 */
         if (curOffset >= gDvmJit.pcTable[pcOff] && curOffset <= gDvmJit.pcTable[pcOff+1]) {
-            includeOffset = true;
+            includeOffset = true;			/* 在合法范围则标记 */
             break;
         }
-        pcOff += 2;
+        pcOff += 2;				/* 成对的增加 */
     }
     if (!includeOffset) {
         return false;
     }
 
     /* Allocate the entry block */
+	/* 分配一个块 */
     curBB = dvmCompilerNewBB(kEntryBlock, numBlocks++);
     dvmInsertGrowableList(blockList, (intptr_t) curBB);
     curBB->startOffset = curOffset;
 
+	/* 字节码的块 */
     entryCodeBB = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
     dvmInsertGrowableList(blockList, (intptr_t) entryCodeBB);
     entryCodeBB->startOffset = curOffset;
+	/* 形成一个链表，fallThrough是字段 */
     curBB->fallThrough = entryCodeBB;
     curBB = entryCodeBB;
 
+	/* 打印调试信息 */
     if (cUnit.printMe) {
         ALOGD("--------\nCompiler: Building trace for %s, offset %#x",
              desc->method->name, curOffset);
@@ -1816,26 +1928,34 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
      * Analyze the trace descriptor and include up to the maximal number
      * of Dalvik instructions into the IR.
      */
+	/*
+	 * 分析trace描述符并且包括到dalvik最大指令数量到IR中。
+	 */
     while (1) {
         MIR *insn;
         int width;
         insn = (MIR *)dvmCompilerNew(sizeof(MIR), true);
         insn->offset = curOffset;
+		/* 返回指令长度 */
         width = parseInsn(codePtr, &insn->dalvikInsn, cUnit.printMe);
 
         /* The trace should never incude instruction data */
         assert(width);
         insn->width = width;
-        traceSize += width;
-        dvmCompilerAppendMIR(curBB, insn);
+        traceSize += width;						/* traceSize加上指令的长度 */
+        dvmCompilerAppendMIR(curBB, insn);		/* 插入一个MIR到基本块链表 */
         cUnit.numInsts++;
 
+		/* 获取当前指令的OPCODE标记 */
         int flags = dexGetFlagsFromOpcode(insn->dalvikInsn.opcode);
 
+		/* 如果当前的指令是一个调用指令 */
         if (flags & kInstrInvoke) {
+			/* 获取被调用函数的函数体结构 */
             const Method *calleeMethod = (const Method *)
                 currRun[JIT_TRACE_CUR_METHOD].info.meta;
             assert(numInsts == 1);
+			/* 获取调用者信息 */
             CallsiteInfo *callsiteInfo =
                 (CallsiteInfo *)dvmCompilerNew(sizeof(CallsiteInfo), true);
             callsiteInfo->classDescriptor = (const char *)
@@ -1847,14 +1967,18 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
         }
 
         /* Instruction limit reached - terminate the trace here */
+		/* 指令的最大数到达 */
         if (cUnit.numInsts >= numMaxInsts) {
             break;
         }
+		/* 如果编译完成 */
         if (--numInsts == 0) {
+			/* 到达末尾退出循环 */
             if (currRun->info.frag.runEnd) {
                 break;
             } else {
                 /* Advance to the next trace description (ie non-meta info) */
+				/* 找到一个代码trace描述符号 */
                 do {
                     currRun++;
                 } while (!currRun->isCode);
@@ -1864,6 +1988,7 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
                     break;
                 }
 
+				/* 插入这条指令到基本块链表中 */
                 curBB = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
                 dvmInsertGrowableList(blockList, (intptr_t) curBB);
                 curOffset = currRun->info.frag.startOffset;
@@ -1875,10 +2000,13 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
             curOffset += width;
             codePtr += width;
         }
-    }
+    }/* 完成MIR链表的编译 */
+
+	/* 以上代码将dalvik的指令流转换成中间指令格式MIR */
 
 #if defined(WITH_JIT_TUNING)
     /* Convert # of half-word to bytes */
+	/* 记录trace的大小 */
     methodStats->compiledDalvikSize += traceSize * 2;
 #endif
 
@@ -1887,14 +2015,20 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
      * taken/fallthrough links. Also create chaining cells for code not included
      * in the trace.
      */
+	/*
+	 * 现在扫描包含真实代码的基本块链表
+	 */
     size_t blockId;
     for (blockId = 0; blockId < blockList->numUsed; blockId++) {
-        curBB = (BasicBlock *) dvmGrowableListGetElement(blockList, blockId);
-        MIR *lastInsn = curBB->lastMIRInsn;
+        curBB = (BasicBlock *) dvmGrowableListGetElement(blockList, blockId);		/* 从指定的索引中获取基本块的节点 */
+        MIR *lastInsn = curBB->lastMIRInsn;											/* 获取MIR指令指针 */
         /* Skip empty blocks */
+		/* 跳过空块 */
         if (lastInsn == NULL) {
             continue;
         }
+
+		/* 取出当前指令的偏移 */
         curOffset = lastInsn->offset;
         unsigned int targetOffset = curOffset;
         unsigned int fallThroughOffset = curOffset + lastInsn->width;
@@ -1907,13 +2041,16 @@ bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
         /* Link the taken and fallthrough blocks */
         BasicBlock *searchBB;
 
+		/* 获取当前指令的标记 */
         int flags = dexGetFlagsFromOpcode(lastInsn->dalvikInsn.opcode);
 
+		/* 是否是调用指令 */
         if (flags & kInstrInvoke) {
             cUnit.hasInvoke = true;
         }
 
         /* Backward branch seen */
+		/* 分支指令 */
         if (isInvoke == false &&
             (flags & kInstrCanBranch) != 0 &&
             targetOffset < curOffset &&

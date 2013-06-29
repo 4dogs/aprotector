@@ -736,13 +736,21 @@ struct DvmGlobals {
 
 extern struct DvmGlobals gDvm;
 
+/*
+ * JIT的全局结构声明
+ */
 #if defined(WITH_JIT)
 
 /* Trace profiling modes.  Ordering matters - off states before on states */
+/* Trace profiling模式 */
 enum TraceProfilingModes {
+	/* 不进行profiling */
     kTraceProfilingDisabled = 0,      // Not profiling
+	/* 周期性的进行profiling, off阶段 */
     kTraceProfilingPeriodicOff = 1,   // Periodic profiling, off phase
+	/* 总是进行profiling */
     kTraceProfilingContinuous = 2,    // Always profiling
+	/* 周期性的进行profiling, on阶段 */
     kTraceProfilingPeriodicOn = 3     // Periodic profiling, on phase
 };
 
@@ -761,6 +769,9 @@ enum NoChainExits {
 
 /*
  * JIT-specific global state
+ */
+/**
+ * @brief Jit的全局数据结构
  */
 struct DvmJitGlobals {
     /*

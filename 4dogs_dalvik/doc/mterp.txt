@@ -1,0 +1,12 @@
+[整体介绍]
+Interpreter的bytecode功能实现，包括C和ASM版本。这个模块主要实现针对不同平台的解释器的具体实现，但是实际上它是模块化组织的。
+总的来说，是有一个portable的解释器（纯c语言）的实现和其它平台下的fast解释器（c语言和asm版本）。但是这些解释器都是通过外部的一些零碎的代码通过一个gen-mterp.py这个生成文件和多个config-<arch>配置文件来动态生成的。也就是从这些外部的实现代码抽取适合指定平台的代码来填充到一个具体的c或者asm文件中的。
+最终生成的可用的解释器存放在mterp目录中的out目录下。
+不管是c版本的还是asm版本的解释器，它们的入口点都是dvmMterpStdRun。由此进入后就是针对指定的opcode的解析实现。
+
+Portable Interpreter是一个all-in-one-function的实现，即把所有的虚拟机指令处理代码都作为C语句switch-case中的跳转分支，一个case对应一条虚拟机指令，实现简单，但效率欠佳。我们描述一下此过程：从内存中取出虚拟机指令，然后跳转执行处理代码，完成后再跳转回switch的开始处进行下一条指令的处理。从中我们可以看到，每执行一条虚拟机指令，除了本身的执行开销外，还多了一次内存的访问和两次跳转，从指令流水线角度看，跳转意味着，跳转指令执行阶段之前已被预处理（如取指、解码）的指令将被放弃。此外，大部分编译器会为switch语句生成一段范围检测的代码。
+
+Fast Interpreter是基本蔡邕asm的实现，Fast版本继承了threaded implement的优点。除了汇编实现以外，Fast版本还做了一个优化。threaded implement多出来的一次内存访问，是由于goto *handlerTable[INST_INST(inst)]，即需要一个表handlerTable[]保存所有虚拟机指令C执行代码的跳转地址。在Fast版本中，我们不管虚拟机指令的执行代码多长，给每条指令预留64个字节的空间，并且保证通过base + INST_INST(inst)*64能找到正确的执行地址，其中base指下面代码中提及的dvmAsmInstructionStart，指向第一条指令OP_NOP的一个标号，INST_INST(inst)表示从指令中取出opcode。64字节空间多大多数指令而言足够了，少数不够的，可以通过跳转指令解决。
+
+[dalvik\vm\mterp\Mterp.cpp]
+定义了一些使用Mterp这种模式的解释器的时候要用到的一些接口函数。关键是dvmMterpStd这个函数，这是一个入口，从它进入具体平台的解释器。

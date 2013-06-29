@@ -18,6 +18,12 @@
 #include "CompilerInternals.h"
 
 /* Allocate a new basic block */
+/**
+ * @brief 分配一个指令基础块
+ * @param blockType 指令块的类型
+ * @param blockId 块的索引 
+ * @return 返回一个BasicBlock的指针
+ */ 
 BasicBlock *dvmCompilerNewBB(BBType blockType, int blockId)
 {
     BasicBlock *bb = (BasicBlock *)dvmCompilerNew(sizeof(BasicBlock), true);
@@ -29,6 +35,11 @@ BasicBlock *dvmCompilerNewBB(BBType blockType, int blockId)
 }
 
 /* Insert an MIR instruction to the end of a basic block */
+/**
+ * @brief 将一个MIR中间指令结构插入到指令基本块链表末尾
+ * @param bb 指向一个BasicBlock链表的头
+ * @param mir 指向一个MIR结构指针
+ */
 void dvmCompilerAppendMIR(BasicBlock *bb, MIR *mir)
 {
     if (bb->firstMIRInsn == NULL) {
@@ -36,6 +47,7 @@ void dvmCompilerAppendMIR(BasicBlock *bb, MIR *mir)
         bb->lastMIRInsn = bb->firstMIRInsn = mir;
         mir->prev = mir->next = NULL;
     } else {
+		/* 链表插入 */
         bb->lastMIRInsn->next = mir;
         mir->prev = bb->lastMIRInsn;
         mir->next = NULL;
@@ -44,6 +56,11 @@ void dvmCompilerAppendMIR(BasicBlock *bb, MIR *mir)
 }
 
 /* Insert an MIR instruction to the head of a basic block */
+/**
+ * @brief 将一个MIR中间指令结构插入到指令基本块链表的头部
+ * @param bb 指向一个基本块链表头
+ * @param mir 指向一个MIR结构指针
+ */
 void dvmCompilerPrependMIR(BasicBlock *bb, MIR *mir)
 {
     if (bb->firstMIRInsn == NULL) {
@@ -59,6 +76,12 @@ void dvmCompilerPrependMIR(BasicBlock *bb, MIR *mir)
 }
 
 /* Insert an MIR instruction after the specified MIR */
+/**
+ * @brief 插入一个MIR指令结果到一个指定的MIR结构之后
+ * @param bb 指向基本块链表头
+ * @param currentMIR 指定的MIR指针
+ * @param newMIR 要插入的MIR指针
+ */
 void dvmCompilerInsertMIRAfter(BasicBlock *bb, MIR *currentMIR, MIR *newMIR)
 {
     newMIR->prev = currentMIR;

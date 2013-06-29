@@ -21,6 +21,7 @@
 #include "Dalvik.h"
 #include "interp/Jit.h"
 #include "CompilerInternals.h"
+/* x86架构定义 */
 #ifdef ARCH_IA32
 #include "codegen/x86/Translator.h"
 #include "codegen/x86/Lower.h"
@@ -29,23 +30,33 @@
 extern "C" void dvmCompilerTemplateStart(void);
 extern "C" void dmvCompilerTemplateEnd(void);
 
+/**
+ * @brief 返回编译工作队列的长度
+ * @return 返回订单的数量
+ */
 static inline bool workQueueLength(void)
 {
     return gDvmJit.compilerQueueLength;
 }
 
+/**
+ * @brief 取出一条编译工作队列 
+ * @return 返回一个CompilerWorkOrder结构
+ */
 static CompilerWorkOrder workDequeue(void)
 {
+	/* 断言确定当前工作节点不是无效的 */
     assert(gDvmJit.compilerWorkQueue[gDvmJit.compilerWorkDequeueIndex].kind
            != kWorkOrderInvalid);
     CompilerWorkOrder work =
-        gDvmJit.compilerWorkQueue[gDvmJit.compilerWorkDequeueIndex];
+        gDvmJit.compilerWorkQueue[gDvmJit.compilerWorkDequeueIndex];				/* 取出当前的工作节点 */
     gDvmJit.compilerWorkQueue[gDvmJit.compilerWorkDequeueIndex++].kind =
-        kWorkOrderInvalid;
+        kWorkOrderInvalid;															/* 设置当前的工作节点类型为无效的并且索引增加 */
+	/* 如果索引到达工作队列最大值则索引重新设置为0 */
     if (gDvmJit.compilerWorkDequeueIndex == COMPILER_WORK_QUEUE_SIZE) {
         gDvmJit.compilerWorkDequeueIndex = 0;
     }
-    gDvmJit.compilerQueueLength--;
+    gDvmJit.compilerQueueLength--;				/* 长度递减 */
     if (gDvmJit.compilerQueueLength == 0) {
         dvmSignalCond(&gDvmJit.compilerQueueEmpty);
     }
@@ -91,6 +102,9 @@ void dvmCompilerForceWorkEnqueue(const u2 *pc, WorkOrderKind kind, void* info)
  *
  * NOTE: Make sure that the caller frees the info pointer if the return value
  * is false.
+ */
+/**
+ * 
  */
 bool dvmCompilerWorkEnqueue(const u2 *pc, WorkOrderKind kind, void* info)
 {
@@ -276,12 +290,15 @@ static void crawlDalvikStack(Thread *thread, bool print)
            (u1 *) (saveArea+1) == thread->interpStackStart);
 }
 
+/**
+ * @brief 重新设置代码缓冲区
+ */
 static void resetCodeCache(void)
 {
     Thread* thread;
-    u8 startTime = dvmGetRelativeTimeUsec();
+    u8 startTime = dvmGetRelativeTimeUsec();		/* 获取相对的启动时间 */
     int inJit = 0;
-    int byteUsed = gDvmJit.codeCacheByteUsed;
+    int byteUsed = gDvmJit.codeCacheByteUsed;		/* 获取当前代码缓冲的使用量 */
 
     /* If any thread is found stuck in the JIT state, don't reset the cache  */
     dvmLockThreadList(NULL);
@@ -376,6 +393,9 @@ static void resetCodeCache(void)
  *    from scratch.
  * 2) Patch predicted chaining cells by consuming recorded work orders.
  */
+/**
+ * @brief 检查编译代码缓冲池是否满了
+ */
 void dvmCompilerPerformSafePointChecks(void)
 {
     if (gDvmJit.codeCacheFull) {
@@ -384,6 +404,11 @@ void dvmCompilerPerformSafePointChecks(void)
     dvmCompilerPatchInlineCache();
 }
 
+/**
+ * @brief 编译器线程启动函数
+ * @retval 0 表示失败
+ * @retval 1 表示成功
+ */
 static bool compilerThreadStartup(void)
 {
     JitEntry *pJitTable = NULL;
@@ -391,6 +416,7 @@ static bool compilerThreadStartup(void)
     JitTraceProfCounters *pJitTraceProfCounters = NULL;
     unsigned int i;
 
+	/* 针对硬件平台的初始化 */
     if (!dvmCompilerArchInit())
         goto fail;
 
@@ -398,23 +424,27 @@ static bool compilerThreadStartup(void)
      * Setup the code cache if we have not inherited a valid code cache
      * from the zygote.
      */
+	/* 如果没有从zygote继承一个有效的代码缓冲则设置代码缓冲 */
     if (gDvmJit.codeCache == NULL) {
         if (!dvmCompilerSetupCodeCache())
             goto fail;
     }
 
     /* Allocate the initial arena block */
+	/* 分配编译器要用到的内存 */
     if (dvmCompilerHeapInit() == false) {
         goto fail;
     }
 
     /* Cache the thread pointer */
+	/* 缓存线程指针 */
     gDvmJit.compilerThread = dvmThreadSelf();
 
     dvmLockMutex(&gDvmJit.compilerLock);
 
     /* Track method-level compilation statistics */
-    gDvmJit.methodStatsTable =  dvmHashTableCreate(32, NULL);
+	/* track method两个级别的编译统计 */
+    gDvmJit.methodStatsTable = dvmHashTableCreate(32, NULL);
 
 #if defined(WITH_JIT_TUNING)
     gDvm.verboseShutdown = true;
@@ -423,11 +453,14 @@ static bool compilerThreadStartup(void)
     dvmUnlockMutex(&gDvmJit.compilerLock);
 
     /* Set up the JitTable */
-
+	/* 设置JitTable表 */
+	
     /* Power of 2? */
+	/* JitTable大小为2的冥 */
     assert(gDvmJit.jitTableSize &&
            !(gDvmJit.jitTableSize & (gDvmJit.jitTableSize - 1)));
 
+	/* 分配一个Jit表的内存 */
     dvmInitMutex(&gDvmJit.tableLock);
     dvmLockMutex(&gDvmJit.tableLock);
     pJitTable = (JitEntry*)
@@ -445,6 +478,11 @@ static bool compilerThreadStartup(void)
      * and update the profile table after profiling has been turned
      * off by null'ng the global pointer.  Be aware.
      */
+	/*
+	 * 注解: profile表仅分配一次,并且是全局的。它通过gDvm.pJitProfTable
+	 * 为NULL时关闭。与JitTable生存期一致。但是它的关闭并不是高速同步的，
+	 * 也许线程会保持并且更新一个profile表在已经关闭了profiling之后。
+	 */
     pJitProfTable = (unsigned char *)malloc(JIT_PROF_SIZE);
     if (!pJitProfTable) {
         ALOGE("jit prof table allocation failed");
@@ -457,9 +495,11 @@ static bool compilerThreadStartup(void)
        pJitTable[i].u.info.chain = gDvmJit.jitTableSize;
     }
     /* Is chain field wide enough for termination pattern? */
+	/* 是否赋值正确 */
     assert(pJitTable[0].u.info.chain == gDvmJit.jitTableSize);
 
     /* Allocate the trace profiling structure */
+	/* 分配trace热点分析结构 */
     pJitTraceProfCounters = (JitTraceProfCounters*)
                              calloc(1, sizeof(*pJitTraceProfCounters));
     if (!pJitTraceProfCounters) {
@@ -477,6 +517,9 @@ static bool compilerThreadStartup(void)
      * If the VM is launched with wait-on-the-debugger, we will need to hide
      * the profile table here
      */
+	/*
+	 * 如果VM通过wait-on-the-debugger方式运行，我们需要隐藏profile表
+	 */
     gDvmJit.pProfTable = dvmDebuggerOrProfilerActive() ? NULL : pJitProfTable;
     gDvmJit.pProfTableCopy = pJitProfTable;
     gDvmJit.pJitTraceProfCounters = pJitTraceProfCounters;
@@ -484,6 +527,7 @@ static bool compilerThreadStartup(void)
     dvmUnlockMutex(&gDvmJit.tableLock);
 
     /* Signal running threads to refresh their cached pJitTable pointers */
+	/* 开启所有的线程去刷新他们的JitTable指针 */
     dvmSuspendAllThreads(SUSPEND_FOR_REFRESH);
     dvmResumeAllThreads(SUSPEND_FOR_REFRESH);
 
@@ -593,9 +637,13 @@ fail:
 
 }
 
+/**
+ * @brief Jit编译器主工作线程
+ * @note 真正的一切从这里开始
+ */
 static void *compilerThreadStart(void *arg)
 {
-    dvmChangeStatus(NULL, THREAD_VMWAIT);
+    dvmChangeStatus(NULL, THREAD_VMWAIT);						/* 当线程启动后，首先将dalvik虚拟机设置为等待状态 */
 
     /*
      * If we're not running stand-alone, wait a little before
@@ -638,11 +686,14 @@ static void *compilerThreadStart(void *arg)
                                  &gDvmJit.compilerLock, 3000, 0);
             dvmUnlockMutex(&gDvmJit.compilerLock);
         }
+		
+		/* 检测是否退出 */
         if (gDvmJit.haltCompilerThread) {
              return NULL;
         }
     }
 
+	/* 编译器线程初始化函数，这里对JitTable以及Profiling进行了内存分配 */
     compilerThreadStartup();
 
     dvmLockMutex(&gDvmJit.compilerLock);
@@ -651,17 +702,21 @@ static void *compilerThreadStart(void *arg)
      * being created, we just fake its state as VMWAIT so that it can be a
      * bit late when there is suspend request pending.
      */
+	/*
+	 * 编译器线程不会接触任何在堆上创建的对象，当有挂起请求发送过来设置它的状态为VMWAIT
+	 */
     while (!gDvmJit.haltCompilerThread) {
+		/* 编译工作队列为空 */
         if (workQueueLength() == 0) {
             int cc;
-            cc = pthread_cond_signal(&gDvmJit.compilerQueueEmpty);
+            cc = pthread_cond_signal(&gDvmJit.compilerQueueEmpty);			/* 通知编译工作队列为空 */
             assert(cc == 0);
             pthread_cond_wait(&gDvmJit.compilerQueueActivity,
                               &gDvmJit.compilerLock);
             continue;
         } else {
-            do {
-                CompilerWorkOrder work = workDequeue();
+            do {/* 这个循环内，不停的检测工作队列是否为空，如果不为空则不停的循环处理 */
+                CompilerWorkOrder work = workDequeue();				/* 取出一个编译任务 */
                 dvmUnlockMutex(&gDvmJit.compilerLock);
 #if defined(WITH_JIT_TUNING)
                 /*
@@ -669,6 +724,7 @@ static void *compilerThreadStart(void *arg)
                  * a gcc warning.  We should not need this since it is assigned
                  * only once but gcc is not smart enough.
                  */
+				 /* 记录编译时间，起始时间 */
                 volatile u8 startTime = dvmGetRelativeTimeUsec();
 #endif
                 /*
@@ -684,29 +740,36 @@ static void *compilerThreadStart(void *arg)
                 if (!gDvmJit.blockingMode)
                     dvmCheckSuspendPending(dvmThreadSelf());
                 /* Is JitTable filling up? */
+				/* JitTable是否填充满 */
                 if (gDvmJit.jitTableEntriesUsed >
                     (gDvmJit.jitTableSize - gDvmJit.jitTableSize/4)) {
+					/* 重新设置JitTable的空间 */
                     bool resizeFail =
                         dvmJitResizeJitTable(gDvmJit.jitTableSize * 2);
                     /*
                      * If the jit table is full, consider it's time to reset
                      * the code cache too.
                      */
+					/* 重新设置标记 */
                     gDvmJit.codeCacheFull |= resizeFail;
                 }
+				
+				/* 检查是否已经关闭线程 */
                 if (gDvmJit.haltCompilerThread) {
                     ALOGD("Compiler shutdown in progress - discarding request");
                 } else if (!gDvmJit.codeCacheFull) {
                     jmp_buf jmpBuf;
                     work.bailPtr = &jmpBuf;
-                    bool aborted = setjmp(jmpBuf);
-                    if (!aborted) {
-                        bool codeCompiled = dvmCompilerDoWork(&work);
+                    bool aborted = setjmp(jmpBuf);				/* 初始化jmp_buf */
+                    if (!aborted) {								/* 初始化成功则返回0 */
+                        bool codeCompiled = dvmCompilerDoWork(&work);			/* 编译代码，从dvmLockMutex使用来看编译操作是线程独立的可以不用同步 */
                         /*
                          * Make sure we are still operating with the
                          * same translation cache version.  See
                          * Issue 4271784 for details.
                          */
+
+						/* 编译完成后运行这段编译好的代码 */
                         dvmLockMutex(&gDvmJit.compilerLock);
                         if ((work.result.cacheVersion ==
                              gDvmJit.cacheVersion) &&
@@ -719,25 +782,30 @@ static void *compilerThreadStart(void *arg)
                                               work.result.profileCodeSize);
                         }
                         dvmUnlockMutex(&gDvmJit.compilerLock);
-                    }
+                    }/* 完成编译并运行代码 */
                     dvmCompilerArenaReset();
                 }
-                free(work.info);
+                free(work.info);			/* 是否编译工作的信息缓存 */
 #if defined(WITH_JIT_TUNING)
-                gDvmJit.jitTime += dvmGetRelativeTimeUsec() - startTime;
+                gDvmJit.jitTime += dvmGetRelativeTimeUsec() - startTime;		/* 检查编译时间 */
 #endif
-                dvmLockMutex(&gDvmJit.compilerLock);
+                dvmLockMutex(&gDvmJit.compilerLock);		/* 操作编译工作队列需要线程独占 */
             } while (workQueueLength() != 0);
         }
     }
-    pthread_cond_signal(&gDvmJit.compilerQueueEmpty);
-    dvmUnlockMutex(&gDvmJit.compilerLock);
+    pthread_cond_signal(&gDvmJit.compilerQueueEmpty);		/* 编译工作队列为空 */
+    dvmUnlockMutex(&gDvmJit.compilerLock);					/* 与循环末尾的dvmLockMutex对应 */
 
     /*
      * As part of detaching the thread we need to call into Java code to update
      * the ThreadGroup, and we should not be in VMWAIT state while executing
      * interpreted code.
      */
+	/*
+	 * 以上Jit编译器把要编译的代码编译好后则更新Java代码的线程组为运行状态，
+	 * 让代码继续运行。
+	 * 在执行解释器代码时，不应该处于VMWAIT状态。
+	 */
     dvmChangeStatus(NULL, THREAD_RUNNING);
 
     if (gDvm.verboseShutdown)
@@ -745,9 +813,14 @@ static void *compilerThreadStart(void *arg)
     return NULL;
 }
 
+/**
+ * Jit编译器入口点函数
+ * @retval 0 表示失败
+ * @retval 1 表示成功 
+ */
 bool dvmCompilerStartup(void)
 {
-
+	/* 初始化一些线程同步方面的变量 */
     dvmInitMutex(&gDvmJit.compilerLock);
     dvmInitMutex(&gDvmJit.compilerICPatchLock);
     dvmInitMutex(&gDvmJit.codeCacheProtectionLock);
@@ -756,6 +829,7 @@ bool dvmCompilerStartup(void)
     pthread_cond_init(&gDvmJit.compilerQueueEmpty, NULL);
 
     /* Reset the work queue */
+	/* 设置工作队列 */
     gDvmJit.compilerWorkEnqueueIndex = gDvmJit.compilerWorkDequeueIndex = 0;
     gDvmJit.compilerQueueLength = 0;
     dvmUnlockMutex(&gDvmJit.compilerLock);
@@ -765,19 +839,32 @@ bool dvmCompilerStartup(void)
      * the compiler thread, which will do the real initialization if and
      * when it is signalled to do so.
      */
+	/*
+	 * 以下这个函数创建compilerThreadStart编译线程，当这条线程会执行真正的初始化工作
+	 */
     return dvmCreateInternalThread(&gDvmJit.compilerHandle, "Compiler",
                                    compilerThreadStart, NULL);
 }
 
+/**
+ * 关闭Jit编译器
+ */
 void dvmCompilerShutdown(void)
 {
     void *threadReturn;
 
     /* Disable new translation requests */
+	/* 关闭新的编译请求 */
     gDvmJit.pProfTable = NULL;
     gDvmJit.pProfTableCopy = NULL;
-    dvmJitUpdateThreadStateAll();
+    dvmJitUpdateThreadStateAll();					/* 更新所有线程状态 */
 
+	/*
+	 * 以下代码应该是检测在虚拟机关闭之前等待所有编译工作队列完成
+	 * dvmCompilerDumpStats()函数应该会更新所有工作队列的当前状态
+	 * gDvmJit.compilerQueueLength会随着这个函数进行更新，这个常数
+	 * 即是当前工作队列的数量。
+	 */
     if (gDvm.verboseShutdown ||
             gDvmJit.profileMode == kTraceProfilingContinuous) {
         dvmCompilerDumpStats();
@@ -785,14 +872,17 @@ void dvmCompilerShutdown(void)
           sleep(5);
     }
 
+	/* 如果编译器工作线程存在 */
     if (gDvmJit.compilerHandle) {
 
-        gDvmJit.haltCompilerThread = true;
+        gDvmJit.haltCompilerThread = true;			/* 设置关闭标志为true */
 
+		/* 发送关闭信号 */
         dvmLockMutex(&gDvmJit.compilerLock);
         pthread_cond_signal(&gDvmJit.compilerQueueActivity);
         dvmUnlockMutex(&gDvmJit.compilerLock);
 
+		/* 关闭compilerThreadStart线程 */
         if (pthread_join(gDvmJit.compilerHandle, &threadReturn) != 0)
             ALOGW("Compiler thread join failed");
         else if (gDvm.verboseShutdown)

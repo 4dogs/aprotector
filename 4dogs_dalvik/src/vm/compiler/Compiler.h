@@ -90,20 +90,32 @@ typedef struct JitTranslationInfo {
     int cacheVersion;           // Used to identify stale trace requests
 } JitTranslationInfo;
 
+/**
+ * @brief 编译订单的类型
+ * @note 表明一个订单是否有效，是method还是trace，或者更改profiling的类型
+ */
 typedef enum WorkOrderKind {
+	/* 无效的订单 */
     kWorkOrderInvalid = 0,      // Should never see by the backend
+	/* method方式 */
     kWorkOrderMethod = 1,       // Work is to compile a whole method
+	/* trace方式 */
     kWorkOrderTrace = 2,        // Work is to compile code fragment(s)
+	/* 在调试代码的trace模式下 */
     kWorkOrderTraceDebug = 3,   // Work is to compile/debug code fragment(s)
+	/* 改变profiling模式 */
     kWorkOrderProfileMode = 4,  // Change profiling mode
 } WorkOrderKind;
 
+/**
+ * @brief 编译工作的订单
+ */
 typedef struct CompilerWorkOrder {
     const u2* pc;
-    WorkOrderKind kind;
-    void* info;
-    JitTranslationInfo result;
-    jmp_buf *bailPtr;
+    WorkOrderKind kind;				/* 订单的类型 */
+    void* info;						/* 订单的说明信息 */
+    JitTranslationInfo result;		/* 编译代码的结果 */
+    jmp_buf *bailPtr;				/* 用于异常处理的jmp_buf指针 */
 } CompilerWorkOrder;
 
 /* Chain cell for predicted method invocation */

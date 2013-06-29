@@ -27,6 +27,11 @@
 #include <utils/threads.h>
 
 /*
+ * 在linux中，线程优先级需要两个条件决定，一个是反映优先级的nice值，值越大优先级越低，在－20－19范围内，另一个条件是调度策略。
+*/
+
+
+/*
  * Conversion map for "nice" values.
  *
  * We use Android thread priority constants to be consistent with the rest
@@ -44,7 +49,13 @@ static const int kNiceValues[10] = {
     ANDROID_PRIORITY_URGENT_DISPLAY + 2,
     ANDROID_PRIORITY_URGENT_DISPLAY         /* 10 (MAX_PRIORITY) */
 };
-
+/*
+ *在linux中，调度优先级是通过nice值反映的，在andriod中如ANDROID_PRIORITY_BACKGROUND
+ *更改线程的优先级来对应线程对象
+ *首先新的nice值大于等于ANDROID_PRIORITY_BACKGROUND则需要改变线程调度策略为SP_BACKGROUND
+ *若新的nice值小于ANDROID_PRIORITY_BACKGROUND并且当前线程nice值大于等于ANDROID_PRIORITY_BACKGROUND，则更改线程调度策略为SP_FOREGROUND
+ *然后设置需要更改的线程优先级 setpriority
+ */
 void os_changeThreadPriority(Thread* thread, int newPriority)
 {
     if (newPriority < 1 || newPriority > 10) {
@@ -70,6 +81,10 @@ void os_changeThreadPriority(Thread* thread, int newPriority)
     }
 }
 
+/*
+ *通过查询系统权限获取当前线程的优先级
+ *先获取系统权限sysprio，通过sysprio对比kNiceValues，获取到当前线程的优先级。
+*/
 int os_getThreadPriorityFromSystem()
 {
     errno = 0;
@@ -92,6 +107,10 @@ int os_getThreadPriorityFromSystem()
     return jprio;
 }
 
+/*
+ *调整当前线程优先级
+ *若当前nice大于ANDROID_PRIORITY_NORMAL则说明权限很低，若nice大于等于ANDROID_PRIORITY_BACKGROUND则设置线程调度策略SP_FOREGROUND，设置当前线程nice值ANDROID_PRIORITY_NORMAL
+ */
 int os_raiseThreadPriority()
 {
     /* Get the priority (the "nice" value) of the current thread.  The
@@ -125,6 +144,10 @@ int os_raiseThreadPriority()
     return INT_MAX;
 }
 
+/*
+ *撤销os_raiseThreadPriority所更改的优先级
+ *oldThreadPriority是oldThreadPriority返回的值，若大于等于ANDROID_PRIORITY_BACKGROUND则设置线程调度策略为SP_BACKGROUND
+*/
 void os_lowerThreadPriority(int oldThreadPriority)
 {
     if (setpriority(PRIO_PROCESS, 0, oldThreadPriority) != 0) {
