@@ -1,6 +1,7 @@
 ﻿[整体介绍]
 Interpreter的主架构实现，调用mterp目录中的bytecode，完成虚拟机指令的执行。同时提供了JIT需求的一些功能的实现。在该主架构中也会涉及到jit的调用。
 
+[解释执行路径]
 解释器解释执行一个java字节码的过程如下：
 1.AndroidRuntime::start -> startVm()
 2.JNIEnv::CallStaticVoidMethod -> 
@@ -22,13 +23,51 @@ Interpreter的主架构实现，调用mterp目录中的bytecode，完成虚拟�
 
 6.跳转到具体的解释器中执行，解释完成指定的Java函数之后，获得的返回值就保存在上述InterpState结构体的成员变量retval中。
 
+[栈帧分布]
+Low addresses (0x00000000)
+
++-----------------+  <-- interpStackEnd
+-                 -
+-                 -
+-                 -
++-----------------+
++  out0           +
++-----------------+
++  out1           +
++-----------------+
++  StackSaveArea  +
++                 +
++-----------------+
++  v0 == local0   +
++-----------------+
++  v1 == local1   +
++-----------------+
++  v2 == in0      +
++-----------------+
++  v3 == in1      +
++-----------------+
++  v4 == in2      +
++-----------------+
+-                 -
+-OVERFLOW_RESERVE -
+-                 -
++-----------------+  <-- interpStackStart
+
+High addresses (0xffffffff)
+
+Dalvik创建线程的同时，也从系统堆上为线程分配栈空间，我们称之为解释栈。解释栈生命周期也是与线程相同，默认为12K字节，并且以帧(frame)的方式来组织管理。每一个函数的调用和返回，就意味着其相应的帧在解释栈中的入栈至出栈的过程。一个帧通常包括函数参数，本地变量和StackSaveArea，如最常见的函数帧(method frame)，此外还有一种中断帧(break frame)，仅包含一个StackSaveArea，是Dalvik为能够从错误中恢复而特意插入栈空间的。
+
+StackSaveArea数据结构中的prevFrame成员指向前一栈帧的位置，可用于遍历整个栈中所有的帧数据，method是否为空可用于区分中断帧和函数帧。本地变量存放着编译期可知的各种标量类型（boolean、byte、char、short、int、float、long、double）和对象引用（不是对象本身，仅仅是一个引用指针），而参数中也可能存放着对象引用，所以参数和本地变量是垃圾回收时重点扫描的区域。
+
+每一个函数都会从栈空间中模拟出一套虚拟寄存器，长度皆为32bits，命名方式为，v0,v1,v2…,vN(N=0,1,2…，以下皆同)，编号低的虚拟寄存器用于存放本地变量local0,local1,local2…,localN，编号高的则指向函数参数in0,in1,in2…,inN。如何访问这些寄存器呢？由于寄存器位于帧指针（frame pointer）上方，所以用fp[N]就能快速访问到寄存器vN的值。对64-bit的数据类型，则需要两个相邻寄存器共同存储。
+
 [dalvik\vm\interp\interp.cpp]
 实现解释器的入口功能，同时由于在解释过程中需要和调试器进行交互，因此提供了一些调试功能函数的实现.最主要的就是根据当前的系统设置来确定虚拟机运行模式（fast，jit，portable），不同的模式进入不同的解释器入口。虽然有三种运行模式，但是实际上仅仅是两个入口（dvmMterpStd和dvmInterpretPortable，详见dvmInterpret函数的实现）。
 
 [dalvik\vm\interp\Stack.cpp]
 定义了Dalvik栈的初始化，帧入栈，帧出栈和栈的dump等操作.帧有三种基本类型（函数帧，中断帧，本地索引帧）
 
-下面是一个简单的实例帧的分布情况
+下面是一个java method调用另一个java method时实例帧的分布情况
 Low addresses (0x00000000)
 
                      +- - - - - - - - -+
@@ -40,8 +79,8 @@ Low addresses (0x00000000)
                      +  v0 == local0   +
 +-----------------+  +-----------------+
 +  out0           +  +  v1 == in0      +
-+-----------------+  +-----------------+
-+  out1           +  +  v2 == in1      +
++-----------------+  +-----------------+      /** 上帧的outs数据和本帧的ins重合  
++  out1           +  +  v2 == in1      +          也就是上帧的outs数据作为本帧的调用参数  **/
 +-----------------+  +-----------------+
 +  VM-specific    +
 +  internal goop  +
@@ -62,6 +101,8 @@ Low addresses (0x00000000)
 +-----------------+  <-- interpStackStart
 
 High addresses (0xffffffff)
+
+一个Java函数调用另外一个Java函数，解释栈也为之增加一个函数帧，然后更新线程的curFrame成员指向新的帧，同时新帧的StackSaveArea中的preFrame指向前一个帧，这样就可以通过线程的curFrame指针方便的遍历解释栈中的所有帧。
 
 <dalvik\vm\interp\InterpState.h>
 dalvik 虚拟机中解释器相关的定义（包括类型定义，函数声明以及内敛函数等等）
