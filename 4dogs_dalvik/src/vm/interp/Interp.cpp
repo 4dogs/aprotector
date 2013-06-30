@@ -1665,21 +1665,30 @@ void dvmCheckInterpStateConsistency()
  * TODO: only gc is currently using this feature, and will have
  * at most a single outstanding callback request.  Until we need
  * something more capable and flexible, enforce this limit.
+ * 为当前线程设置safepoint 回调。
+ * 如果传进来的回调函数是null，那么就清除所有在等待的回调，也就是说继续进入正常的解释器流程
  */
 void dvmArmSafePointCallback(Thread* thread, SafePointCallback funct,
                              void* arg)
 {
+    /*加锁*/
     dvmLockMutex(&thread->callbackMutex);
+
+    
     if ((funct == NULL) || (thread->callback == NULL)) {
+
+	/*清空*/
         thread->callback = funct;
         thread->callbackArg = arg;
         if (funct != NULL) {
+	     /*设置子模式*/
             dvmEnableSubMode(thread, kSubModeCallbackPending);
         } else {
             dvmDisableSubMode(thread, kSubModeCallbackPending);
         }
     } else {
         // Already armed.  Different?
+        // 如果已经设置过了，那么就直接退出了
         if ((funct != thread->callback) ||
             (arg != thread->callbackArg)) {
             // Yes - report failure and die
@@ -1948,6 +1957,11 @@ void dvmCheckBefore(const u2 *pc, u4 *fp, Thread* self)
  * 执行的结果存放在pResult里面
  */
 void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
+/*
+* 第一个参数是一个指针，代表该线程的相关数据
+* 第二个参数是描述具体一个方法的相关数据
+* 第三个参数用来返回值
+*/
 {
     InterpSaveState interpSaveState;
     ExecutionSubModes savedSubModes;
@@ -1967,16 +1981,23 @@ void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
     /*
      * Save interpreter state from previous activation, linking
      * new to last.
-     * 保存之前的状态
+     * 保存该进程中之前的状态
      */
-    interpSaveState = self->interpSave;
-    self->interpSave.prev = &interpSaveState;
+    interpSaveState = self->interpSave; // 获取当前进程中的解释器用到的相关数据
+    self->interpSave.prev = &interpSaveState; // 在开始新的解释之前，保存为旧状态
     /*
      * Strip out and save any flags that should not be inherited by
      * nested interpreter activation.
+     * 保存子模式，也是因为存在嵌套调用
      */
     savedSubModes = (ExecutionSubModes)(
               self->interpBreak.ctl.subMode & LOCAL_SUBMODE);
+	
+
+    /*
+    * 这里要保证解释的过程中运行子模式是kSubModeNormal
+    * 如果当前的子模式不是kSubModeNormal的话，那么在解释执行完毕后要恢复这个子模式
+    */
     if (savedSubModes != kSubModeNormal) {
         dvmDisableSubMode(self, savedSubModes);
     }
@@ -1992,7 +2013,7 @@ void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
     self->debugIsMethodEntry = true;
 #if defined(WITH_JIT)
     dvmJitCalleeSave(calleeSave);
-    /* Initialize the state to kJitNot */
+    /* Initialize the state to kJitNot 初始化最开始的jit状态 */
     self->jitState = kJitNot;
 #endif
 
@@ -2000,16 +2021,21 @@ void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
      * Initialize working state.
      *
      * No need to initialize "retval".
+     * 初始化工作状态
      */
     self->interpSave.method = method;
-    self->interpSave.curFrame = (u4*) self->interpSave.curFrame;
-    self->interpSave.pc = method->insns;
+    self->interpSave.curFrame = (u4*) self->interpSave.curFrame; //获取解释器要用到的帧
+    //由上面这一句可以看出来，在线程创建的时候帧就初始化好了
+    //Dalvik创建线程的同时，也从系统堆上为线程分配栈空间，我们称之为解释栈。解释栈生命周期也是与线程相同，默认为12K字节，并且以帧(frame)的方式来组织管理。
+    self->interpSave.pc = method->insns; // 确定第一个要解释的指令的地址
 
     assert(!dvmIsNativeMethod(method));
 
     /*
      * Make sure the class is ready to go.  Shouldn't be possible to get
      * here otherwise.
+     * 首先判断要解释执行的这个函数所属的方法是不是已经准备好了
+     * 如果没有的话 就dump该进程的信息输出来，中断解释
      */
     if (method->clazz->status < CLASS_INITIALIZING ||
         method->clazz->status == CLASS_ERROR)
