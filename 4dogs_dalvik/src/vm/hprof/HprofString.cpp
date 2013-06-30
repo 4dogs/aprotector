@@ -20,6 +20,9 @@
 
 static HashTable *gStringHashTable;
 
+/*
+ *bref:创建string的hash表.
+*/
 int hprofStartup_String()
 {
     gStringHashTable = dvmHashTableCreate(512, free);
@@ -29,12 +32,18 @@ int hprofStartup_String()
     return 0;
 }
 
+/*
+ *bref:清理string的hash表.
+ */
 int hprofShutdown_String()
 {
     dvmHashTableFree(gStringHashTable);
     return 0;
 }
 
+/*
+ *bref:计算utf8类型的字符串的hash.
+*/
 static u4 computeUtf8Hash(const char *str)
 {
     u4 hash = 0;
@@ -49,6 +58,9 @@ static u4 computeUtf8Hash(const char *str)
     return hash;
 }
 
+/*
+ *bref:查询string的id.
+*/
 hprof_string_id hprofLookupStringId(const char *str)
 {
     void *val;
@@ -73,6 +85,9 @@ hprof_string_id hprofLookupStringId(const char *str)
     return (hprof_string_id)val;
 }
 
+/*
+ *bref:将string的信息dump输出.
+*/
 int hprofDumpStrings(hprof_context_t *ctx)
 {
     HashIter iter;

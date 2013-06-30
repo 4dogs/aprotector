@@ -230,6 +230,13 @@ static inline bool isGoto(MIR *insn)
 /*
  * Identify unconditional branch instructions
  */
+/**
+ * @brief 确实是否是一个无条件的分支指令
+ * @param insn指向MIR结构指针
+ * @retval 0 不是无条件的分支指令
+ * @retval 1 是无条件的分支指令
+ * @note 如果是RETURN指令则返回true，以及Goto指令返回true
+ */
 static inline bool isUnconditionalBranch(MIR *insn)
 {
     switch (insn->dalvikInsn.opcode) {
@@ -264,6 +271,10 @@ static int compareMethod(const CompilerMethodStats *m1,
  *
  * Currently the inliner only handles getters and setters. When its capability
  * becomes more sophisticated more information will be retrieved here.
+ */
+/**
+ * @brief 分析函数体
+ * @note 1.是否是一个空的函数？2.是否是getter/setter(JAVA语言中的东西)？是否抛出一个异常？
  */
 static int analyzeInlineTarget(DecodedInstruction *dalvikInsn, int attributes,
                                int offset)
@@ -326,21 +337,29 @@ static int analyzeInlineTarget(DecodedInstruction *dalvikInsn, int attributes,
  * ratios. If isCallee is true, also analyze each instruction in more details
  * to see if it is suitable for inlining.
  */
+/**
+ * @brief 分析函数统计信息
+ * @param method 函数体指针
+ * @param isCallee 是否是被调用者
+ * @return 返回一个函数状态结构指针
+ */
 CompilerMethodStats *dvmCompilerAnalyzeMethodBody(const Method *method,
                                                   bool isCallee)
 {
-    const DexCode *dexCode = dvmGetMethodCode(method);
-    const u2 *codePtr = dexCode->insns;
-    const u2 *codeEnd = dexCode->insns + dexCode->insnsSize;
+    const DexCode *dexCode = dvmGetMethodCode(method);					/* 获取函数的代码结构 */
+    const u2 *codePtr = dexCode->insns;									/* 代码体指针 */
+    const u2 *codeEnd = dexCode->insns + dexCode->insnsSize;			/* 代码体末尾 */
     int insnSize = 0;
-    int hashValue = dvmComputeUtf8Hash(method->name);
+    int hashValue = dvmComputeUtf8Hash(method->name);					/* 函数名的HASH值 */
 
     CompilerMethodStats dummyMethodEntry; // For hash table lookup
     CompilerMethodStats *realMethodEntry; // For hash table storage
 
     /* For lookup only */
+	/* 在虚拟机HASH表中找寻函数 */
     dummyMethodEntry.method = method;
     realMethodEntry = (CompilerMethodStats *)
+		/* dvmHashTableLoopup在"vm/Hash.cpp"中实现 */
         dvmHashTableLookup(gDvmJit.methodStatsTable,
                            hashValue,
                            &dummyMethodEntry,
@@ -348,6 +367,7 @@ CompilerMethodStats *dvmCompilerAnalyzeMethodBody(const Method *method,
                            false);
 
     /* This method has never been analyzed before - create an entry */
+	/* 如果没有找到，realMethodEntry为空则分配一个，并且插入 */
     if (realMethodEntry == NULL) {
         realMethodEntry =
             (CompilerMethodStats *) calloc(1, sizeof(CompilerMethodStats));
@@ -360,6 +380,7 @@ CompilerMethodStats *dvmCompilerAnalyzeMethodBody(const Method *method,
     }
 
     /* This method is invoked as a callee and has been analyzed - just return */
+	/* 如果要分析的函数是被调用者则直接返回 */
     if ((isCallee == true) && (realMethodEntry->attributes & METHOD_IS_CALLEE))
         return realMethodEntry;
 
@@ -367,6 +388,7 @@ CompilerMethodStats *dvmCompilerAnalyzeMethodBody(const Method *method,
      * Similarly, return if this method has been compiled before as a hot
      * method already.
      */
+	/* 如果是调用者并且已经作为一个热点被编译过则直接返回*/
     if ((isCallee == false) &&
         (realMethodEntry->attributes & METHOD_IS_HOT))
         return realMethodEntry;
@@ -374,6 +396,7 @@ CompilerMethodStats *dvmCompilerAnalyzeMethodBody(const Method *method,
     int attributes;
 
     /* Method hasn't been analyzed for the desired purpose yet */
+	/* 对被调用者与调用者分别设置属性 */
     if (isCallee) {
         /* Aggressively set the attributes until proven otherwise */
         attributes = METHOD_IS_LEAF | METHOD_IS_THROW_FREE | METHOD_IS_CALLEE |
@@ -383,28 +406,35 @@ CompilerMethodStats *dvmCompilerAnalyzeMethodBody(const Method *method,
     }
 
     /* Count the number of instructions */
+	/* 统计指令数量 */
     while (codePtr < codeEnd) {
         DecodedInstruction dalvikInsn;
-        int width = parseInsn(codePtr, &dalvikInsn, false);
+        int width = parseInsn(codePtr, &dalvikInsn, false);		/* 获取指令长度 */
 
         /* Terminate when the data section is seen */
+		/* 如果指令长度为0跳出循环 */
         if (width == 0)
             break;
 
         if (isCallee) {
+			/* 如果是被调用者 */
             attributes = analyzeInlineTarget(&dalvikInsn, attributes, insnSize);
         }
 
-        insnSize += width;
-        codePtr += width;
+        insnSize += width;			/* 指令的总长度 */
+        codePtr += width;			/* 指针递增 */
     }
 
     /*
      * Only handle simple getters/setters with one instruction followed by
      * return
      */
+	/*
+	 * 仅处理简单的 getters/setters 只有一条return指令的情况
+	 */
     if ((attributes & (METHOD_IS_GETTER | METHOD_IS_SETTER)) &&
         (insnSize != 3)) {
+		/* 取消掉getter/setter属性 */
         attributes &= ~(METHOD_IS_GETTER | METHOD_IS_SETTER);
     }
 
@@ -441,13 +471,20 @@ CompilerMethodStats *dvmCompilerAnalyzeMethodBody(const Method *method,
  * Crawl the stack of the thread that requesed compilation to see if any of the
  * ancestors are on the blacklist.
  */
+/**
+ * @brief 通过查看dalvik的栈空间来找寻函数
+ * @param thread 当前线程结构
+ * @param curMethodName 要找寻函数的名称
+ */
 static bool filterMethodByCallGraph(Thread *thread, const char *curMethodName)
 {
     /* Crawl the Dalvik stack frames and compare the method name*/
+	/* 查看dalvik栈帧并且寻找函数名称 */
     StackSaveArea *ssaPtr = ((StackSaveArea *) thread->interpSave.curFrame) - 1;
-    while (ssaPtr != ((StackSaveArea *) NULL) - 1) {
-        const Method *method = ssaPtr->method;
+    while (ssaPtr != ((StackSaveArea *) NULL) - 1) { /* ssaPtr 不等于 0xffffffff */
+        const Method *method = ssaPtr->method;		/* 获取在栈上的方法结构体 */
         if (method) {
+			/* 在HASH表中查找 */
             int hashValue = dvmComputeUtf8Hash(method->name);
             bool found =
                 dvmHashTableLookup(gDvmJit.methodTable, hashValue,
@@ -1040,1275 +1077,1477 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
                              MIR *insn, int curOffset, int width, int flags)
 {
     u2 *switchData= (u2 *) (cUnit->method->insns + curOffset +
-                            insn->dalvikInsn.vB);
-    int size;
-    int *keyTable;
-    int *targetTable;
-    int i;
-    int firstKey;
+								insn->dalvikInsn.vB);
+		int size;
+		int *keyTable;
+		int *targetTable;
+		int i;
+		int firstKey;
 
-    /*
-     * Packed switch data format:
-     *  ushort ident = 0x0100   magic value
-     *  ushort size             number of entries in the table
-     *  int first_key           first (and lowest) switch case value
-     *  int targets[size]       branch targets, relative to switch opcode
-     *
-     * Total size is (4+size*2) 16-bit code units.
-     */
-    if (insn->dalvikInsn.opcode == OP_PACKED_SWITCH) {
-        assert(switchData[0] == kPackedSwitchSignature);
-        size = switchData[1];
-        firstKey = switchData[2] | (switchData[3] << 16);
-        targetTable = (int *) &switchData[4];
-        keyTable = NULL;        // Make the compiler happy
-    /*
-     * Sparse switch data format:
-     *  ushort ident = 0x0200   magic value
-     *  ushort size             number of entries in the table; > 0
-     *  int keys[size]          keys, sorted low-to-high; 32-bit aligned
-     *  int targets[size]       branch targets, relative to switch opcode
-     *
-     * Total size is (2+size*4) 16-bit code units.
-     */
-    } else {
-        assert(switchData[0] == kSparseSwitchSignature);
-        size = switchData[1];
-        keyTable = (int *) &switchData[2];
-        targetTable = (int *) &switchData[2 + size*2];
-        firstKey = 0;   // To make the compiler happy
-    }
+		/*
+		 * Packed switch data format:
+		 *  ushort ident = 0x0100   magic value
+		 *  ushort size             number of entries in the table
+		 *  int first_key           first (and lowest) switch case value
+		 *  int targets[size]       branch targets, relative to switch opcode
+		 *
+		 * Total size is (4+size*2) 16-bit code units.
+		 */
+		if (insn->dalvikInsn.opcode == OP_PACKED_SWITCH) {
+			assert(switchData[0] == kPackedSwitchSignature);
+			size = switchData[1];
+			firstKey = switchData[2] | (switchData[3] << 16);
+			targetTable = (int *) &switchData[4];
+			keyTable = NULL;        // Make the compiler happy
+		/*
+		 * Sparse switch data format:
+		 *  ushort ident = 0x0200   magic value
+		 *  ushort size             number of entries in the table; > 0
+		 *  int keys[size]          keys, sorted low-to-high; 32-bit aligned
+		 *  int targets[size]       branch targets, relative to switch opcode
+		 *
+		 * Total size is (2+size*4) 16-bit code units.
+		 */
+		} else {
+			assert(switchData[0] == kSparseSwitchSignature);
+			size = switchData[1];
+			keyTable = (int *) &switchData[2];
+			targetTable = (int *) &switchData[2 + size*2];
+			firstKey = 0;   // To make the compiler happy
+		}
 
-    if (curBlock->successorBlockList.blockListType != kNotUsed) {
-        ALOGE("Successor block list already in use: %d",
-             curBlock->successorBlockList.blockListType);
-        dvmAbort();
-    }
-    curBlock->successorBlockList.blockListType =
-        (insn->dalvikInsn.opcode == OP_PACKED_SWITCH) ?
-        kPackedSwitch : kSparseSwitch;
-    dvmInitGrowableList(&curBlock->successorBlockList.blocks, size);
+		if (curBlock->successorBlockList.blockListType != kNotUsed) {
+			ALOGE("Successor block list already in use: %d",
+				 curBlock->successorBlockList.blockListType);
+			dvmAbort();
+		}
+		curBlock->successorBlockList.blockListType =
+			(insn->dalvikInsn.opcode == OP_PACKED_SWITCH) ?
+			kPackedSwitch : kSparseSwitch;
+		dvmInitGrowableList(&curBlock->successorBlockList.blocks, size);
 
-    for (i = 0; i < size; i++) {
-        BasicBlock *caseBlock = findBlock(cUnit, curOffset + targetTable[i],
-                                          /* split */
-                                          true,
-                                          /* create */
-                                          true,
-                                          /* immedPredBlockP */
-                                          &curBlock);
-        SuccessorBlockInfo *successorBlockInfo =
-            (SuccessorBlockInfo *) dvmCompilerNew(sizeof(SuccessorBlockInfo),
-                                                  false);
-        successorBlockInfo->block = caseBlock;
-        successorBlockInfo->key = (insn->dalvikInsn.opcode == OP_PACKED_SWITCH)?
-                                  firstKey + i : keyTable[i];
-        dvmInsertGrowableList(&curBlock->successorBlockList.blocks,
-                              (intptr_t) successorBlockInfo);
-        dvmCompilerSetBit(caseBlock->predecessors, curBlock->id);
-    }
+		for (i = 0; i < size; i++) {
+			BasicBlock *caseBlock = findBlock(cUnit, curOffset + targetTable[i],
+											  /* split */
+											  true,
+											  /* create */
+											  true,
+											  /* immedPredBlockP */
+											  &curBlock);
+			SuccessorBlockInfo *successorBlockInfo =
+				(SuccessorBlockInfo *) dvmCompilerNew(sizeof(SuccessorBlockInfo),
+													  false);
+			successorBlockInfo->block = caseBlock;
+			successorBlockInfo->key = (insn->dalvikInsn.opcode == OP_PACKED_SWITCH)?
+									  firstKey + i : keyTable[i];
+			dvmInsertGrowableList(&curBlock->successorBlockList.blocks,
+								  (intptr_t) successorBlockInfo);
+			dvmCompilerSetBit(caseBlock->predecessors, curBlock->id);
+		}
 
-    /* Fall-through case */
-    BasicBlock *fallthroughBlock = findBlock(cUnit,
-                                             curOffset +  width,
-                                             /* split */
-                                             false,
-                                             /* create */
-                                             true,
-                                             /* immedPredBlockP */
-                                             NULL);
-    curBlock->fallThrough = fallthroughBlock;
-    dvmCompilerSetBit(fallthroughBlock->predecessors, curBlock->id);
-}
+		/* Fall-through case */
+		BasicBlock *fallthroughBlock = findBlock(cUnit,
+												 curOffset +  width,
+												 /* split */
+												 false,
+												 /* create */
+												 true,
+												 /* immedPredBlockP */
+												 NULL);
+		curBlock->fallThrough = fallthroughBlock;
+		dvmCompilerSetBit(fallthroughBlock->predecessors, curBlock->id);
+	}
 
-/* Process instructions with the kInstrCanThrow flag */
-static void processCanThrow(CompilationUnit *cUnit, BasicBlock *curBlock,
-                            MIR *insn, int curOffset, int width, int flags,
-                            BitVector *tryBlockAddr, const u2 *codePtr,
-                            const u2* codeEnd)
-{
-    const Method *method = cUnit->method;
-    const DexCode *dexCode = dvmGetMethodCode(method);
+	/* Process instructions with the kInstrCanThrow flag */
+	/**
+	 * @brief 处理抛出异常指令
+	 */
+	static void processCanThrow(CompilationUnit *cUnit, BasicBlock *curBlock,
+								MIR *insn, int curOffset, int width, int flags,
+								BitVector *tryBlockAddr, const u2 *codePtr,
+								const u2* codeEnd)
+	{
+		const Method *method = cUnit->method;
+		const DexCode *dexCode = dvmGetMethodCode(method);
 
-    /* In try block */
-    if (dvmIsBitSet(tryBlockAddr, curOffset)) {
-        DexCatchIterator iterator;
+		/* In try block */
+		if (dvmIsBitSet(tryBlockAddr, curOffset)) {
+			DexCatchIterator iterator;
 
-        if (!dexFindCatchHandler(&iterator, dexCode, curOffset)) {
-            ALOGE("Catch block not found in dexfile for insn %x in %s",
-                 curOffset, method->name);
-            dvmAbort();
+			if (!dexFindCatchHandler(&iterator, dexCode, curOffset)) {
+				ALOGE("Catch block not found in dexfile for insn %x in %s",
+					 curOffset, method->name);
+				dvmAbort();
 
-        }
-        if (curBlock->successorBlockList.blockListType != kNotUsed) {
-            ALOGE("Successor block list already in use: %d",
-                 curBlock->successorBlockList.blockListType);
-            dvmAbort();
-        }
-        curBlock->successorBlockList.blockListType = kCatch;
-        dvmInitGrowableList(&curBlock->successorBlockList.blocks, 2);
+			}
+			if (curBlock->successorBlockList.blockListType != kNotUsed) {
+				ALOGE("Successor block list already in use: %d",
+					 curBlock->successorBlockList.blockListType);
+				dvmAbort();
+			}
+			curBlock->successorBlockList.blockListType = kCatch;
+			dvmInitGrowableList(&curBlock->successorBlockList.blocks, 2);
 
-        for (;;) {
-            DexCatchHandler* handler = dexCatchIteratorNext(&iterator);
+			for (;;) {
+				DexCatchHandler* handler = dexCatchIteratorNext(&iterator);
 
-            if (handler == NULL) {
-                break;
-            }
+				if (handler == NULL) {
+					break;
+				}
 
-            BasicBlock *catchBlock = findBlock(cUnit, handler->address,
-                                               /* split */
-                                               false,
-                                               /* create */
-                                               false,
-                                               /* immedPredBlockP */
-                                               NULL);
+				BasicBlock *catchBlock = findBlock(cUnit, handler->address,
+												   /* split */
+												   false,
+												   /* create */
+												   false,
+												   /* immedPredBlockP */
+												   NULL);
 
-            SuccessorBlockInfo *successorBlockInfo =
-              (SuccessorBlockInfo *) dvmCompilerNew(sizeof(SuccessorBlockInfo),
-                                                    false);
-            successorBlockInfo->block = catchBlock;
-            successorBlockInfo->key = handler->typeIdx;
-            dvmInsertGrowableList(&curBlock->successorBlockList.blocks,
-                                  (intptr_t) successorBlockInfo);
-            dvmCompilerSetBit(catchBlock->predecessors, curBlock->id);
-        }
-    } else {
-        BasicBlock *ehBlock = dvmCompilerNewBB(kExceptionHandling,
-                                               cUnit->numBlocks++);
-        curBlock->taken = ehBlock;
-        dvmInsertGrowableList(&cUnit->blockList, (intptr_t) ehBlock);
-        ehBlock->startOffset = curOffset;
-        dvmCompilerSetBit(ehBlock->predecessors, curBlock->id);
-    }
+				SuccessorBlockInfo *successorBlockInfo =
+				  (SuccessorBlockInfo *) dvmCompilerNew(sizeof(SuccessorBlockInfo),
+														false);
+				successorBlockInfo->block = catchBlock;
+				successorBlockInfo->key = handler->typeIdx;
+				dvmInsertGrowableList(&curBlock->successorBlockList.blocks,
+									  (intptr_t) successorBlockInfo);
+				dvmCompilerSetBit(catchBlock->predecessors, curBlock->id);
+			}
+		} else {
+			BasicBlock *ehBlock = dvmCompilerNewBB(kExceptionHandling,
+												   cUnit->numBlocks++);
+			curBlock->taken = ehBlock;
+			dvmInsertGrowableList(&cUnit->blockList, (intptr_t) ehBlock);
+			ehBlock->startOffset = curOffset;
+			dvmCompilerSetBit(ehBlock->predecessors, curBlock->id);
+		}
 
-    /*
-     * Force the current block to terminate.
-     *
-     * Data may be present before codeEnd, so we need to parse it to know
-     * whether it is code or data.
-     */
-    if (codePtr < codeEnd) {
-        /* Create a fallthrough block for real instructions (incl. OP_NOP) */
-        if (contentIsInsn(codePtr)) {
-            BasicBlock *fallthroughBlock = findBlock(cUnit,
-                                                     curOffset + width,
-                                                     /* split */
-                                                     false,
-                                                     /* create */
-                                                     true,
-                                                     /* immedPredBlockP */
-                                                     NULL);
-            /*
-             * OP_THROW and OP_THROW_VERIFICATION_ERROR are unconditional
-             * branches.
-             */
-            if (insn->dalvikInsn.opcode != OP_THROW_VERIFICATION_ERROR &&
-                insn->dalvikInsn.opcode != OP_THROW) {
-                curBlock->fallThrough = fallthroughBlock;
-                dvmCompilerSetBit(fallthroughBlock->predecessors, curBlock->id);
-            }
-        }
-    }
-}
+		/*
+		 * Force the current block to terminate.
+		 *
+		 * Data may be present before codeEnd, so we need to parse it to know
+		 * whether it is code or data.
+		 */
+		if (codePtr < codeEnd) {
+			/* Create a fallthrough block for real instructions (incl. OP_NOP) */
+			if (contentIsInsn(codePtr)) {
+				BasicBlock *fallthroughBlock = findBlock(cUnit,
+														 curOffset + width,
+														 /* split */
+														 false,
+														 /* create */
+														 true,
+														 /* immedPredBlockP */
+														 NULL);
+				/*
+				 * OP_THROW and OP_THROW_VERIFICATION_ERROR are unconditional
+				 * branches.
+				 */
+				if (insn->dalvikInsn.opcode != OP_THROW_VERIFICATION_ERROR &&
+					insn->dalvikInsn.opcode != OP_THROW) {
+					curBlock->fallThrough = fallthroughBlock;
+					dvmCompilerSetBit(fallthroughBlock->predecessors, curBlock->id);
+				}
+			}
+		}
+	}
 
-/*
- * Similar to dvmCompileTrace, but the entity processed here is the whole
- * method.
- *
- * TODO: implementation will be revisited when the trace builder can provide
- * whole-method traces.
- */
-/**
- * @brief method模式的编译，类似dvmCompileTrace
- */
-bool dvmCompileMethod(const Method *method, JitTranslationInfo *info)
-{
-    CompilationUnit cUnit;
-    const DexCode *dexCode = dvmGetMethodCode(method);
-    const u2 *codePtr = dexCode->insns;
-    const u2 *codeEnd = dexCode->insns + dexCode->insnsSize;
-    int numBlocks = 0;
-    unsigned int curOffset = 0;
+	/*
+	 * Similar to dvmCompileTrace, but the entity processed here is the whole
+	 * method.
+	 *
+	 * TODO: implementation will be revisited when the trace builder can provide
+	 * whole-method traces.
+	 */
+	/**
+	 * @brief method模式的编译，类似dvmCompileTrace
+	 */
+	bool dvmCompileMethod(const Method *method, JitTranslationInfo *info)
+	{
+		CompilationUnit cUnit;
+		const DexCode *dexCode = dvmGetMethodCode(method);
+		const u2 *codePtr = dexCode->insns;
+		const u2 *codeEnd = dexCode->insns + dexCode->insnsSize;
+		int numBlocks = 0;
+		unsigned int curOffset = 0;
 
-    /* Method already compiled */
-    if (dvmJitGetMethodAddr(codePtr)) {
-        info->codeAddress = NULL;
-        return false;
-    }
+		/* Method already compiled */
+		if (dvmJitGetMethodAddr(codePtr)) {
+			info->codeAddress = NULL;
+			return false;
+		}
 
-    memset(&cUnit, 0, sizeof(cUnit));
-    cUnit.method = method;
+		memset(&cUnit, 0, sizeof(cUnit));
+		cUnit.method = method;
 
-    cUnit.jitMode = kJitMethod;
+		cUnit.jitMode = kJitMethod;
 
-    /* Initialize the block list */
-    dvmInitGrowableList(&cUnit.blockList, 4);
+		/* Initialize the block list */
+		dvmInitGrowableList(&cUnit.blockList, 4);
 
-    /*
-     * FIXME - PC reconstruction list won't be needed after the codegen routines
-     * are enhanced to true method mode.
-     */
-    /* Initialize the PC reconstruction list */
-    dvmInitGrowableList(&cUnit.pcReconstructionList, 8);
+		/*
+		 * FIXME - PC reconstruction list won't be needed after the codegen routines
+		 * are enhanced to true method mode.
+		 */
+		/* Initialize the PC reconstruction list */
+		dvmInitGrowableList(&cUnit.pcReconstructionList, 8);
 
-    /* Allocate the bit-vector to track the beginning of basic blocks */
-    BitVector *tryBlockAddr = dvmCompilerAllocBitVector(dexCode->insnsSize,
-                                                        true /* expandable */);
-    cUnit.tryBlockAddr = tryBlockAddr;
+		/* Allocate the bit-vector to track the beginning of basic blocks */
+		BitVector *tryBlockAddr = dvmCompilerAllocBitVector(dexCode->insnsSize,
+															true /* expandable */);
+		cUnit.tryBlockAddr = tryBlockAddr;
 
-    /* Create the default entry and exit blocks and enter them to the list */
-    BasicBlock *entryBlock = dvmCompilerNewBB(kEntryBlock, numBlocks++);
-    BasicBlock *exitBlock = dvmCompilerNewBB(kExitBlock, numBlocks++);
+		/* Create the default entry and exit blocks and enter them to the list */
+		BasicBlock *entryBlock = dvmCompilerNewBB(kEntryBlock, numBlocks++);
+		BasicBlock *exitBlock = dvmCompilerNewBB(kExitBlock, numBlocks++);
 
-    cUnit.entryBlock = entryBlock;
-    cUnit.exitBlock = exitBlock;
+		cUnit.entryBlock = entryBlock;
+		cUnit.exitBlock = exitBlock;
 
-    dvmInsertGrowableList(&cUnit.blockList, (intptr_t) entryBlock);
-    dvmInsertGrowableList(&cUnit.blockList, (intptr_t) exitBlock);
+		dvmInsertGrowableList(&cUnit.blockList, (intptr_t) entryBlock);
+		dvmInsertGrowableList(&cUnit.blockList, (intptr_t) exitBlock);
 
-    /* Current block to record parsed instructions */
-    BasicBlock *curBlock = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
-    curBlock->startOffset = 0;
-    dvmInsertGrowableList(&cUnit.blockList, (intptr_t) curBlock);
-    entryBlock->fallThrough = curBlock;
-    dvmCompilerSetBit(curBlock->predecessors, entryBlock->id);
+		/* Current block to record parsed instructions */
+		BasicBlock *curBlock = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
+		curBlock->startOffset = 0;
+		dvmInsertGrowableList(&cUnit.blockList, (intptr_t) curBlock);
+		entryBlock->fallThrough = curBlock;
+		dvmCompilerSetBit(curBlock->predecessors, entryBlock->id);
 
-    /*
-     * Store back the number of blocks since new blocks may be created of
-     * accessing cUnit.
-     */
-    cUnit.numBlocks = numBlocks;
+		/*
+		 * Store back the number of blocks since new blocks may be created of
+		 * accessing cUnit.
+		 */
+		cUnit.numBlocks = numBlocks;
 
-    /* Identify code range in try blocks and set up the empty catch blocks */
-    processTryCatchBlocks(&cUnit);
+		/* Identify code range in try blocks and set up the empty catch blocks */
+		processTryCatchBlocks(&cUnit);
 
-    /* Parse all instructions and put them into containing basic blocks */
-    while (codePtr < codeEnd) {
-        MIR *insn = (MIR *) dvmCompilerNew(sizeof(MIR), true);
-        insn->offset = curOffset;
-        int width = parseInsn(codePtr, &insn->dalvikInsn, false);
-        insn->width = width;
+		/* Parse all instructions and put them into containing basic blocks */
+		while (codePtr < codeEnd) {
+			MIR *insn = (MIR *) dvmCompilerNew(sizeof(MIR), true);
+			insn->offset = curOffset;
+			int width = parseInsn(codePtr, &insn->dalvikInsn, false);
+			insn->width = width;
 
-        /* Terminate when the data section is seen */
-        if (width == 0)
-            break;
+			/* Terminate when the data section is seen */
+			if (width == 0)
+				break;
 
-        dvmCompilerAppendMIR(curBlock, insn);
+			dvmCompilerAppendMIR(curBlock, insn);
 
-        codePtr += width;
-        int flags = dexGetFlagsFromOpcode(insn->dalvikInsn.opcode);
+			codePtr += width;
+			int flags = dexGetFlagsFromOpcode(insn->dalvikInsn.opcode);
 
-        if (flags & kInstrCanBranch) {
-            processCanBranch(&cUnit, curBlock, insn, curOffset, width, flags,
-                             codePtr, codeEnd);
-        } else if (flags & kInstrCanReturn) {
-            curBlock->fallThrough = exitBlock;
-            dvmCompilerSetBit(exitBlock->predecessors, curBlock->id);
-            /*
-             * Terminate the current block if there are instructions
-             * afterwards.
-             */
-            if (codePtr < codeEnd) {
-                /*
-                 * Create a fallthrough block for real instructions
-                 * (incl. OP_NOP).
-                 */
-                if (contentIsInsn(codePtr)) {
-                    findBlock(&cUnit, curOffset + width,
-                              /* split */
-                              false,
-                              /* create */
-                              true,
-                              /* immedPredBlockP */
-                              NULL);
-                }
-            }
-        } else if (flags & kInstrCanThrow) {
-            processCanThrow(&cUnit, curBlock, insn, curOffset, width, flags,
-                            tryBlockAddr, codePtr, codeEnd);
-        } else if (flags & kInstrCanSwitch) {
-            processCanSwitch(&cUnit, curBlock, insn, curOffset, width, flags);
-        }
-        curOffset += width;
-        BasicBlock *nextBlock = findBlock(&cUnit, curOffset,
-                                          /* split */
-                                          false,
-                                          /* create */
-                                          false,
-                                          /* immedPredBlockP */
-                                          NULL);
-        if (nextBlock) {
-            /*
-             * The next instruction could be the target of a previously parsed
-             * forward branch so a block is already created. If the current
-             * instruction is not an unconditional branch, connect them through
-             * the fall-through link.
-             */
-            assert(curBlock->fallThrough == NULL ||
-                   curBlock->fallThrough == nextBlock ||
-                   curBlock->fallThrough == exitBlock);
+			if (flags & kInstrCanBranch) {
+				processCanBranch(&cUnit, curBlock, insn, curOffset, width, flags,
+								 codePtr, codeEnd);
+			} else if (flags & kInstrCanReturn) {
+				curBlock->fallThrough = exitBlock;
+				dvmCompilerSetBit(exitBlock->predecessors, curBlock->id);
+				/*
+				 * Terminate the current block if there are instructions
+				 * afterwards.
+				 */
+				if (codePtr < codeEnd) {
+					/*
+					 * Create a fallthrough block for real instructions
+					 * (incl. OP_NOP).
+					 */
+					if (contentIsInsn(codePtr)) {
+						findBlock(&cUnit, curOffset + width,
+								  /* split */
+								  false,
+								  /* create */
+								  true,
+								  /* immedPredBlockP */
+								  NULL);
+					}
+				}
+			} else if (flags & kInstrCanThrow) {
+				processCanThrow(&cUnit, curBlock, insn, curOffset, width, flags,
+								tryBlockAddr, codePtr, codeEnd);
+			} else if (flags & kInstrCanSwitch) {
+				processCanSwitch(&cUnit, curBlock, insn, curOffset, width, flags);
+			}
+			curOffset += width;
+			BasicBlock *nextBlock = findBlock(&cUnit, curOffset,
+											  /* split */
+											  false,
+											  /* create */
+											  false,
+											  /* immedPredBlockP */
+											  NULL);
+			if (nextBlock) {
+				/*
+				 * The next instruction could be the target of a previously parsed
+				 * forward branch so a block is already created. If the current
+				 * instruction is not an unconditional branch, connect them through
+				 * the fall-through link.
+				 */
+				assert(curBlock->fallThrough == NULL ||
+					   curBlock->fallThrough == nextBlock ||
+					   curBlock->fallThrough == exitBlock);
 
-            if ((curBlock->fallThrough == NULL) &&
-                (flags & kInstrCanContinue)) {
-                curBlock->fallThrough = nextBlock;
-                dvmCompilerSetBit(nextBlock->predecessors, curBlock->id);
-            }
-            curBlock = nextBlock;
-        }
-    }
+				if ((curBlock->fallThrough == NULL) &&
+					(flags & kInstrCanContinue)) {
+					curBlock->fallThrough = nextBlock;
+					dvmCompilerSetBit(nextBlock->predecessors, curBlock->id);
+				}
+				curBlock = nextBlock;
+			}
+		}
 
-    if (cUnit.printMe) {
-        dvmCompilerDumpCompilationUnit(&cUnit);
-    }
+		if (cUnit.printMe) {
+			dvmCompilerDumpCompilationUnit(&cUnit);
+		}
 
-    /* Adjust this value accordingly once inlining is performed */
-    cUnit.numDalvikRegisters = cUnit.method->registersSize;
+		/* Adjust this value accordingly once inlining is performed */
+		cUnit.numDalvikRegisters = cUnit.method->registersSize;
 
-    /* Verify if all blocks are connected as claimed */
-    /* FIXME - to be disabled in the future */
-    dvmCompilerDataFlowAnalysisDispatcher(&cUnit, verifyPredInfo,
-                                          kAllNodes,
-                                          false /* isIterative */);
+		/* Verify if all blocks are connected as claimed */
+		/* FIXME - to be disabled in the future */
+		dvmCompilerDataFlowAnalysisDispatcher(&cUnit, verifyPredInfo,
+											  kAllNodes,
+											  false /* isIterative */);
 
 
-    /* Perform SSA transformation for the whole method */
-    dvmCompilerMethodSSATransformation(&cUnit);
+		/* Perform SSA transformation for the whole method */
+		dvmCompilerMethodSSATransformation(&cUnit);
 
 #ifndef ARCH_IA32
-    dvmCompilerInitializeRegAlloc(&cUnit);  // Needs to happen after SSA naming
+		dvmCompilerInitializeRegAlloc(&cUnit);  // Needs to happen after SSA naming
 
-    /* Allocate Registers using simple local allocation scheme */
-    dvmCompilerLocalRegAlloc(&cUnit);
+		/* Allocate Registers using simple local allocation scheme */
+		dvmCompilerLocalRegAlloc(&cUnit);
 #endif
 
-    /* Convert MIR to LIR, etc. */
-    dvmCompilerMethodMIR2LIR(&cUnit);
+		/* Convert MIR to LIR, etc. */
+		dvmCompilerMethodMIR2LIR(&cUnit);
 
-    // Debugging only
-    //dvmDumpCFG(&cUnit, "/sdcard/cfg/");
+		// Debugging only
+		//dvmDumpCFG(&cUnit, "/sdcard/cfg/");
 
-    /* Method is not empty */
-    if (cUnit.firstLIRInsn) {
-        /* Convert LIR into machine code. Loop for recoverable retries */
-        do {
-            dvmCompilerAssembleLIR(&cUnit, info);
-            cUnit.assemblerRetries++;
-            if (cUnit.printMe && cUnit.assemblerStatus != kSuccess)
-                ALOGD("Assembler abort #%d on %d",cUnit.assemblerRetries,
-                      cUnit.assemblerStatus);
-        } while (cUnit.assemblerStatus == kRetryAll);
+		/* Method is not empty */
+		if (cUnit.firstLIRInsn) {
+			/* Convert LIR into machine code. Loop for recoverable retries */
+			do {
+				dvmCompilerAssembleLIR(&cUnit, info);
+				cUnit.assemblerRetries++;
+				if (cUnit.printMe && cUnit.assemblerStatus != kSuccess)
+					ALOGD("Assembler abort #%d on %d",cUnit.assemblerRetries,
+						  cUnit.assemblerStatus);
+			} while (cUnit.assemblerStatus == kRetryAll);
 
-        if (cUnit.printMe) {
-            dvmCompilerCodegenDump(&cUnit);
-        }
+			if (cUnit.printMe) {
+				dvmCompilerCodegenDump(&cUnit);
+			}
 
-        if (info->codeAddress) {
-            dvmJitSetCodeAddr(dexCode->insns, info->codeAddress,
-                              info->instructionSet, true, 0);
-            /*
-             * Clear the codeAddress for the enclosing trace to reuse the info
-             */
-            info->codeAddress = NULL;
-        }
-    }
+			if (info->codeAddress) {
+				dvmJitSetCodeAddr(dexCode->insns, info->codeAddress,
+								  info->instructionSet, true, 0);
+				/*
+				 * Clear the codeAddress for the enclosing trace to reuse the info
+				 */
+				info->codeAddress = NULL;
+			}
+		}
 
-    return false;
-}
+		return false;
+	}
 
-/* Extending the trace by crawling the code from curBlock */
-static bool exhaustTrace(CompilationUnit *cUnit, BasicBlock *curBlock)
-{
-    unsigned int curOffset = curBlock->startOffset;
-    const u2 *codePtr = cUnit->method->insns + curOffset;
+	/* Extending the trace by crawling the code from curBlock */
+	static bool exhaustTrace(CompilationUnit *cUnit, BasicBlock *curBlock)
+	{
+		unsigned int curOffset = curBlock->startOffset;
+		const u2 *codePtr = cUnit->method->insns + curOffset;
 
-    if (curBlock->visited == true) return false;
+		if (curBlock->visited == true) return false;
 
-    curBlock->visited = true;
+		curBlock->visited = true;
 
-    if (curBlock->blockType == kEntryBlock ||
-        curBlock->blockType == kExitBlock) {
-        return false;
-    }
+		if (curBlock->blockType == kEntryBlock ||
+			curBlock->blockType == kExitBlock) {
+			return false;
+		}
 
-    /*
-     * Block has been parsed - check the taken/fallThrough in case it is a split
-     * block.
-     */
-    if (curBlock->firstMIRInsn != NULL) {
-          bool changed = false;
-          if (curBlock->taken)
-              changed |= exhaustTrace(cUnit, curBlock->taken);
-          if (curBlock->fallThrough)
-              changed |= exhaustTrace(cUnit, curBlock->fallThrough);
-          return changed;
-    }
-    while (true) {
-        MIR *insn = (MIR *) dvmCompilerNew(sizeof(MIR), true);
-        insn->offset = curOffset;
-        int width = parseInsn(codePtr, &insn->dalvikInsn, false);
-        insn->width = width;
+		/*
+		 * Block has been parsed - check the taken/fallThrough in case it is a split
+		 * block.
+		 */
+		if (curBlock->firstMIRInsn != NULL) {
+			  bool changed = false;
+			  if (curBlock->taken)
+				  changed |= exhaustTrace(cUnit, curBlock->taken);
+			  if (curBlock->fallThrough)
+				  changed |= exhaustTrace(cUnit, curBlock->fallThrough);
+			  return changed;
+		}
+		while (true) {
+			MIR *insn = (MIR *) dvmCompilerNew(sizeof(MIR), true);
+			insn->offset = curOffset;
+			int width = parseInsn(codePtr, &insn->dalvikInsn, false);
+			insn->width = width;
 
-        /* Terminate when the data section is seen */
-        if (width == 0)
-            break;
+			/* Terminate when the data section is seen */
+			if (width == 0)
+				break;
 
-        dvmCompilerAppendMIR(curBlock, insn);
+			dvmCompilerAppendMIR(curBlock, insn);
 
-        codePtr += width;
-        int flags = dexGetFlagsFromOpcode(insn->dalvikInsn.opcode);
+			codePtr += width;
+			int flags = dexGetFlagsFromOpcode(insn->dalvikInsn.opcode);
 
-        /* Stop extending the trace after seeing these instructions */
-        if (flags & (kInstrCanReturn | kInstrCanSwitch | kInstrInvoke)) {
-            curBlock->fallThrough = cUnit->exitBlock;
-            dvmCompilerSetBit(cUnit->exitBlock->predecessors, curBlock->id);
-            break;
-        } else if (flags & kInstrCanBranch) {
-            processCanBranch(cUnit, curBlock, insn, curOffset, width, flags,
-                             codePtr, NULL);
-            if (curBlock->taken) {
-                exhaustTrace(cUnit, curBlock->taken);
-            }
-            if (curBlock->fallThrough) {
-                exhaustTrace(cUnit, curBlock->fallThrough);
-            }
-            break;
-        }
-        curOffset += width;
-        BasicBlock *nextBlock = findBlock(cUnit, curOffset,
-                                          /* split */
-                                          false,
-                                          /* create */
-                                          false,
-                                          /* immedPredBlockP */
-                                          NULL);
-        if (nextBlock) {
-            /*
-             * The next instruction could be the target of a previously parsed
-             * forward branch so a block is already created. If the current
-             * instruction is not an unconditional branch, connect them through
-             * the fall-through link.
-             */
-            assert(curBlock->fallThrough == NULL ||
-                   curBlock->fallThrough == nextBlock ||
-                   curBlock->fallThrough == cUnit->exitBlock);
+			/* Stop extending the trace after seeing these instructions */
+			if (flags & (kInstrCanReturn | kInstrCanSwitch | kInstrInvoke)) {
+				curBlock->fallThrough = cUnit->exitBlock;
+				dvmCompilerSetBit(cUnit->exitBlock->predecessors, curBlock->id);
+				break;
+			} else if (flags & kInstrCanBranch) {
+				processCanBranch(cUnit, curBlock, insn, curOffset, width, flags,
+								 codePtr, NULL);
+				if (curBlock->taken) {
+					exhaustTrace(cUnit, curBlock->taken);
+				}
+				if (curBlock->fallThrough) {
+					exhaustTrace(cUnit, curBlock->fallThrough);
+				}
+				break;
+			}
+			curOffset += width;
+			BasicBlock *nextBlock = findBlock(cUnit, curOffset,
+											  /* split */
+											  false,
+											  /* create */
+											  false,
+											  /* immedPredBlockP */
+											  NULL);
+			if (nextBlock) {
+				/*
+				 * The next instruction could be the target of a previously parsed
+				 * forward branch so a block is already created. If the current
+				 * instruction is not an unconditional branch, connect them through
+				 * the fall-through link.
+				 */
+				assert(curBlock->fallThrough == NULL ||
+					   curBlock->fallThrough == nextBlock ||
+					   curBlock->fallThrough == cUnit->exitBlock);
 
-            if ((curBlock->fallThrough == NULL) &&
-                (flags & kInstrCanContinue)) {
-                curBlock->needFallThroughBranch = true;
-                curBlock->fallThrough = nextBlock;
-                dvmCompilerSetBit(nextBlock->predecessors, curBlock->id);
-            }
-            /* Block has been visited - no more parsing needed */
-            if (nextBlock->visited == true) {
-                return true;
-            }
-            curBlock = nextBlock;
-        }
-    }
-    return true;
-}
+				if ((curBlock->fallThrough == NULL) &&
+					(flags & kInstrCanContinue)) {
+					curBlock->needFallThroughBranch = true;
+					curBlock->fallThrough = nextBlock;
+					dvmCompilerSetBit(nextBlock->predecessors, curBlock->id);
+				}
+				/* Block has been visited - no more parsing needed */
+				if (nextBlock->visited == true) {
+					return true;
+				}
+				curBlock = nextBlock;
+			}
+		}
+		return true;
+	}
 
-/* Compile a loop */
-/**
- * @brief 编译一个循环
- */
-static bool compileLoop(CompilationUnit *cUnit, unsigned int startOffset,
-                        JitTraceDescription *desc, int numMaxInsts,
-                        JitTranslationInfo *info, jmp_buf *bailPtr,
-                        int optHints)
-{
-    int numBlocks = 0;
-    unsigned int curOffset = startOffset;
-    bool changed;
-    BasicBlock *bb;
+	/* Compile a loop */
+	/**
+	 * @brief 编译一个循环
+	 * @param cUnti 编译单元指针
+	 * @param startOffset 当前指令开始的偏移
+	 * @param desc JIT Trace描述符
+	 * @param numMaxInsts 指令的最大数量
+	 * @param info Jit转换信息
+	 * @param bailPtr 异常处理指针
+	 * @param optHints 优化选项
+	 * @retval 0 失败
+	 * @retval 1 成功
+	 * @note 被dvmCompilerTrace调用，在dvmCompilerTrace中如果发现当前指令
+	 *	是一条分支指令并且目标偏移小于当前偏移，则进行调用
+	 */
+	static bool compileLoop(CompilationUnit *cUnit, unsigned int startOffset,
+							JitTraceDescription *desc, int numMaxInsts,
+							JitTranslationInfo *info, jmp_buf *bailPtr,
+							int optHints)
+	{
+		int numBlocks = 0;
+		unsigned int curOffset = startOffset;			/* 当前的指令偏移 */
+		bool changed;
+		BasicBlock *bb;
 #if defined(WITH_JIT_TUNING)
-    CompilerMethodStats *methodStats;
+		CompilerMethodStats *methodStats;
 #endif
 
-    cUnit->jitMode = kJitLoop;
+		cUnit->jitMode = kJitLoop;						/* Jit的模式 */
 
-    /* Initialize the block list */
-    dvmInitGrowableList(&cUnit->blockList, 4);
+		/* Initialize the block list */
+		/* 初始化基础块链表 */
+		dvmInitGrowableList(&cUnit->blockList, 4);
 
-    /* Initialize the PC reconstruction list */
-    dvmInitGrowableList(&cUnit->pcReconstructionList, 8);
+		/* Initialize the PC reconstruction list */
+		dvmInitGrowableList(&cUnit->pcReconstructionList, 8);
 
-    /* Create the default entry and exit blocks and enter them to the list */
-    BasicBlock *entryBlock = dvmCompilerNewBB(kEntryBlock, numBlocks++);
-    entryBlock->startOffset = curOffset;
-    BasicBlock *exitBlock = dvmCompilerNewBB(kExitBlock, numBlocks++);
+		/* Create the default entry and exit blocks and enter them to the list */
+		/* 创建一个默认的入口block与退出block */
+		BasicBlock *entryBlock = dvmCompilerNewBB(kEntryBlock, numBlocks++);
+		entryBlock->startOffset = curOffset;
+		BasicBlock *exitBlock = dvmCompilerNewBB(kExitBlock, numBlocks++);
 
-    cUnit->entryBlock = entryBlock;
-    cUnit->exitBlock = exitBlock;
+		cUnit->entryBlock = entryBlock;
+		cUnit->exitBlock = exitBlock;
 
-    dvmInsertGrowableList(&cUnit->blockList, (intptr_t) entryBlock);
-    dvmInsertGrowableList(&cUnit->blockList, (intptr_t) exitBlock);
+		dvmInsertGrowableList(&cUnit->blockList, (intptr_t) entryBlock);
+		dvmInsertGrowableList(&cUnit->blockList, (intptr_t) exitBlock);
 
-    /* Current block to record parsed instructions */
-    BasicBlock *curBlock = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
-    curBlock->startOffset = curOffset;
+		/* Current block to record parsed instructions */
+		/* 加入第一个指令的block */
+		BasicBlock *curBlock = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
+		curBlock->startOffset = curOffset;
 
-    dvmInsertGrowableList(&cUnit->blockList, (intptr_t) curBlock);
-    entryBlock->fallThrough = curBlock;
-    dvmCompilerSetBit(curBlock->predecessors, entryBlock->id);
+		dvmInsertGrowableList(&cUnit->blockList, (intptr_t) curBlock);
+		entryBlock->fallThrough = curBlock;
+		dvmCompilerSetBit(curBlock->predecessors, entryBlock->id);
 
-    /*
-     * Store back the number of blocks since new blocks may be created of
-     * accessing cUnit.
-     */
-    cUnit->numBlocks = numBlocks;
+		/*
+		 * Store back the number of blocks since new blocks may be created of
+		 * accessing cUnit.
+		 */
+		/* 保存block的数量直到新的blocks被访问中的编译单元创建 */
+		cUnit->numBlocks = numBlocks;
 
-    do {
-        dvmCompilerDataFlowAnalysisDispatcher(cUnit,
-                                              dvmCompilerClearVisitedFlag,
-                                              kAllNodes,
-                                              false /* isIterative */);
-        changed = exhaustTrace(cUnit, curBlock);
-    } while (changed);
+		/* 数据流分析派遣函数 */
+		do {
+			dvmCompilerDataFlowAnalysisDispatcher(cUnit,
+												  dvmCompilerClearVisitedFlag,
+												  kAllNodes,
+												  false /* isIterative */);
+			changed = exhaustTrace(cUnit, curBlock);
+		} while (changed);
 
-    /* Backward chaining block */
-    bb = dvmCompilerNewBB(kChainingCellBackwardBranch, cUnit->numBlocks++);
-    dvmInsertGrowableList(&cUnit->blockList, (intptr_t) bb);
-    cUnit->backChainBlock = bb;
+		/*
+		 * 目标的block
+		 * PC重构block
+		 * 异常的block
+		 */
 
-    /* A special block to host PC reconstruction code */
-    bb = dvmCompilerNewBB(kPCReconstruction, cUnit->numBlocks++);
-    dvmInsertGrowableList(&cUnit->blockList, (intptr_t) bb);
+		/* Backward chaining block */
+		/* 分配一个block节点属性为kChainingCellBackwardBranch，表明此节点的指令在这条指令之前 */
+		bb = dvmCompilerNewBB(kChainingCellBackwardBranch, cUnit->numBlocks++);
+		dvmInsertGrowableList(&cUnit->blockList, (intptr_t) bb);
+		cUnit->backChainBlock = bb;
 
-    /* And one final block that publishes the PC and raises the exception */
-    bb = dvmCompilerNewBB(kExceptionHandling, cUnit->numBlocks++);
-    dvmInsertGrowableList(&cUnit->blockList, (intptr_t) bb);
-    cUnit->puntBlock = bb;
+		/* A special block to host PC reconstruction code */
+		/* 为本地重建代码建立一个block跟在所属代码的后边 */
+		bb = dvmCompilerNewBB(kPCReconstruction, cUnit->numBlocks++);
+		dvmInsertGrowableList(&cUnit->blockList, (intptr_t) bb);
 
-    cUnit->numDalvikRegisters = cUnit->method->registersSize;
+		/* And one final block that publishes the PC and raises the exception */
+		/* 发布到PC上并且抛出一个异常 */
+		bb = dvmCompilerNewBB(kExceptionHandling, cUnit->numBlocks++);
+		dvmInsertGrowableList(&cUnit->blockList, (intptr_t) bb);
+		cUnit->puntBlock = bb;
 
-    /* Verify if all blocks are connected as claimed */
-    /* FIXME - to be disabled in the future */
-    dvmCompilerDataFlowAnalysisDispatcher(cUnit, verifyPredInfo,
-                                          kAllNodes,
-                                          false /* isIterative */);
+		/* 当前函数的寄存器数量 */
+		cUnit->numDalvikRegisters = cUnit->method->registersSize;
+
+		/* Verify if all blocks are connected as claimed */
+		/* FIXME - to be disabled in the future */
+		/* 验证所有声明链接的block */
+		/* 增加一个关闭特性 */
+		dvmCompilerDataFlowAnalysisDispatcher(cUnit, verifyPredInfo,
+											  kAllNodes,
+											  false /* isIterative */);
 
 
-    /* Try to identify a loop */
-    if (!dvmCompilerBuildLoop(cUnit))
-        goto bail;
+		/* Try to identify a loop */
+		/* 尝试标记一个循环 */
+		if (!dvmCompilerBuildLoop(cUnit))
+			goto bail;
 
-    dvmCompilerLoopOpt(cUnit);
+		/* 循环优化 */
+		dvmCompilerLoopOpt(cUnit);
 
-    /*
-     * Change the backward branch to the backward chaining cell after dataflow
-     * analsys/optimizations are done.
-     */
-    dvmCompilerInsertBackwardChaining(cUnit);
+		/*
+		 * Change the backward branch to the backward chaining cell after dataflow
+		 * analsys/optimizations are done.
+		 */
+		/*
+		 * 在数据流分析/优化完成后改变向前分支到向前链接单元
+		 */
+		dvmCompilerInsertBackwardChaining(cUnit);
 
 #if defined(ARCH_IA32)
-    /* Convert MIR to LIR, etc. */
-    dvmCompilerMIR2LIR(cUnit, info);
+		/* Convert MIR to LIR, etc. */
+		dvmCompilerMIR2LIR(cUnit, info);
 #else
-    dvmCompilerInitializeRegAlloc(cUnit);
+		dvmCompilerInitializeRegAlloc(cUnit);
 
-    /* Allocate Registers using simple local allocation scheme */
-    dvmCompilerLocalRegAlloc(cUnit);
+		/* Allocate Registers using simple local allocation scheme */
+		dvmCompilerLocalRegAlloc(cUnit);
 
-    /* Convert MIR to LIR, etc. */
-    dvmCompilerMIR2LIR(cUnit);
+		/* Convert MIR to LIR, etc. */
+		dvmCompilerMIR2LIR(cUnit);
 #endif
 
-    /* Loop contains never executed blocks / heavy instructions */
-    if (cUnit->quitLoopMode) {
-        if (cUnit->printMe || gDvmJit.receivedSIGUSR2) {
-            ALOGD("Loop trace @ offset %04x aborted due to unresolved code info",
-                 cUnit->entryBlock->startOffset);
-        }
-        goto bail;
-    }
+		/* Loop contains never executed blocks / heavy instructions */
+		/* 循环保护从不执行的块/heavy指令 */
+		if (cUnit->quitLoopMode) {
+			/* 退出循环模式 */
+			if (cUnit->printMe || gDvmJit.receivedSIGUSR2) {
+				ALOGD("Loop trace @ offset %04x aborted due to unresolved code info",
+					 cUnit->entryBlock->startOffset);
+			}
+			goto bail;
+		}
 
-    /* Convert LIR into machine code. Loop for recoverable retries */
-    do {
-        dvmCompilerAssembleLIR(cUnit, info);
-        cUnit->assemblerRetries++;
-        if (cUnit->printMe && cUnit->assemblerStatus != kSuccess)
-            ALOGD("Assembler abort #%d on %d", cUnit->assemblerRetries,
-                  cUnit->assemblerStatus);
-    } while (cUnit->assemblerStatus == kRetryAll);
+		/* Convert LIR into machine code. Loop for recoverable retries */
+		/* 转变LIR到机器代码 */
+		do {
+			dvmCompilerAssembleLIR(cUnit, info);
+			cUnit->assemblerRetries++;
+			if (cUnit->printMe && cUnit->assemblerStatus != kSuccess)
+				ALOGD("Assembler abort #%d on %d", cUnit->assemblerRetries,
+					  cUnit->assemblerStatus);
+		} while (cUnit->assemblerStatus == kRetryAll);
 
-    /* Loop is too big - bail out */
-    if (cUnit->assemblerStatus == kRetryHalve) {
-        goto bail;
-    }
+		/* Loop is too big - bail out */
+		/* 编译失败 */
+		if (cUnit->assemblerStatus == kRetryHalve) {
+			goto bail;
+		}
 
-    if (cUnit->printMe || gDvmJit.receivedSIGUSR2) {
-        ALOGD("Loop trace @ offset %04x", cUnit->entryBlock->startOffset);
-        dvmCompilerCodegenDump(cUnit);
-    }
+		/* 打印编译代码信息 */
+		if (cUnit->printMe || gDvmJit.receivedSIGUSR2) {
+			ALOGD("Loop trace @ offset %04x", cUnit->entryBlock->startOffset);
+			dvmCompilerCodegenDump(cUnit);
+		}
 
-    /*
-     * If this trace uses class objects as constants,
-     * dvmJitInstallClassObjectPointers will switch the thread state
-     * to running and look up the class pointers using the descriptor/loader
-     * tuple stored in the callsite info structure. We need to make this window
-     * as short as possible since it is blocking GC.
-     */
-    if (cUnit->hasClassLiterals && info->codeAddress) {
-        dvmJitInstallClassObjectPointers(cUnit, (char *) info->codeAddress);
-    }
-
-    /*
-     * Since callsiteinfo is allocated from the arena, delay the reset until
-     * class pointers are resolved.
-     */
-    dvmCompilerArenaReset();
-
-    assert(cUnit->assemblerStatus == kSuccess);
-#if defined(WITH_JIT_TUNING)
-    /* Locate the entry to store compilation statistics for this method */
-    methodStats = dvmCompilerAnalyzeMethodBody(desc->method, false);
-    methodStats->nativeSize += cUnit->totalSize;
-#endif
-    return info->codeAddress != NULL;
-
-bail:
-    /* Retry the original trace with JIT_OPT_NO_LOOP disabled */
-    dvmCompilerArenaReset();
-    return dvmCompileTrace(desc, numMaxInsts, info, bailPtr,
-                           optHints | JIT_OPT_NO_LOOP);
-}
-
-static bool searchClassTablePrefix(const Method* method) {
-    if (gDvmJit.classTable == NULL) {
-        return false;
-    }
-    HashIter iter;
-    HashTable* pTab = gDvmJit.classTable;
-    for (dvmHashIterBegin(pTab, &iter); !dvmHashIterDone(&iter);
-        dvmHashIterNext(&iter))
-    {
-        const char* str = (const char*) dvmHashIterData(&iter);
-        if (strncmp(method->clazz->descriptor, str, strlen(str)) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/*
- * Main entry point to start trace compilation. Basic blocks are constructed
- * first and they will be passed to the codegen routines to convert Dalvik
- * bytecode into machine code.
- */
-/**
- * @brief trace模式的编译函数
- * @param desc 指向一个JitTraceDescription结构的指针，此值从订单处获得
- * @param numMaxInsts 最大的编译代码数量 
- * @param info 指向一个编译成功后保存编译结果的结构JitTranslationInfo
- * @param bailPtr 用于异常处理，jmp_buf的指针
- * @param optHints
- * @note 主要的入口点来实现trace模式的编译。首先基本代码被构建并且它们将被传递到
- * codegen目录的对应代码将dalvik字节码转换成本地的机器代码。
- */
-bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
-                     JitTranslationInfo *info, jmp_buf *bailPtr,
-                     int optHints)
-{
-    const DexCode *dexCode = dvmGetMethodCode(desc->method);	/* 获取函数代码 */
-    const JitTraceRun* currRun = &desc->trace[0];				/* 取出热点代码信息 */
-    unsigned int curOffset = currRun->info.frag.startOffset;	/* 获取在代码段的偏移 */
-    unsigned int startOffset = curOffset;
-    unsigned int numInsts = currRun->info.frag.numInsts;		/* 获取指令的数量 */		
-    const u2 *codePtr = dexCode->insns + curOffset;				/* 获取要编译的开始指针 */
-    int traceSize = 0;  // # of half-words
-    const u2 *startCodePtr = codePtr;
-    BasicBlock *curBB, *entryCodeBB;
-    int numBlocks = 0;
-    static int compilationId;									/* 编译ID号 */
-    CompilationUnit cUnit;										/* 编译单元结构，用于整个编译期间记录信息 */
-    GrowableList *blockList;
-#if defined(WITH_JIT_TUNING)
-    CompilerMethodStats *methodStats;
-#endif
-
-    /* If we've already compiled this trace, just return success */
-	/* 如果以前编译过这个代码，并且没有丢弃结构则直接返回成功 */
-    if (dvmJitGetTraceAddr(startCodePtr) && !info->discardResult) {
-        /*
-         * Make sure the codeAddress is NULL so that it won't clobber the
-         * existing entry.
-         */
-		/* 确保codeAddress设置为NULL */
-        info->codeAddress = NULL;
-        return true;
-    }
-
-    /* If the work order is stale, discard it */
-	/* 如果订单是之前的订单则丢弃它 */
-    if (info->cacheVersion != gDvmJit.cacheVersion) {
-        return false;
-    }
-
-    compilationId++;		/* 编译ID增加 */
-    memset(&cUnit, 0, sizeof(CompilationUnit));
-
-#if defined(WITH_JIT_TUNING)
-    /* Locate the entry to store compilation statistics for this method */
-	/* 保存编译源代码所在函数的信息到编译统计表 */
-    methodStats = dvmCompilerAnalyzeMethodBody(desc->method, false);
-#endif
-
-    /* Set the recover buffer pointer */
-	/* 设置jmp_buf指针，异常时使用 */
-    cUnit.bailPtr = bailPtr;
-
-    /* Initialize the printMe flag */
-	/* 初始化打印信息标志 */
-    cUnit.printMe = gDvmJit.printMe;
-
-    /* Setup the method */
-	/* 设置对应的函数体 */
-    cUnit.method = desc->method;
-
-    /* Store the trace descriptor and set the initial mode */
-	/* 保存trace描述并且设置编译单元的初始化模式 */
-    cUnit.traceDesc = desc;
-    cUnit.jitMode = kJitTrace;
-
-    /* Initialize the PC reconstruction list */
-	/* 初始化PC重建列表 */
-    dvmInitGrowableList(&cUnit.pcReconstructionList, 8);
-
-    /* Initialize the basic block list */
-	/* 初始化基本块列表 */
-    blockList = &cUnit.blockList;
-    dvmInitGrowableList(blockList, 8);
-
-    /* Identify traces that we don't want to compile */
-	/* 识别不编译的traces */
-    if (gDvmJit.classTable) {
-        bool classFound = searchClassTablePrefix(desc->method);
-        if (gDvmJit.classTable && gDvmJit.includeSelectedMethod != classFound) {
-            return false;
-        }
-    }
-
-	/* 如果存在函数记录表 */
-    if (gDvmJit.methodTable) {
-		/* 类名 + 函数名 */
-        int len = strlen(desc->method->clazz->descriptor) +
-                  strlen(desc->method->name) + 1;
-        char *fullSignature = (char *)dvmCompilerNew(len, true);
-        strcpy(fullSignature, desc->method->clazz->descriptor);
-        strcat(fullSignature, desc->method->name);
-
-        int hashValue = dvmComputeUtf8Hash(fullSignature);				/* 进行hash操作 */
-
-        /*
-         * Doing three levels of screening to see whether we want to skip
-         * compiling this method
-         */
 		/*
-		 * 是否是要跳过编译这个函数的三种等级
+		 * If this trace uses class objects as constants,
+		 * dvmJitInstallClassObjectPointers will switch the thread state
+		 * to running and look up the class pointers using the descriptor/loader
+		 * tuple stored in the callsite info structure. We need to make this window
+		 * as short as possible since it is blocking GC.
 		 */
-
-        /* First, check the full "class;method" signature */
-		/* 第一，检查整个"class;method"签名,确定函数是否已经在表之中了 */
-        bool methodFound =
-            dvmHashTableLookup(gDvmJit.methodTable, hashValue,
-                               fullSignature, (HashCompareFunc) strcmp,
-                               false) !=
-            NULL;
-
-        /* Full signature not found - check the enclosing class */
-		/* 函数名签名没有找到 - 单检查类名 */
-        if (methodFound == false) {
-            int hashValue = dvmComputeUtf8Hash(desc->method->clazz->descriptor);
-            methodFound =
-                dvmHashTableLookup(gDvmJit.methodTable, hashValue,
-                               (char *) desc->method->clazz->descriptor,
-                               (HashCompareFunc) strcmp, false) !=
-                NULL;
-            /* Enclosing class not found - check the method name */
-			/* 类名没有找到，则直接检查函数名 */
-            if (methodFound == false) {
-                int hashValue = dvmComputeUtf8Hash(desc->method->name);
-                methodFound =
-                    dvmHashTableLookup(gDvmJit.methodTable, hashValue,
-                                   (char *) desc->method->name,
-                                   (HashCompareFunc) strcmp, false) !=
-                    NULL;
-
-                /*
-                 * Debug by call-graph is enabled. Check if the debug list
-                 * covers any methods on the VM stack.
-                 */
-				/* 如果还没有找到则查看call-graph是否开启。检查在调试列表上虚拟机栈中的函数 */
-                if (methodFound == false && gDvmJit.checkCallGraph == true) {
-                    methodFound =
-                        filterMethodByCallGraph(info->requestingThread,
-                                                desc->method->name);
-                }
-            }
-        }
-
-        /*
-         * Under the following conditions, the trace will be *conservatively*
-         * compiled by only containing single-step instructions to and from the
-         * interpreter.
-         * 1) If includeSelectedMethod == false, the method matches the full or
-         *    partial signature stored in the hash table.
-         *
-         * 2) If includeSelectedMethod == true, the method does not match the
-         *    full and partial signature stored in the hash table.
-         */
 		/*
-		 * 在以下条件下，trace将受到*保护*
-		 * 编译仅包含single-step指令从解释器。
-		 * 1) 如果includeSelectedMethod == false，函数签名必须匹配"类名+函数名"
-		 *	或者部分的签名在hash表中。
-		 * 2) 如果includeSelectedMethod == true, 那么函数签名可以不用在hash表中匹配。
+		 * 如果这个trace使用类对象作为常量，dvmJitInstallClassObjectPointers将交换
+		 * 线程状态到运行并且使用描述符/加载器找出在callsite信息结构中的类指针。
 		 */
-		/* 存在函数表并且函数必须被找到才可以 */
-        if (gDvmJit.methodTable && gDvmJit.includeSelectedMethod != methodFound) {
-			/* 如果是X86架构直接返回false */
+		if (cUnit->hasClassLiterals && info->codeAddress) {
+			dvmJitInstallClassObjectPointers(cUnit, (char *) info->codeAddress);
+		}
+
+		/*
+		 * Since callsiteinfo is allocated from the arena, delay the reset until
+		 * class pointers are resolved.
+		 */
+		/* 直到callsiteinfo被分配从arena内存区域，延时重设直到类指针被解析  */
+		dvmCompilerArenaReset();
+
+		/* 到这里汇编状态必须是成功 */
+		assert(cUnit->assemblerStatus == kSuccess);
+#if defined(WITH_JIT_TUNING)
+		/* Locate the entry to store compilation statistics for this method */
+		/* 保存编译统计信息为这个函数 */
+		methodStats = dvmCompilerAnalyzeMethodBody(desc->method, false);
+		methodStats->nativeSize += cUnit->totalSize;
+#endif
+		return info->codeAddress != NULL;
+
+		/* 失败 */
+	bail:
+		/* Retry the original trace with JIT_OPT_NO_LOOP disabled */
+		/* 尝试原始的trace在关闭JIT_OPT_NO_LOOP选项下 */
+		dvmCompilerArenaReset();				/* 重设置arena内存区域 */
+		return dvmCompileTrace(desc, numMaxInsts, info, bailPtr,
+							   optHints | JIT_OPT_NO_LOOP);
+	}
+
+	/**
+	 * @brief 确定函数是否在当前字节码的类表中
+	 * @param method 要确定的函数体
+	 * @retval 0 不在
+	 * @retval 1 在
+	 */
+	static bool searchClassTablePrefix(const Method* method) {
+		/* 类表不为空 */
+		if (gDvmJit.classTable == NULL) {
+			return false;
+		}
+		HashIter iter;
+		HashTable* pTab = gDvmJit.classTable;		/* 取出类HASH表 */
+		/* 遍历整个HASH表 */
+		for (dvmHashIterBegin(pTab, &iter); !dvmHashIterDone(&iter);
+			dvmHashIterNext(&iter))
+		{
+			/* 取出HASH数据 */
+			const char* str = (const char*) dvmHashIterData(&iter);
+			/* 对比当前函数是否属于类表中的类 */
+			if (strncmp(method->clazz->descriptor, str, strlen(str)) == 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/*
+	 * Main entry point to start trace compilation. Basic blocks are constructed
+	 * first and they will be passed to the codegen routines to convert Dalvik
+	 * bytecode into machine code.
+	 */
+	/**
+	 * @brief trace模式的编译函数
+	 * @param desc 指向一个JitTraceDescription结构的指针，此值从订单处获得
+	 * @param numMaxInsts 最大的编译代码数量 
+	 * @param info 指向一个编译成功后保存编译结果的结构JitTranslationInfo
+	 * @param bailPtr 用于异常处理，jmp_buf的指针
+	 * @param optHints
+	 * @note 主要的入口点来实现trace模式的编译。首先基本代码被构建并且它们将被传递到
+	 * codegen目录的对应代码将dalvik字节码转换成本地的机器代码。
+	 */
+	bool dvmCompileTrace(JitTraceDescription *desc, int numMaxInsts,
+						 JitTranslationInfo *info, jmp_buf *bailPtr,
+						 int optHints)
+	{
+		const DexCode *dexCode = dvmGetMethodCode(desc->method);	/* 获取函数代码 */
+		const JitTraceRun* currRun = &desc->trace[0];				/* 取出热点代码信息 */
+		unsigned int curOffset = currRun->info.frag.startOffset;	/* 获取在代码段的偏移 */
+		unsigned int startOffset = curOffset;
+		unsigned int numInsts = currRun->info.frag.numInsts;		/* 获取指令的数量，这里默认应该是1 */		
+		const u2 *codePtr = dexCode->insns + curOffset;				/* 获取要编译的开始指针 */
+		int traceSize = 0;  // # of half-words
+		const u2 *startCodePtr = codePtr;
+		BasicBlock *curBB, *entryCodeBB;
+		int numBlocks = 0;
+		static int compilationId;									/* 编译ID号 */
+		CompilationUnit cUnit;										/* 编译单元结构，用于整个编译期间记录信息 */
+		GrowableList *blockList;									/* 一个动态数组用于记录基础块的内存 */
+#if defined(WITH_JIT_TUNING)
+		/* 编译信息统计，函数的状态 */
+		CompilerMethodStats *methodStats;
+#endif
+
+		/* If we've already compiled this trace, just return success */
+		/* 如果以前编译过这个代码，并且没有丢弃结构则直接返回成功 */
+		/* dvmJitGetTraceAddr 在"vm/interp/Jit.cpp"中实现 */
+		if (dvmJitGetTraceAddr(startCodePtr) && !info->discardResult) {
+			/*
+			 * Make sure the codeAddress is NULL so that it won't clobber the
+			 * existing entry.
+			 */
+			/* 确保codeAddress设置为NULL */
+			info->codeAddress = NULL;
+			return true;
+		}
+
+		/* If the work order is stale, discard it */
+		/* 如果订单是之前的订单则丢弃它 */
+		if (info->cacheVersion != gDvmJit.cacheVersion) {
+			return false;
+		}
+
+		compilationId++;		/* 编译ID增加 */
+		memset(&cUnit, 0, sizeof(CompilationUnit));		/* 初始化编译单元 */
+
+#if defined(WITH_JIT_TUNING)
+		/* Locate the entry to store compilation statistics for this method */
+		/* 保存编译源代码所在函数的信息到编译统计表 */
+		methodStats = dvmCompilerAnalyzeMethodBody(desc->method, false);
+#endif
+
+		/* Set the recover buffer pointer */
+		/* 设置jmp_buf指针，异常时使用 */
+		cUnit.bailPtr = bailPtr;
+
+		/* Initialize the printMe flag */
+		/* 初始化打印信息标志 */
+		cUnit.printMe = gDvmJit.printMe;
+
+		/* Setup the method */
+		/* 设置对应的函数体 */
+		cUnit.method = desc->method;
+
+		/* Store the trace descriptor and set the initial mode */
+		/* 保存trace描述并且设置编译单元的初始化模式 */
+		cUnit.traceDesc = desc;
+		cUnit.jitMode = kJitTrace;
+
+		/* Initialize the PC reconstruction list */
+		/* 初始化PC重建列表 */
+		dvmInitGrowableList(&cUnit.pcReconstructionList, 8);
+
+		/* Initialize the basic block list */
+		/* 初始化基本块列表 */
+		blockList = &cUnit.blockList;
+		dvmInitGrowableList(blockList, 8);
+
+		/* ---------- 内存初始化完毕 ---------- */
+
+		
+		/* ---------- 以下是对编译代码地址的合法性检查 ---------- */
+
+		/* Identify traces that we don't want to compile */
+		/* 检查是否在不进行编译的类中 */
+		if (gDvmJit.classTable) {
+			bool classFound = searchClassTablePrefix(desc->method);			/* 当前函数是否在类表中 */
+			if (gDvmJit.classTable && gDvmJit.includeSelectedMethod != classFound) {
+				/* 没有找到直接返回 */
+				return false;
+			}
+		}
+
+		/* 如果存在函数记录表 */
+		if (gDvmJit.methodTable) {
+			/* 类名 + 函数名 */
+			int len = strlen(desc->method->clazz->descriptor) +
+					  strlen(desc->method->name) + 1;
+			char *fullSignature = (char *)dvmCompilerNew(len, true);
+			strcpy(fullSignature, desc->method->clazz->descriptor);
+			strcat(fullSignature, desc->method->name);
+
+			int hashValue = dvmComputeUtf8Hash(fullSignature);				/* 进行hash操作 */
+
+			/*
+			 * Doing three levels of screening to see whether we want to skip
+			 * compiling this method
+			 */
+			/*
+			 * 是否是要跳过编译这个函数的三种等级
+			 */
+
+			/* First, check the full "class;method" signature */
+			/* 第一，检查整个"class;method"签名,确定函数是否已经在表之中了 */
+			bool methodFound =
+				dvmHashTableLookup(gDvmJit.methodTable, hashValue,
+								   fullSignature, (HashCompareFunc) strcmp,
+								   false) !=
+				NULL;
+
+			/* Full signature not found - check the enclosing class */
+			/* 函数名签名没有找到 - 单检查类名 */
+			if (methodFound == false) {
+				int hashValue = dvmComputeUtf8Hash(desc->method->clazz->descriptor);
+				methodFound =
+					dvmHashTableLookup(gDvmJit.methodTable, hashValue,
+								   (char *) desc->method->clazz->descriptor,
+								   (HashCompareFunc) strcmp, false) !=
+					NULL;
+				/* Enclosing class not found - check the method name */
+				/* 类名没有找到，则直接检查函数名 */
+				if (methodFound == false) {
+					int hashValue = dvmComputeUtf8Hash(desc->method->name);
+					methodFound =
+						dvmHashTableLookup(gDvmJit.methodTable, hashValue,
+									   (char *) desc->method->name,
+									   (HashCompareFunc) strcmp, false) !=
+						NULL;
+
+					/*
+					 * Debug by call-graph is enabled. Check if the debug list
+					 * covers any methods on the VM stack.
+					 */
+					/* 如果还没有找到则查看call-graph是否开启。检查在调试列表上虚拟机栈中的函数 */
+					if (methodFound == false && gDvmJit.checkCallGraph == true) {
+						methodFound =
+							filterMethodByCallGraph(info->requestingThread,
+													desc->method->name);
+					}
+				}
+			}
+
+			/*
+			 * Under the following conditions, the trace will be *conservatively*
+			 * compiled by only containing single-step instructions to and from the
+			 * interpreter.
+			 * 1) If includeSelectedMethod == false, the method matches the full or
+			 *    partial signature stored in the hash table.
+			 *
+			 * 2) If includeSelectedMethod == true, the method does not match the
+			 *    full and partial signature stored in the hash table.
+			 */
+			/*
+			 * 在以下条件下，trace将受到*保护*
+			 * 编译仅包含single-step指令从解释器。
+			 * 1) 如果includeSelectedMethod == false，函数签名必须匹配"类名+函数名"
+			 *	或者部分的签名在hash表中。
+			 * 2) 如果includeSelectedMethod == true, 那么函数签名可以不用在hash表中匹配。
+			 */
+			/* 存在函数表并且函数必须被找到才可以 */
+			if (gDvmJit.methodTable && gDvmJit.includeSelectedMethod != methodFound) {
+				/* 如果是X86架构直接返回false */
 #ifdef ARCH_IA32
-            return false;
+				return false;
 #else
-            cUnit.allSingleStep = true;
+				cUnit.allSingleStep = true;
 #endif
-        } else {
-            /* Compile the trace as normal */
-			/* 正常的编译trace */
+			} else {
+				/* Compile the trace as normal */
+				/* 正常的编译trace */
 
-            /* Print the method we cherry picked */
-			/* 打印信息 */
-            if (gDvmJit.includeSelectedMethod == true) {
-                cUnit.printMe = true;
-            }
-        }
-    }
+				/* Print the method we cherry picked */
+				/* 打印信息 */
+				if (gDvmJit.includeSelectedMethod == true) {
+					cUnit.printMe = true;
+				}
+			}
+		}
 
-    // Each pair is a range, check whether curOffset falls into a range.
-	/* 检查trace的偏移是否在合法的范围内 */
-    bool includeOffset = (gDvmJit.num_entries_pcTable < 2);
-    for (int pcOff = 0; pcOff < gDvmJit.num_entries_pcTable; ) {
-		/* 最后的边界检查，由于是成对的增加计数 */
-        if (pcOff+1 >= gDvmJit.num_entries_pcTable) {
-          break;
-        }
-		/* 成对的匹配一个是上界，一个是下界 */
-        if (curOffset >= gDvmJit.pcTable[pcOff] && curOffset <= gDvmJit.pcTable[pcOff+1]) {
-            includeOffset = true;			/* 在合法范围则标记 */
-            break;
-        }
-        pcOff += 2;				/* 成对的增加 */
-    }
-    if (!includeOffset) {
-        return false;
-    }
+		// Each pair is a range, check whether curOffset falls into a range.
+		/* 检查trace的偏移是否在合法的范围内 */
+		bool includeOffset = (gDvmJit.num_entries_pcTable < 2);
+		for (int pcOff = 0; pcOff < gDvmJit.num_entries_pcTable; ) {
+			/* 最后的边界检查，由于是成对的增加计数 */
+			if (pcOff+1 >= gDvmJit.num_entries_pcTable) {
+			  break;
+			}
+			/* 成对的匹配一个是上界，一个是下界 */
+			if (curOffset >= gDvmJit.pcTable[pcOff] && curOffset <= gDvmJit.pcTable[pcOff+1]) {
+				includeOffset = true;			/* 在合法范围则标记 */
+				break;
+			}
+			pcOff += 2;				/* 成对的增加 */
+		}
+		/* 不在合法范围内则直接退出 */
+		if (!includeOffset) {
+			return false;
+		}
 
-    /* Allocate the entry block */
-	/* 分配一个块 */
-    curBB = dvmCompilerNewBB(kEntryBlock, numBlocks++);
-    dvmInsertGrowableList(blockList, (intptr_t) curBB);
-    curBB->startOffset = curOffset;
+		/* ---------- 以上都是在做订单的地址范围的合法检查 ---------- */
 
-	/* 字节码的块 */
-    entryCodeBB = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
-    dvmInsertGrowableList(blockList, (intptr_t) entryCodeBB);
-    entryCodeBB->startOffset = curOffset;
-	/* 形成一个链表，fallThrough是字段 */
-    curBB->fallThrough = entryCodeBB;
-    curBB = entryCodeBB;
 
-	/* 打印调试信息 */
-    if (cUnit.printMe) {
-        ALOGD("--------\nCompiler: Building trace for %s, offset %#x",
-             desc->method->name, curOffset);
-    }
+		/* ---------- 以下是真实的进行编译 ---------- */
 
-    /*
-     * Analyze the trace descriptor and include up to the maximal number
-     * of Dalvik instructions into the IR.
-     */
-	/*
-	 * 分析trace描述符并且包括到dalvik最大指令数量到IR中。
-	 */
-    while (1) {
-        MIR *insn;
-        int width;
-        insn = (MIR *)dvmCompilerNew(sizeof(MIR), true);
-        insn->offset = curOffset;
-		/* 返回指令长度 */
-        width = parseInsn(codePtr, &insn->dalvikInsn, cUnit.printMe);
+		/* Allocate the entry block */
+		/* 分配一个块 */
+		curBB = dvmCompilerNewBB(kEntryBlock, numBlocks++);			/* 第一个項被设置为kEntryBlock类型 */
+		dvmInsertGrowableList(blockList, (intptr_t) curBB);
+		curBB->startOffset = curOffset;								/* 一个要进行编译的代码偏移 */
 
-        /* The trace should never incude instruction data */
-        assert(width);
-        insn->width = width;
-        traceSize += width;						/* traceSize加上指令的长度 */
-        dvmCompilerAppendMIR(curBB, insn);		/* 插入一个MIR到基本块链表 */
-        cUnit.numInsts++;
+		/* 字节码的块 */
+		entryCodeBB = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
+		dvmInsertGrowableList(blockList, (intptr_t) entryCodeBB);
+		entryCodeBB->startOffset = curOffset;
+		/* 形成一个链表，fallThrough是指令顺序字段 */
+		curBB->fallThrough = entryCodeBB;
+		curBB = entryCodeBB;
 
-		/* 获取当前指令的OPCODE标记 */
-        int flags = dexGetFlagsFromOpcode(insn->dalvikInsn.opcode);
+		/* 打印调试信息 */
+		if (cUnit.printMe) {
+			ALOGD("--------\nCompiler: Building trace for %s, offset %#x",
+				 desc->method->name, curOffset);
+		}
 
-		/* 如果当前的指令是一个调用指令 */
-        if (flags & kInstrInvoke) {
-			/* 获取被调用函数的函数体结构 */
-            const Method *calleeMethod = (const Method *)
-                currRun[JIT_TRACE_CUR_METHOD].info.meta;
-            assert(numInsts == 1);
-			/* 获取调用者信息 */
-            CallsiteInfo *callsiteInfo =
-                (CallsiteInfo *)dvmCompilerNew(sizeof(CallsiteInfo), true);
-            callsiteInfo->classDescriptor = (const char *)
-                currRun[JIT_TRACE_CLASS_DESC].info.meta;
-            callsiteInfo->classLoader = (Object *)
-                currRun[JIT_TRACE_CLASS_LOADER].info.meta;
-            callsiteInfo->method = calleeMethod;
-            insn->meta.callsiteInfo = callsiteInfo;
-        }
+		/* ---------- 以下代码负责建立MIR链表 ---------- */
 
-        /* Instruction limit reached - terminate the trace here */
-		/* 指令的最大数到达 */
-        if (cUnit.numInsts >= numMaxInsts) {
-            break;
-        }
-		/* 如果编译完成 */
-        if (--numInsts == 0) {
-			/* 到达末尾退出循环 */
-            if (currRun->info.frag.runEnd) {
-                break;
-            } else {
-                /* Advance to the next trace description (ie non-meta info) */
-				/* 找到一个代码trace描述符号 */
-                do {
-                    currRun++;
-                } while (!currRun->isCode);
+		/*
+		 * Analyze the trace descriptor and include up to the maximal number
+		 * of Dalvik instructions into the IR.
+		 */
+		/*
+		 * 分析trace描述符并且包括到dalvik最大指令数量到IR中。
+		 */
+		while (1) {
+			MIR *insn;
+			int width;
+			insn = (MIR *)dvmCompilerNew(sizeof(MIR), true);
+			insn->offset = curOffset;
+			/* 返回指令长度 */
+			width = parseInsn(codePtr, &insn->dalvikInsn, cUnit.printMe);
 
-                /* Dummy end-of-run marker seen */
-                if (currRun->info.frag.numInsts == 0) {
-                    break;
-                }
+			/* The trace should never incude instruction data */
+			assert(width);
+			insn->width = width;
+			traceSize += width;						/* traceSize加上指令的长度 */
+			dvmCompilerAppendMIR(curBB, insn);		/* 插入一个MIR到基本块链表 */
+			cUnit.numInsts++;						/* 增加要编译的指令数量 */
 
-				/* 插入这条指令到基本块链表中 */
-                curBB = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
-                dvmInsertGrowableList(blockList, (intptr_t) curBB);
-                curOffset = currRun->info.frag.startOffset;
-                numInsts = currRun->info.frag.numInsts;
-                curBB->startOffset = curOffset;
-                codePtr = dexCode->insns + curOffset;
-            }
-        } else {
-            curOffset += width;
-            codePtr += width;
-        }
-    }/* 完成MIR链表的编译 */
+			/* 获取当前指令的OPCODE标记 */
+			int flags = dexGetFlagsFromOpcode(insn->dalvikInsn.opcode);
 
-	/* 以上代码将dalvik的指令流转换成中间指令格式MIR */
+			/* 如果当前的指令是一个调用指令 */
+			if (flags & kInstrInvoke) {
+				/* 获取被调用函数的函数体结构，currRun是订单信息结构 */
+				const Method *calleeMethod = (const Method *)
+					currRun[JIT_TRACE_CUR_METHOD].info.meta;
+				assert(numInsts == 1);
+
+				/* 
+				 * 获取调用者信息
+				 */
+				CallsiteInfo *callsiteInfo =
+					(CallsiteInfo *)dvmCompilerNew(sizeof(CallsiteInfo), true);
+				callsiteInfo->classDescriptor = (const char *)
+					currRun[JIT_TRACE_CLASS_DESC].info.meta;
+				callsiteInfo->classLoader = (Object *)
+					currRun[JIT_TRACE_CLASS_LOADER].info.meta;
+				callsiteInfo->method = calleeMethod;
+				insn->meta.callsiteInfo = callsiteInfo;
+			}
+
+			/* Instruction limit reached - terminate the trace here */
+			/* 指令的最大数到达,numMaxInsts是以参数形式穿进来的 */
+			if (cUnit.numInsts >= numMaxInsts) {
+				break;		/* 退出循环 */
+			}
+
+			/* 如果编译完成 */
+			/* 以下这个是关于订单方面的 */
+			if (--numInsts == 0) {
+				/* 到达末尾退出循环 */
+				if (currRun->info.frag.runEnd) {
+					break;		/* 退出MIR链表建立循环 */
+				} else {
+					/* Advance to the next trace description (ie non-meta info) */
+					/* 找到一个代码trace描述符号(例如：没有 meta信息) */
+					do {
+						currRun++;		/* 下一个 */
+					} while (!currRun->isCode);
+
+					/* Dummy end-of-run marker seen */
+					if (currRun->info.frag.numInsts == 0) {
+						break;
+					}
+
+					/* 插入这条指令到基本块链表中 */
+					curBB = dvmCompilerNewBB(kDalvikByteCode, numBlocks++);
+					dvmInsertGrowableList(blockList, (intptr_t) curBB);
+					curOffset = currRun->info.frag.startOffset;
+					numInsts = currRun->info.frag.numInsts;
+					curBB->startOffset = curOffset;
+					codePtr = dexCode->insns + curOffset;
+				}
+			} else {
+				/* 偏移与指针增加 */
+				curOffset += width;
+				codePtr += width;
+			}
+		}/* 完成MIR链表的建立 */
+		/* ---------- 以上代码负责建立MIR链表 ---------- */
+
+		/* 以上代码将dalvik的指令流转换成中间指令格式MIR */
 
 #if defined(WITH_JIT_TUNING)
-    /* Convert # of half-word to bytes */
-	/* 记录trace的大小 */
-    methodStats->compiledDalvikSize += traceSize * 2;
+		/* Convert # of half-word to bytes */
+		/* 记录trace的大小 */
+		methodStats->compiledDalvikSize += traceSize * 2;
 #endif
 
-    /*
-     * Now scan basic blocks containing real code to connect the
-     * taken/fallthrough links. Also create chaining cells for code not included
-     * in the trace.
-     */
-	/*
-	 * 现在扫描包含真实代码的基本块链表
-	 */
-    size_t blockId;
-    for (blockId = 0; blockId < blockList->numUsed; blockId++) {
-        curBB = (BasicBlock *) dvmGrowableListGetElement(blockList, blockId);		/* 从指定的索引中获取基本块的节点 */
-        MIR *lastInsn = curBB->lastMIRInsn;											/* 获取MIR指令指针 */
-        /* Skip empty blocks */
-		/* 跳过空块 */
-        if (lastInsn == NULL) {
-            continue;
-        }
+		/*
+		 * Now scan basic blocks containing real code to connect the
+		 * taken/fallthrough links. Also create chaining cells for code not included
+		 * in the trace.
+		 */
+		/*
+		 * 现在扫描包含真实代码的从taken/fallthrough字段到基本块链表
+		 */
+		size_t blockId;
+		for (blockId = 0; blockId < blockList->numUsed; blockId++) {
+			curBB = (BasicBlock *) dvmGrowableListGetElement(blockList, blockId);		/* 从指定的索引中获取基本块的节点 */
+			MIR *lastInsn = curBB->lastMIRInsn;											/* 获取MIR指令指针 */
+			/* Skip empty blocks */
+			/* 跳过空块 */
+			if (lastInsn == NULL) {
+				continue;
+			}
 
-		/* 取出当前指令的偏移 */
-        curOffset = lastInsn->offset;
-        unsigned int targetOffset = curOffset;
-        unsigned int fallThroughOffset = curOffset + lastInsn->width;
-        bool isInvoke = false;
-        const Method *callee = NULL;
+			/* 取出当前指令的偏移 */
+			curOffset = lastInsn->offset;												/* 当前指令的偏移 */
+			unsigned int targetOffset = curOffset;										/* 目标偏移，如果指令是分支指令 */
+			unsigned int fallThroughOffset = curOffset + lastInsn->width;				/* 顺序执行的下一条指令的偏移 */
+			bool isInvoke = false;
+			const Method *callee = NULL;
 
-        findBlockBoundary(desc->method, curBB->lastMIRInsn, curOffset,
-                          &targetOffset, &isInvoke, &callee);
+			/* 
+			 * 这个函数用于更新targetOffset的值，
+			 * 如果是一个跳转指令targetOffset将被更新
+			 * 并且callee函数结构会被更新
+			 */
+			findBlockBoundary(desc->method, curBB->lastMIRInsn, curOffset,
+							  &targetOffset, &isInvoke, &callee);
 
-        /* Link the taken and fallthrough blocks */
-        BasicBlock *searchBB;
+			/* Link the taken and fallthrough blocks */
+			/* 链接taken与fallthrough字段 */
+			BasicBlock *searchBB;
 
-		/* 获取当前指令的标记 */
-        int flags = dexGetFlagsFromOpcode(lastInsn->dalvikInsn.opcode);
+			/* 获取当前指令的标记 */
+			int flags = dexGetFlagsFromOpcode(lastInsn->dalvikInsn.opcode);
 
-		/* 是否是调用指令 */
-        if (flags & kInstrInvoke) {
-            cUnit.hasInvoke = true;
-        }
+			/* 是否是调用指令 */
+			if (flags & kInstrInvoke) {
+				cUnit.hasInvoke = true;
+			}
 
-        /* Backward branch seen */
-		/* 分支指令 */
-        if (isInvoke == false &&
-            (flags & kInstrCanBranch) != 0 &&
-            targetOffset < curOffset &&
-            (optHints & JIT_OPT_NO_LOOP) == 0) {
-            dvmCompilerArenaReset();
-            return compileLoop(&cUnit, startOffset, desc, numMaxInsts,
-                               info, bailPtr, optHints);
-        }
+			/* Backward branch seen */
+			/* 
+			 * 目标的偏移要比当前指令的偏移要小
+			 * 这种情况下应该是一个循环
+			 * 但是产生这种循环并不是通过循环指令，而是单纯的跳转
+			 * (optHints & JIT_OPT_NO_LOOP) == 0 这句应该就是判断
+			 * 此次编译是否对循环进行编译的
+			 */
 
-        /* No backward branch in the trace - start searching the next BB */
-        size_t searchBlockId;
-        for (searchBlockId = blockId+1; searchBlockId < blockList->numUsed;
-             searchBlockId++) {
-            searchBB = (BasicBlock *) dvmGrowableListGetElement(blockList,
-                                                                searchBlockId);
-            if (targetOffset == searchBB->startOffset) {
-                curBB->taken = searchBB;
-                dvmCompilerSetBit(searchBB->predecessors, curBB->id);
-            }
-            if (fallThroughOffset == searchBB->startOffset) {
-                curBB->fallThrough = searchBB;
-                dvmCompilerSetBit(searchBB->predecessors, curBB->id);
+			/*
+			 * 从以下这个if中的return语句可以看出循环是作为JIT编译
+			 * 的基本单元而言的
+			 */
+			if (isInvoke == false &&
+				(flags & kInstrCanBranch) != 0 &&
+				targetOffset < curOffset &&
+				(optHints & JIT_OPT_NO_LOOP) == 0) {
+				dvmCompilerArenaReset();				/* 重设所有Arena区域 */
+				/* 编译循环 */
+				return compileLoop(&cUnit, startOffset, desc, numMaxInsts,
+								   info, bailPtr, optHints);
+			}
 
-                /*
-                 * Fallthrough block of an invoke instruction needs to be
-                 * aligned to 4-byte boundary (alignment instruction to be
-                 * inserted later.
-                 */
-                if (flags & kInstrInvoke) {
-                    searchBB->isFallThroughFromInvoke = true;
-                }
-            }
-        }
+			/* No backward branch in the trace - start searching the next BB */
+			/* 
+			 * 没有一个向前的分支指令，则继续向前遍历基本块 
+			 * 这个循环，在顺序执行方面就浪费时间了，是可以优化的
+			 * 因为顺序执行，只进行一次匹配，而向下跳转则需要遍历完接下来的
+			 * 链表，用于找寻对应的基础块
+			 */
+			size_t searchBlockId;
+			for (searchBlockId = blockId+1; searchBlockId < blockList->numUsed;
+				 searchBlockId++) {
+				/* 获取一个指令节点 */
+				searchBB = (BasicBlock *) dvmGrowableListGetElement(blockList,
+																	searchBlockId);
+				/* 
+				 * 如果目标的偏移 等于  下一条指令的偏移
+				 * 这应该是个向下的跳转
+				 */
+				if (targetOffset == searchBB->startOffset) {
+					curBB->taken = searchBB;			/* 跳转就使用taken字段 */
+					dvmCompilerSetBit(searchBB->predecessors, curBB->id);
+				}
 
-        /*
-         * Some blocks are ended by non-control-flow-change instructions,
-         * currently only due to trace length constraint. In this case we need
-         * to generate an explicit branch at the end of the block to jump to
-         * the chaining cell.
-         */
-        curBB->needFallThroughBranch =
-            ((flags & (kInstrCanBranch | kInstrCanSwitch | kInstrCanReturn |
-                       kInstrInvoke)) == 0);
-        if (lastInsn->dalvikInsn.opcode == OP_PACKED_SWITCH ||
-            lastInsn->dalvikInsn.opcode == OP_SPARSE_SWITCH) {
-            int i;
-            const u2 *switchData = desc->method->insns + lastInsn->offset +
-                             lastInsn->dalvikInsn.vB;
-            int size = switchData[1];
-            int maxChains = MIN(size, MAX_CHAINED_SWITCH_CASES);
+				/*
+				 * 如果当前指令的偏移 等于 下一条指令的偏移
+				 * 这个情况是顺序的执行
+				 */
+				if (fallThroughOffset == searchBB->startOffset) {
+					curBB->fallThrough = searchBB;		/* 顺序就使用fallThrough字段 */
+					dvmCompilerSetBit(searchBB->predecessors, curBB->id);
 
-            /*
-             * Generate the landing pad for cases whose ranks are higher than
-             * MAX_CHAINED_SWITCH_CASES. The code will re-enter the interpreter
-             * through the NoChain point.
-             */
-            if (maxChains != size) {
-                cUnit.switchOverflowPad =
-                    desc->method->insns + lastInsn->offset;
-            }
+					/*
+					 * Fallthrough block of an invoke instruction needs to be
+					 * aligned to 4-byte boundary (alignment instruction to be
+					 * inserted later.
+					 */
+					/*
+					 * 如果是一个调用指令的fallthrough块需要使用4字节的对齐
+					 */
+					if (flags & kInstrInvoke) {
+						searchBB->isFallThroughFromInvoke = true;		/* 表明这个block之前的指令是一个调用指令 */
+					}
+					/* 优化：这里应该退出循环 */
+				}
+			}/* 循环遍历下一条指令块 */
 
-            s4 *targets = (s4 *) (switchData + 2 +
-                    (lastInsn->dalvikInsn.opcode == OP_PACKED_SWITCH ?
-                     2 : size * 2));
+			/*
+			 * Some blocks are ended by non-control-flow-change instructions,
+			 * currently only due to trace length constraint. In this case we need
+			 * to generate an explicit branch at the end of the block to jump to
+			 * the chaining cell.
+			 */
+			/*
+			 * 一些基础块链表结束在一个 没有非控制流的改变指令，
+			 * 目前由于仅在trace长度的约束。在这种情况下需要产生一个明确的分支在块
+			 * 的末尾跳转到chaining cell。
+			 */
+			curBB->needFallThroughBranch =
+				((flags & (kInstrCanBranch | kInstrCanSwitch | kInstrCanReturn |
+						   kInstrInvoke)) == 0);
 
-            /* One chaining cell for the first MAX_CHAINED_SWITCH_CASES cases */
-            for (i = 0; i < maxChains; i++) {
-                BasicBlock *caseChain = dvmCompilerNewBB(kChainingCellNormal,
-                                                         numBlocks++);
-                dvmInsertGrowableList(blockList, (intptr_t) caseChain);
-                caseChain->startOffset = lastInsn->offset + targets[i];
-            }
+			/* 
+			 * 如果是SWITCH指令包
+			 */
+			if (lastInsn->dalvikInsn.opcode == OP_PACKED_SWITCH ||
+				lastInsn->dalvikInsn.opcode == OP_SPARSE_SWITCH) {
+				int i;
+				const u2 *switchData = desc->method->insns + lastInsn->offset +
+								 lastInsn->dalvikInsn.vB;
+				int size = switchData[1];
+				int maxChains = MIN(size, MAX_CHAINED_SWITCH_CASES);
 
-            /* One more chaining cell for the default case */
-            BasicBlock *caseChain = dvmCompilerNewBB(kChainingCellNormal,
-                                                     numBlocks++);
-            dvmInsertGrowableList(blockList, (intptr_t) caseChain);
-            caseChain->startOffset = lastInsn->offset + lastInsn->width;
-        /* Fallthrough block not included in the trace */
-        } else if (!isUnconditionalBranch(lastInsn) &&
-                   curBB->fallThrough == NULL) {
-            BasicBlock *fallThroughBB;
-            /*
-             * If the chaining cell is after an invoke or
-             * instruction that cannot change the control flow, request a hot
-             * chaining cell.
-             */
-            if (isInvoke || curBB->needFallThroughBranch) {
-                fallThroughBB = dvmCompilerNewBB(kChainingCellHot, numBlocks++);
-            } else {
-                fallThroughBB = dvmCompilerNewBB(kChainingCellNormal,
-                                                 numBlocks++);
-            }
-            dvmInsertGrowableList(blockList, (intptr_t) fallThroughBB);
-            fallThroughBB->startOffset = fallThroughOffset;
-            curBB->fallThrough = fallThroughBB;
-            dvmCompilerSetBit(fallThroughBB->predecessors, curBB->id);
-        }
-        /* Target block not included in the trace */
-        if (curBB->taken == NULL &&
-            (isGoto(lastInsn) || isInvoke ||
-            (targetOffset != UNKNOWN_TARGET && targetOffset != curOffset))) {
-            BasicBlock *newBB = NULL;
-            if (isInvoke) {
-                /* Monomorphic callee */
-                if (callee) {
-                    /* JNI call doesn't need a chaining cell */
-                    if (!dvmIsNativeMethod(callee)) {
-                        newBB = dvmCompilerNewBB(kChainingCellInvokeSingleton,
-                                                 numBlocks++);
-                        newBB->startOffset = 0;
-                        newBB->containingMethod = callee;
-                    }
-                /* Will resolve at runtime */
-                } else {
-                    newBB = dvmCompilerNewBB(kChainingCellInvokePredicted,
-                                             numBlocks++);
-                    newBB->startOffset = 0;
-                }
-            /* For unconditional branches, request a hot chaining cell */
-            } else {
+				/*
+				 * Generate the landing pad for cases whose ranks are higher than
+				 * MAX_CHAINED_SWITCH_CASES. The code will re-enter the interpreter
+				 * through the NoChain point.
+				 */
+				if (maxChains != size) {
+					cUnit.switchOverflowPad =
+						desc->method->insns + lastInsn->offset;
+				}
+
+				/* 取出目标的偏移 */
+				s4 *targets = (s4 *) (switchData + 2 +
+						(lastInsn->dalvikInsn.opcode == OP_PACKED_SWITCH ?
+						 2 : size * 2));
+
+				/* One chaining cell for the first MAX_CHAINED_SWITCH_CASES cases */
+				for (i = 0; i < maxChains; i++) {
+					BasicBlock *caseChain = dvmCompilerNewBB(kChainingCellNormal,
+															 numBlocks++);
+					dvmInsertGrowableList(blockList, (intptr_t) caseChain);
+					caseChain->startOffset = lastInsn->offset + targets[i];
+				}
+
+				/* One more chaining cell for the default case */
+				BasicBlock *caseChain = dvmCompilerNewBB(kChainingCellNormal,
+														 numBlocks++);
+				dvmInsertGrowableList(blockList, (intptr_t) caseChain);
+				caseChain->startOffset = lastInsn->offset + lastInsn->width;
+			/* Fallthrough block not included in the trace */
+			/* 下一个基本块不包括在trace热点中 */
+			/* 
+			 * 首先确定这条指令是一个无条件的跳转指令，例如RETURN或者GOTO
+			 * 并且判断顺序执行的基本块指针为NULL
+			 */
+			} else if (!isUnconditionalBranch(lastInsn) &&
+					   curBB->fallThrough == NULL) {
+				BasicBlock *fallThroughBB;
+				/*
+				 * If the chaining cell is after an invoke or
+				 * instruction that cannot change the control flow, request a hot
+				 * chaining cell.
+				 */
+				/*
+				 * 如果链接单元是一个在调用指令或者非分支指令之后，请求一个
+				 * 热点链接单元
+				 */
+				if (isInvoke || curBB->needFallThroughBranch) {
+					fallThroughBB = dvmCompilerNewBB(kChainingCellHot, numBlocks++);
+				} else {
+					fallThroughBB = dvmCompilerNewBB(kChainingCellNormal,
+													 numBlocks++);
+				}
+				dvmInsertGrowableList(blockList, (intptr_t) fallThroughBB);
+				fallThroughBB->startOffset = fallThroughOffset;
+				curBB->fallThrough = fallThroughBB;
+				dvmCompilerSetBit(fallThroughBB->predecessors, curBB->id);
+			}
+			/* Target block not included in the trace */
+			/* 目标基本块不包含在trace中 */
+
+			/*
+			 *  当前指令的下一条指令非跳转指令
+			 *  当前指令是跳转指令
+			 *  当前指令是调用指令
+			 *  当前指令跳转的目标有效
+			 *  目标偏移不是当前的偏移
+			 */
+			if (curBB->taken == NULL &&
+				(isGoto(lastInsn) || isInvoke ||
+				(targetOffset != UNKNOWN_TARGET && targetOffset != curOffset))) {
+				BasicBlock *newBB = NULL;
+				/* 如果是调用指令 */
+				if (isInvoke) {
+					/* Monomorphic callee */
+					/* 
+					 * 被调用者函数体结构存在
+					 * 如果是调用指令则新的基础块的startOffset字段内容为0
+					 */
+					if (callee) {
+						/* JNI call doesn't need a chaining cell */
+						/* 
+						 * JNI单元的调用不需要一个链接单元
+						 * dvmIsNativeMethod("vm\oo\Object.h")
+						 * method->accessFlags & ACC_NATIVE != 0
+						 */
+						if (!dvmIsNativeMethod(callee)) {
+							/* 非JNI调用 */
+							newBB = dvmCompilerNewBB(kChainingCellInvokeSingleton,
+													 numBlocks++);
+							newBB->startOffset = 0;
+							newBB->containingMethod = callee;
+						}
+					/* Will resolve at runtime */
+					/* 如果被调用者函数结构体为空则目标偏移为0 */
+					} else {
+						newBB = dvmCompilerNewBB(kChainingCellInvokePredicted,
+												 numBlocks++);
+						newBB->startOffset = 0;
+					}
+				/* For unconditional branches, request a hot chaining cell */
+				/* 这里处理无条件的分支，需要一个热点链接单元 */
+				} else {
 #if !defined(WITH_SELF_VERIFICATION)
-                newBB = dvmCompilerNewBB(dexIsGoto(flags) ?
-                                                  kChainingCellHot :
-                                                  kChainingCellNormal,
-                                         numBlocks++);
-                newBB->startOffset = targetOffset;
+					/* 这里是分支与正常指令 */
+					newBB = dvmCompilerNewBB(dexIsGoto(flags) ?
+													  kChainingCellHot :
+													  kChainingCellNormal,
+											 numBlocks++);
+					newBB->startOffset = targetOffset;
 #else
-                /* Handle branches that branch back into the block */
-                if (targetOffset >= curBB->firstMIRInsn->offset &&
-                    targetOffset <= curBB->lastMIRInsn->offset) {
-                    newBB = dvmCompilerNewBB(kChainingCellBackwardBranch,
-                                             numBlocks++);
-                } else {
-                    newBB = dvmCompilerNewBB(dexIsGoto(flags) ?
-                                                      kChainingCellHot :
-                                                      kChainingCellNormal,
-                                             numBlocks++);
-                }
-                newBB->startOffset = targetOffset;
+					/* Handle branches that branch back into the block */
+					/* 如果跳转目标在当前的trace块之中 */
+					if (targetOffset >= curBB->firstMIRInsn->offset &&
+						targetOffset <= curBB->lastMIRInsn->offset) {
+						newBB = dvmCompilerNewBB(kChainingCellBackwardBranch,
+												 numBlocks++);
+					} else {
+						/* 如果目标是在之外 */
+						newBB = dvmCompilerNewBB(dexIsGoto(flags) ?
+														  kChainingCellHot :
+														  kChainingCellNormal,
+												 numBlocks++);
+					}
+					/* 新的基础块的偏移为目标偏移 */
+					newBB->startOffset = targetOffset;
 #endif
-            }
-            if (newBB) {
-                curBB->taken = newBB;
-                dvmCompilerSetBit(newBB->predecessors, curBB->id);
-                dvmInsertGrowableList(blockList, (intptr_t) newBB);
-            }
-        }
-    }
+				}/* 这里是处理无条件分支指令 */
+				if (newBB) {
+					curBB->taken = newBB;
+					dvmCompilerSetBit(newBB->predecessors, curBB->id);
+					dvmInsertGrowableList(blockList, (intptr_t) newBB);
+				}
+			}
+		}/* 扫描基础块结束 */
 
-    /* Now create a special block to host PC reconstruction code */
-    curBB = dvmCompilerNewBB(kPCReconstruction, numBlocks++);
-    dvmInsertGrowableList(blockList, (intptr_t) curBB);
+		/* Now create a special block to host PC reconstruction code */
+		/* 现在创建一个指定的基础块去重建本地代码 */
+		curBB = dvmCompilerNewBB(kPCReconstruction, numBlocks++);
+		dvmInsertGrowableList(blockList, (intptr_t) curBB);
 
-    /* And one final block that publishes the PC and raise the exception */
-    curBB = dvmCompilerNewBB(kExceptionHandling, numBlocks++);
-    dvmInsertGrowableList(blockList, (intptr_t) curBB);
-    cUnit.puntBlock = curBB;
+		/* And one final block that publishes the PC and raise the exception */
+		/* 增加一个开放给本地计算机并且跑出异常的最终的基础块 */
+		curBB = dvmCompilerNewBB(kExceptionHandling, numBlocks++);
+		dvmInsertGrowableList(blockList, (intptr_t) curBB);
+		cUnit.puntBlock = curBB;
 
-    if (cUnit.printMe) {
-        char* signature =
-            dexProtoCopyMethodDescriptor(&desc->method->prototype);
-        ALOGD("TRACEINFO (%d): 0x%08x %s%s.%s %#x %d of %d, %d blocks",
-            compilationId,
-            (intptr_t) desc->method->insns,
-            desc->method->clazz->descriptor,
-            desc->method->name,
-            signature,
-            desc->trace[0].info.frag.startOffset,
-            traceSize,
-            dexCode->insnsSize,
-            numBlocks);
-        free(signature);
-    }
+		/* 打印调试信息 */
+		if (cUnit.printMe) {
+			char* signature =
+				dexProtoCopyMethodDescriptor(&desc->method->prototype);
+			ALOGD("TRACEINFO (%d): 0x%08x %s%s.%s %#x %d of %d, %d blocks",
+				compilationId,
+				(intptr_t) desc->method->insns,
+				desc->method->clazz->descriptor,
+				desc->method->name,
+				signature,
+				desc->trace[0].info.frag.startOffset,
+				traceSize,
+				dexCode->insnsSize,
+				numBlocks);
+			free(signature);
+		}
 
-    cUnit.numBlocks = numBlocks;
+		/* 总共基本块的数量 */
+		cUnit.numBlocks = numBlocks;
 
-    /* Set the instruction set to use (NOTE: later components may change it) */
-    cUnit.instructionSet = dvmCompilerInstructionSet();
+		/* Set the instruction set to use (NOTE: later components may change it) */
+		/* 
+		 * 设置指令集合
+		 * dvmCompilerInstructionSet()这个函数是针对于不同的
+		 * 硬件体系平台相对而言。每个平台都有不同的实现。
+		 */
+		cUnit.instructionSet = dvmCompilerInstructionSet();
 
-    /* Inline transformation @ the MIR level */
-    if (cUnit.hasInvoke && !(gDvmJit.disableOpt & (1 << kMethodInlining))) {
-        dvmCompilerInlineMIR(&cUnit, info);
-    }
+		/* Inline transformation @ the MIR level */
+		if (cUnit.hasInvoke && !(gDvmJit.disableOpt & (1 << kMethodInlining))) {
+			dvmCompilerInlineMIR(&cUnit, info);
+		}
 
-    cUnit.numDalvikRegisters = cUnit.method->registersSize;
+		/* 当前使用函数使用寄存器的数量 */
+		cUnit.numDalvikRegisters = cUnit.method->registersSize;
 
-    /* Preparation for SSA conversion */
-    dvmInitializeSSAConversion(&cUnit);
+		/* Preparation for SSA conversion */
+		/* 准备SSA转换 */
+		dvmInitializeSSAConversion(&cUnit);
 
-    dvmCompilerNonLoopAnalysis(&cUnit);
+		/* 编译器无循环分析 */
+		dvmCompilerNonLoopAnalysis(&cUnit);
 
 #ifndef ARCH_IA32
-    dvmCompilerInitializeRegAlloc(&cUnit);  // Needs to happen after SSA naming
+		/* 在x86体系下需要初始化寄存器的分配 */
+		dvmCompilerInitializeRegAlloc(&cUnit);  // Needs to happen after SSA naming
 #endif
 
-    if (cUnit.printMe) {
-        dvmCompilerDumpCompilationUnit(&cUnit);
-    }
+		/* 打印编译单元当前的信息 */
+		if (cUnit.printMe) {
+			dvmCompilerDumpCompilationUnit(&cUnit);
+		}
 
 #ifndef ARCH_IA32
-    /* Allocate Registers using simple local allocation scheme */
-    dvmCompilerLocalRegAlloc(&cUnit);
+		/* Allocate Registers using simple local allocation scheme */
+		/* 分配寄存器的使用 */
+		dvmCompilerLocalRegAlloc(&cUnit);
 
-    /* Convert MIR to LIR, etc. */
-    dvmCompilerMIR2LIR(&cUnit);
+		/* Convert MIR to LIR, etc. */
+		/* 转换MIR到LIR */
+		dvmCompilerMIR2LIR(&cUnit);
 #else /* ARCH_IA32 */
-    /* Convert MIR to LIR, etc. */
-    dvmCompilerMIR2LIR(&cUnit, info);
+		/* Convert MIR to LIR, etc. */
+		/* 转换MIR到LIR */
+		dvmCompilerMIR2LIR(&cUnit, info);
 #endif
 
-    /* Convert LIR into machine code. Loop for recoverable retries */
-    do {
-        dvmCompilerAssembleLIR(&cUnit, info);
-        cUnit.assemblerRetries++;
-        if (cUnit.printMe && cUnit.assemblerStatus != kSuccess)
-            ALOGD("Assembler abort #%d on %d",cUnit.assemblerRetries,
-                  cUnit.assemblerStatus);
-    } while (cUnit.assemblerStatus == kRetryAll);
+		/* Convert LIR into machine code. Loop for recoverable retries */
+		/* 转换LIR到机器代码 */
+		do {
+			/* 这里应该就是汇编代码 */
+			dvmCompilerAssembleLIR(&cUnit, info);
+			cUnit.assemblerRetries++;
+			/* 调试标记开启或者汇编不成功则打印 */
+			if (cUnit.printMe && cUnit.assemblerStatus != kSuccess)
+				ALOGD("Assembler abort #%d on %d",cUnit.assemblerRetries,
+					  cUnit.assemblerStatus);
+		} while (cUnit.assemblerStatus == kRetryAll); /* 看来直到汇编成功为止 */
 
-    if (cUnit.printMe) {
-        ALOGD("Trace Dalvik PC: %p", startCodePtr);
-        dvmCompilerCodegenDump(&cUnit);
-        ALOGD("End %s%s, %d Dalvik instructions",
-             desc->method->clazz->descriptor, desc->method->name,
-             cUnit.numInsts);
-    }
+		/* 打印调试信息 */
+		if (cUnit.printMe) {
+			ALOGD("Trace Dalvik PC: %p", startCodePtr);
+			dvmCompilerCodegenDump(&cUnit);
+			ALOGD("End %s%s, %d Dalvik instructions",
+				 desc->method->clazz->descriptor, desc->method->name,
+				 cUnit.numInsts);
+		}
 
-    if (cUnit.assemblerStatus == kRetryHalve) {
-        /* Reset the compiler resource pool before retry */
-        dvmCompilerArenaReset();
+		/* 
+		 * 这里应该是当编译不成功时，进行的容错处理。
+		 * 将指令数量减半，然后重新递归调用dvmCompilerTrace函数
+		 */
+		if (cUnit.assemblerStatus == kRetryHalve) {
+			/* Reset the compiler resource pool before retry */
+			/* 在重新尝试之前重新设置编译器资源池 */
+			dvmCompilerArenaReset();
 
-        /* Halve the instruction count and start from the top */
-        return dvmCompileTrace(desc, cUnit.numInsts / 2, info, bailPtr,
-                               optHints);
-    }
+			/* Halve the instruction count and start from the top */
+			/* 减半指令数量并且从顶端重新开始编译 */
+			return dvmCompileTrace(desc, cUnit.numInsts / 2, info, bailPtr,
+								   optHints);
+		}
 
-    /*
-     * If this trace uses class objects as constants,
-     * dvmJitInstallClassObjectPointers will switch the thread state
-     * to running and look up the class pointers using the descriptor/loader
-     * tuple stored in the callsite info structure. We need to make this window
-     * as short as possible since it is blocking GC.
-     */
-    if (cUnit.hasClassLiterals && info->codeAddress) {
-        dvmJitInstallClassObjectPointers(&cUnit, (char *) info->codeAddress);
-    }
+		/*
+		 * If this trace uses class objects as constants,
+		 * dvmJitInstallClassObjectPointers will switch the thread state
+		 * to running and look up the class pointers using the descriptor/loader
+		 * tuple stored in the callsite info structure. We need to make this window
+		 * as short as possible since it is blocking GC.
+		 */
+		/*
+		 * 如果这个trace使用类对象作为常量
+		 * dvmJitInstallClassObjectPointers将交换线程状态到运行并且查找类指针使用描述符。
+		 */
+		if (cUnit.hasClassLiterals && info->codeAddress) {
+			/* 
+			 * 安装类对象指针
+			 * dvmJitInstallClassObjectPointers()这个函数也是针对不同硬件平台而言的
+			 */
+			dvmJitInstallClassObjectPointers(&cUnit, (char *) info->codeAddress);
+		}
 
-    /*
-     * Since callsiteinfo is allocated from the arena, delay the reset until
-     * class pointers are resolved.
-     */
-    dvmCompilerArenaReset();
+		/*
+		 * Since callsiteinfo is allocated from the arena, delay the reset until
+		 * class pointers are resolved.
+		 */
+		/* 编译完成后重新设置所有编译资源池 */
+		dvmCompilerArenaReset();
 
-    assert(cUnit.assemblerStatus == kSuccess);
+		assert(cUnit.assemblerStatus == kSuccess);
 #if defined(WITH_JIT_TUNING)
-    methodStats->nativeSize += cUnit.totalSize;
+		methodStats->nativeSize += cUnit.totalSize;
 #endif
 
-    return info->codeAddress != NULL;
-}
+		return info->codeAddress != NULL;
+	}

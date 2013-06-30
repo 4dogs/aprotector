@@ -25,6 +25,7 @@
 
 /*
  * Verify some constants used by the mterp interpreter.
+ * mterp½âÊÍÆ÷ÖĞ¶ÔÒ»Ğ©³£Á¿µÄ¼ì²é
  */
 bool dvmCheckAsmConstants()
 {
@@ -74,10 +75,11 @@ bool dvmCheckAsmConstants()
 
 /*
  * "Mterp entry point.
+ * mterp½âÊÍÆ÷Ö÷Èë¿Ú
  */
 void dvmMterpStd(Thread* self)
 {
-    /* configure mterp items */
+    /* configure mterp items  Ìî³äÒª½âÊÍµÄÌõÄ¿*/
     self->interpSave.methodClassDex = self->interpSave.method->clazz->pDvmDex;
 
     IF_LOGVV() {
@@ -96,12 +98,14 @@ void dvmMterpStd(Thread* self)
 
     /*
      * Handle any ongoing profiling and prep for debugging
+     * Ìá¹©µ÷ÊÔµÄÊä³ö(Ö÷Òª¼ÇÂ¼Ê²Ã´Ê±ºò¿ªÊ¼½âÊÍÖ´ĞĞÒ»¸methodö)
      */
     if (self->interpBreak.ctl.subMode != 0) {
         TRACE_METHOD_ENTER(self, self->interpSave.method);
         self->debugIsMethodEntry = true;   // Always true on startup
     }
 
+    /*´ÓÕâÀï½øÈë¾ßÌåµÄ½âÊÍÆ÷£¬Õâ¸öº¯Êı¿ÉÄÜÊÇ±»ÊµÏÖÎªc´úÂëÒ²¿ÉÄÜÊÇasm*/
     dvmMterpStdRun(self);
 
 #ifdef LOG_INSTR

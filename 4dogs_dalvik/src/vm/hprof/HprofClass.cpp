@@ -21,6 +21,11 @@
 
 static HashTable *gClassHashTable;
 
+/*
+ *bref:创建一个class的hash表,大小是128.
+ *retval 0:创建成功.
+ *retval !=0:返回错误码.
+ */
 int hprofStartup_Class()
 {
     gClassHashTable = dvmHashTableCreate(128, NULL);
@@ -30,6 +35,9 @@ int hprofStartup_Class()
     return 0;
 }
 
+/*
+ *bref:清理class的hash表.
+*/
 int hprofShutdown_Class()
 {
     dvmHashTableFree(gClassHashTable);
@@ -37,6 +45,11 @@ int hprofShutdown_Class()
     return 0;
 }
 
+/*
+ *bref:计算class的hash.
+ *param[clazz]:ClassObject对象.
+ *return:返回hash.
+*/
 static u4 computeClassHash(const ClassObject *clazz)
 {
     u4 hash;
@@ -52,6 +65,12 @@ static u4 computeClassHash(const ClassObject *clazz)
     return hash;
 }
 
+/*
+ *bref:类对象的比较.
+ *param[v1]:类对象指针.
+ *param[v2]:类对象指针.
+ *return: 参考strcmp.
+*/
 static int classCmp(const void *v1, const void *v2)
 {
     const ClassObject *c1 = (const ClassObject *)v1;
@@ -65,11 +84,17 @@ static int classCmp(const void *v1, const void *v2)
     return diff;
 }
 
+/*
+ *bref:获取class的id.
+*/
 static int getPrettyClassNameId(const char *descriptor) {
     std::string name(dvmHumanReadableDescriptor(descriptor));
     return hprofLookupStringId(name.c_str());
 }
 
+/*
+ *查询hprof class id.
+*/
 hprof_class_object_id hprofLookupClassId(const ClassObject *clazz)
 {
     void *val;
@@ -102,6 +127,9 @@ hprof_class_object_id hprofLookupClassId(const ClassObject *clazz)
     return (hprof_class_object_id)clazz;
 }
 
+/*
+ *bref:dump class信息.
+*/
 int hprofDumpClasses(hprof_context_t *ctx)
 {
     HashIter iter;

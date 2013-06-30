@@ -1,0 +1,12 @@
+[整体介绍]
+hprof文件夹内cpp实现的是一个生成hprof文件的工具。此hprof文件是供内存分析及调试工具进行内存分析。
+[Hprof.cpp]
+主要功能是生成hprof数据，输出为两个文件，当dump heap时会产生一些数据(字符串与类),而有些分析工具需要提前获取这些类与数据类型信息。
+所以需要两个文件，一个为字符串与类等的信息文件，另一个就是分析后的数据，最后会将这两个文件进行合并，供分析工具进行分析。
+[HprofClass.cpp]
+Class对象内存池的分析.
+[HprofString.cpp]
+string对象内存的分析.
+[HprofOutput.cpp]
+对hprof的hprof_record_t类型的填充及输出到文件.
+<HprofHeap.cpp>

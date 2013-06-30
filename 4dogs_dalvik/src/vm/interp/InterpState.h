@@ -33,6 +33,7 @@
 
 /*
  * Execution mode, e.g. interpreter vs. JIT.
+ * 执行模式
  */
 enum ExecutionMode {
     kExecutionModeUnknown = 0,
@@ -106,12 +107,12 @@ typedef bool (*SafePointCallback)(struct Thread* thread, void* arg);
 #define LOCAL_SUBMODE (kSubModeJitTraceBuild)
 
 struct InterpSaveState {
-    const u2*       pc;         // Dalvik PC
-    u4*             curFrame;   // Dalvik frame pointer
-    const Method    *method;    // Method being executed
-    DvmDex*         methodClassDex;
-    JValue          retval;
-    void*           bailPtr;
+    const u2*       pc;         // Dalvik PC 程序计数器
+    u4*             curFrame;   // Dalvik frame pointer 帧指针
+    const Method    *method;    // Method being executed 将要执行的方法
+    DvmDex*         methodClassDex; //dex生成的结构
+    JValue          retval; // 返回值
+    void*           bailPtr; //出错以后跳转的目标
 #if defined(WITH_TRACKREF_CHECKS)
     int             debugTrackedRefStart;
 #else

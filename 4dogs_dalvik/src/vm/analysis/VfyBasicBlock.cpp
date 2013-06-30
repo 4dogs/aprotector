@@ -15,8 +15,10 @@
  */
 
 /*
- * Verifier basic block functions.
- */
+Verifier basic block functions.
+
+校验基本代码块功能
+*/
 #include "Dalvik.h"
 #include "analysis/VfyBasicBlock.h"
 #include "analysis/CodeVerify.h"
@@ -26,13 +28,15 @@
 
 
 /*
- * Extract the list of catch handlers from "pTry" into "addrBuf".
- *
- * Returns the size of the catch handler list.  If the return value
- * exceeds "addrBufSize", the items at the end of the list will not be
- * represented in the output array, and this function should be called
- * again with a larger buffer.
- */
+Extract the list of catch handlers from "pTry" into "addrBuf".
+
+Returns the size of the catch handler list.  If the return value
+exceeds "addrBufSize", the items at the end of the list will not be
+represented in the output array, and this function should be called
+again with a larger buffer.
+
+
+*/
 static u4 extractCatchHandlers(const DexCode* pCode, const DexTry* pTry,
     u4* addrBuf, size_t addrBufSize)
 {

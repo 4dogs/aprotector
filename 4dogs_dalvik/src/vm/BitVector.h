@@ -26,8 +26,15 @@
  *
  * All operations on a BitVector are unsynchronized.
  */
+/**
+ * @brief 位向量结构
+ * @note 扩展的bitmap结构，被使用在tracking资源。
+ *	所有的操作在BitVector上是不同步的。
+ */
 struct BitVector {
+	/* 扩展bitmap吗？ */
     bool    expandable;     /* expand bitmap if we run out? */
+	/* 当前的大小，在一个32位的范围内 */
     u4      storageSize;    /* current size, in 32-bit words */
     u4*     storage;
 };

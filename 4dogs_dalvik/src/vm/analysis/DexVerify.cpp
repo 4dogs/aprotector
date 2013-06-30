@@ -29,29 +29,43 @@ static bool verifyInstructions(VerifierData* vdata);
 
 
 /*
- * Verify a class.
- *
- * By the time we get here, the value of gDvm.classVerifyMode should already
- * have been factored in.  If you want to call into the verifier even
- * though verification is disabled, that's your business.
- *
- * Returns "true" on success.
- */
+Verify a class.
+
+By the time we get here, the value of gDvm.classVerifyMode should already
+have been factored in.  If you want to call into the verifier even
+though verification is disabled, that's your business.
+
+Returns "true" on success.
+
+校验类
+
+当调用到这个方法，gDvm.classVerifyMode类校验模式的值应该已经被做过处理。
+虽然验证验证已被禁用，如果想要调用到校验器，做自己的处理实现。
+*/
 bool dvmVerifyClass(ClassObject* clazz)
 {
     int i;
-
+		
+		/*
+		根据类状态判断是否进过校验，不作双重校验
+		*/
     if (dvmIsClassVerified(clazz)) {
         ALOGD("Ignoring duplicate verify attempt on %s", clazz->descriptor);
         return true;
     }
 
+		/*
+		校验类实例的所有直接方法
+		*/
     for (i = 0; i < clazz->directMethodCount; i++) {
         if (!verifyMethod(&clazz->directMethods[i])) {
             LOG_VFY("Verifier rejected class %s", clazz->descriptor);
             return false;
         }
     }
+		/*
+		校验类实例的所有虚方法
+		*/    
     for (i = 0; i < clazz->virtualMethodCount; i++) {
         if (!verifyMethod(&clazz->virtualMethods[i])) {
             LOG_VFY("Verifier rejected class %s", clazz->descriptor);
@@ -64,22 +78,35 @@ bool dvmVerifyClass(ClassObject* clazz)
 
 
 /*
- * Compute the width of the instruction at each address in the instruction
- * stream, and store it in vdata->insnFlags.  Addresses that are in the
- * middle of an instruction, or that are part of switch table data, are not
- * touched (so the caller should probably initialize "insnFlags" to zero).
- *
- * The "newInstanceCount" and "monitorEnterCount" fields in vdata are
- * also set.
- *
- * Performs some static checks, notably:
- * - opcode of first instruction begins at index 0
- * - only documented instructions may appear
- * - each instruction follows the last
- * - last byte of last instruction is at (code_length-1)
- *
- * Logs an error and returns "false" on failure.
- */
+Compute the width of the instruction at each address in the instruction
+stream, and store it in vdata->insnFlags.  Addresses that are in the
+middle of an instruction, or that are part of switch table data, are not
+touched (so the caller should probably initialize "insnFlags" to zero).
+
+The "newInstanceCount" and "monitorEnterCount" fields in vdata are
+also set.
+
+Performs some static checks, notably:
+- opcode of first instruction begins at index 0
+- only documented instructions may appear
+- each instruction follows the last
+- last byte of last instruction is at (code_length-1)
+
+Logs an error and returns "false" on failure.
+
+计算指令流中每个地址上指令的宽度，并且存储在 vdata->insnFlags。在指令中间的地址，
+或者部分switch表数据的地址，不做处理（因此调用者应该正确初始化“insnFlags”到0）。
+
+在vdata中的“newInstanceCount”和“monitorEnterCount”域也要设置值。
+
+执行一些静态检查，值得注意的是：
+- 第一条指令操作码从索引0开始
+- 只有记录过的指令可以出现
+- 每个指令跟在最后面
+- 最后一条指令的最后字节是在（code_length-1）
+
+失败时记录错误并返回“false”。
+*/
 static bool computeWidthsAndCountOps(VerifierData* vdata)
 {
     const Method* meth = vdata->method;
@@ -100,7 +127,10 @@ static bool computeWidthsAndCountOps(VerifierData* vdata)
             LOG_VFY_METH(meth,
                 "VFY: warning: unusually large instr width (%d)", width);
         }
-
+        /* CodeUnit代码单元（对应第一个问题）
+        即使dex文件映射在内存和指令一一对应的实际字节码，可以这样说，进过解析转码后的字节码是操作码，
+        之前的是代码单元。
+        */
         Opcode opcode = dexOpcodeFromCodeUnit(*insns);
         if (opcode == OP_NEW_INSTANCE)
             newInstanceCount++;
@@ -126,14 +156,21 @@ bail:
 }
 
 /*
- * Set the "in try" flags for all instructions protected by "try" statements.
- * Also sets the "branch target" flags for exception handlers.
- *
- * Call this after widths have been set in "insnFlags".
- *
- * Returns "false" if something in the exception table looks fishy, but
- * we're expecting the exception table to be somewhat sane.
- */
+Set the "in try" flags for all instructions protected by "try" statements.
+Also sets the "branch target" flags for exception handlers.
+
+Call this after widths have been set in "insnFlags".
+
+Returns "false" if something in the exception table looks fishy, but
+we're expecting the exception table to be somewhat sane.
+
+对被“try”声明保护的所有指令的设置"in try"标识。同时为异常句柄设置“branch target(分支目标)”
+标识。
+
+在宽度被设置“inFlags”后调用。
+
+返回“false”，如果异常表中出现可疑的东西，我们期望它能有点理智。
+*/
 static bool scanTryCatchBlocks(const Method* meth, InsnFlags* insnFlags)
 {
     u4 insnsSize = dvmGetMethodInsnsSize(meth);
@@ -209,42 +246,58 @@ static bool scanTryCatchBlocks(const Method* meth, InsnFlags* insnFlags)
 }
 
 /*
- * Perform verification on a single method.
- *
- * We do this in three passes:
- *  (1) Walk through all code units, determining instruction locations,
- *      widths, and other characteristics.
- *  (2) Walk through all code units, performing static checks on
- *      operands.
- *  (3) Iterate through the method, checking type safety and looking
- *      for code flow problems.
- *
- * Some checks may be bypassed depending on the verification mode.  We can't
- * turn this stuff off completely if we want to do "exact" GC.
- *
- * TODO: cite source?
- * Confirmed here:
- * - code array must not be empty
- * - (N/A) code_length must be less than 65536
- * Confirmed by computeWidthsAndCountOps():
- * - opcode of first instruction begins at index 0
- * - only documented instructions may appear
- * - each instruction follows the last
- * - last byte of last instruction is at (code_length-1)
- */
+Perform verification on a single method.
+
+执行单个方法的校验
+
+We do this in three passes:
+ (1) Walk through all code units, determining instruction locations,
+     widths, and other characteristics.
+ (2) Walk through all code units, performing static checks on
+     operands.
+ (3) Iterate through the method, checking type safety and looking
+     for code flow problems.
+
+校验分3次处理：
+ (1) 遍历所有代码单元，确定指令位置，宽度，和其它特征。
+ (2) 遍历所有代码单元，对[op](操作码or操作数？)执行静态检查。
+ (3) 通过方法迭代，检查类型安全并且寻找代码流的问题。
+
+Some checks may be bypassed depending on the verification mode.  We can't
+turn this stuff off completely if we want to do "exact" GC.
+
+一些检查可以避免，这取决于校验模式。我们不能完全关闭这些校验，如果想做“精确”GC。
+
+TODO: cite source?
+Confirmed here:
+- code array must not be empty
+- (N/A) code_length must be less than 65536
+Confirmed by computeWidthsAndCountOps():
+- opcode of first instruction begins at index 0
+- only documented instructions may appear
+- each instruction follows the last
+- last byte of last instruction is at (code_length-1)
+
+
+*/
 static bool verifyMethod(Method* meth)
 {
     bool result = false;
 
     /*
-     * Verifier state blob.  Various values will be cached here so we
-     * can avoid expensive lookups and pass fewer arguments around.
-     */
+    Verifier state blob.  Various values will be cached here so we
+    can avoid expensive lookups and pass fewer arguments around.
+    
+    数据校验器数据结构体。不同的值将被缓存到这里，因此我们可以通过极少的参数进行更有效查找。
+    
+    可以缓存数据。其结构参见于CodeVerify.h头文件。
+    */
     VerifierData vdata;
 #if 1   // ndef NDEBUG
     memset(&vdata, 0x99, sizeof(vdata));
 #endif
-
+    
+    // 校验器数据初始化
     vdata.method = meth;
     vdata.insnsSize = dvmGetMethodInsnsSize(meth);
     vdata.insnRegCount = meth->registersSize;
@@ -253,11 +306,14 @@ static bool verifyMethod(Method* meth)
     vdata.basicBlocks = NULL;
 
     /*
-     * If there aren't any instructions, make sure that's expected, then
-     * exit successfully.  Note: for native methods, meth->insns gets set
-     * to a native function pointer on first call, so don't use that as
-     * an indicator.
-     */
+    If there aren't any instructions, make sure that's expected, then
+    exit successfully.  Note: for native methods, meth->insns gets set
+    to a native function pointer on first call, so don't use that as
+    an indicator.
+    
+    如果没有任何指令，确保本地方法和抽象方法均可被访问，
+    然后成功退出。
+    */
     if (vdata.insnsSize == 0) {
         if (!dvmIsNativeMethod(meth) && !dvmIsAbstractMethod(meth)) {
             LOG_VFY_METH(meth,
@@ -269,9 +325,11 @@ static bool verifyMethod(Method* meth)
     }
 
     /*
-     * Sanity-check the register counts.  ins + locals = registers, so make
-     * sure that ins <= registers.
-     */
+    Sanity-check the register counts.  ins + locals = registers, so make
+    sure that ins <= registers.
+    
+    校验寄存器个数。 指令寄存器ins + 本地寄存器locals = All，因此确保指令寄存器<= All。
+    */
     if (meth->insSize > meth->registersSize) {
         LOG_VFY_METH(meth, "VFY: bad register counts (ins=%d regs=%d)",
             meth->insSize, meth->registersSize);
@@ -279,25 +337,32 @@ static bool verifyMethod(Method* meth)
     }
 
     /*
-     * Allocate and populate an array to hold instruction data.
-     *
-     * TODO: Consider keeping a reusable pre-allocated array sitting
-     * around for smaller methods.
-     */
+    Allocate and populate an array to hold instruction data.
+    
+    TODO: Consider keeping a reusable pre-allocated array sitting
+    around for smaller methods.
+    
+    分配空间给指令
+    */
     vdata.insnFlags = (InsnFlags*) calloc(vdata.insnsSize, sizeof(InsnFlags));
     if (vdata.insnFlags == NULL)
         goto bail;
 
     /*
-     * Compute the width of each instruction and store the result in insnFlags.
-     * Count up the #of occurrences of certain opcodes while we're at it.
-     */
+    Compute the width of each instruction and store the result in insnFlags.
+    Count up the #of occurrences of certain opcodes while we're at it.
+    
+    计算每条指令宽度并且存储 insnFlags 中的结果。
+    
+    */
     if (!computeWidthsAndCountOps(&vdata))
         goto bail;
 
     /*
-     * Allocate a map to hold the classes of uninitialized instances.
-     */
+    Allocate a map to hold the classes of uninitialized instances.
+    
+    分配一个map来持有未初始化的实例的类(s)
+    */
     vdata.uninitMap = dvmCreateUninitInstanceMap(meth, vdata.insnFlags,
         vdata.newInstanceCount);
     if (vdata.uninitMap == NULL)

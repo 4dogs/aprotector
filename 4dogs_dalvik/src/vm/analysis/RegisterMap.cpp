@@ -15,11 +15,14 @@
  */
 
 /*
- * This code generate "register maps" for Dalvik bytecode.  In a stack-based
- * VM we might call these "stack maps".  They are used to increase the
- * precision in the garbage collector when scanning references in the
- * interpreter thread stacks.
- */
+This code generate "register maps" for Dalvik bytecode.  In a stack-based
+VM we might call these "stack maps".  They are used to increase the
+precision in the garbage collector when scanning references in the
+interpreter thread stacks.
+
+为Dalvik字节码生成“寄存器maps”。在基于栈的虚拟机中，我们称它们为“栈集合（stack maps）”。
+当扫描解释器线程栈中的引用，它们被用来提高垃圾回收的精确度。
+*/ 
 #include "Dalvik.h"
 #include "UniquePtr.h"
 #include "analysis/CodeVerify.h"
@@ -30,51 +33,82 @@
 
 #include <stddef.h>
 
-/* double-check the compression */
+/*
+double-check the compression 
+
+
+*/
 #define REGISTER_MAP_VERIFY     false
 
-/* verbose logging */
+/* 
+verbose logging 
+
+详细日志
+*/
 #define REGISTER_MAP_VERBOSE    false
 
 //#define REGISTER_MAP_STATS
 
 // fwd
+
 static void outputTypeVector(const RegType* regs, int insnRegCount, u1* data);
+
 static bool verifyMap(VerifierData* vdata, const RegisterMap* pMap);
+
 static int compareMaps(const RegisterMap* pMap1, const RegisterMap* pMap2);
 
 #ifdef REGISTER_MAP_STATS
 static void computeMapStats(RegisterMap* pMap, const Method* method);
 #endif
+
 static RegisterMap* compressMapDifferential(const RegisterMap* pMap,\
     const Method* meth);
+    
 static RegisterMap* uncompressMapDifferential(const RegisterMap* pMap);
 
 #ifdef REGISTER_MAP_STATS
 /*
- * Generate some statistics on the register maps we create and use.
- */
+Generate some statistics on the register maps we create and use.
+
+生成一些在寄存器maps上创建和使用的统计（数据）。
+*/
 #define kMaxGcPointGap      50
 #define kUpdatePosnMinRegs  24
 #define kNumUpdatePosns     8
 #define kMaxDiffBits        20
+
+/*
+
+
+NOTE TODO：
+*/
 struct MapStats {
     /*
-     * Buckets measuring the distance between GC points.  This tells us how
-     * many bits we need to encode the advancing program counter.  We ignore
-     * some of the "long tail" entries.
-     */
+    Buckets measuring the distance between GC points.  This tells us how
+    many bits we need to encode the advancing program counter.  We ignore
+    some of the "long tail" entries.
+    
+		这告诉我们需要多少位（bit）去编码高级语言计数器。我们忽略了一些“long tail”条目。
+		
+		NOTE TODO：    
+    */
     int gcPointGap[kMaxGcPointGap];
 
     /*
-     * Number of gaps.  Equal to (number of gcPoints - number of methods),
-     * since the computation isn't including the initial gap.
-     */
+    Number of gaps.  Equal to (number of gcPoints - number of methods),
+    since the computation isn't including the initial gap.
+    
+    自不包含初始化空白（间隔）算起， 空白（间隔）数等于（gcPonits数 - 方法数） 
+    
+    NOTE TODO：
+    */
     int gcGapCount;
 
     /*
-     * Number of gaps.
-     */
+    Number of gaps.
+    
+    间隔总数
+    */
     int totalGcPointCount;
 
     /*
@@ -85,30 +119,40 @@ struct MapStats {
     int updatePosn[kNumUpdatePosns];
 
     /*
-     * For all methods, count up the number of changes to registers < 16
-     * and >= 16.
-     */
+    For all methods, count up the number of changes to registers < 16
+    and >= 16.
+    
+  	NOTE TODO：
+    */
     int updateLT16;
     int updateGE16;
 
     /*
-     * Histogram of the number of bits that differ between adjacent entries.
-     */
+    Histogram of the number of bits that differ between adjacent entries.
+    
+    NOTE TODO：
+    */
     int numDiffBits[kMaxDiffBits];
 
 
     /*
-     * Track the number of expanded maps, and the heap space required to
-     * hold them.
-     */
+    Track the number of expanded maps, and the heap space required to
+    hold them.
+    
+    跟踪扩展集合（maps）数，并且堆空间需要持有它们。
+    */
     int numExpandedMaps;
     int totalExpandedMapSize;
 };
 #endif
 
 /*
- * Prepare some things.
- */
+Prepare some things.
+
+做准备处理。
+
+虚拟机寄存器map启动，返回寄存器map状态。
+*/ 
 bool dvmRegisterMapStartup()
 {
 #ifdef REGISTER_MAP_STATS
@@ -119,8 +163,10 @@ bool dvmRegisterMapStartup()
 }
 
 /*
- * Clean up.
- */
+Clean up.
+
+清理，释放内存
+*/
 void dvmRegisterMapShutdown()
 {
 #ifdef REGISTER_MAP_STATS
@@ -129,8 +175,10 @@ void dvmRegisterMapShutdown()
 }
 
 /*
- * Write stats to log file.
- */
+Write stats to log file.
+
+写数据到日志文件，调用ALOGI()写入。
+*/
 void dvmRegisterMapDumpStats()
 {
 #ifdef REGISTER_MAP_STATS
@@ -177,14 +225,20 @@ void dvmRegisterMapDumpStats()
  */
 
 /*
- * Generate the register map for a method that has just been verified
- * (i.e. we're doing this as part of verification).
- *
- * For type-precise determination we have all the data we need, so we
- * just need to encode it in some clever fashion.
- *
- * Returns a pointer to a newly-allocated RegisterMap, or NULL on failure.
- */
+Generate the register map for a method that has just been verified
+(i.e. we're doing this as part of verification).
+
+For type-precise determination we have all the data we need, so we
+just need to encode it in some clever fashion.
+
+Returns a pointer to a newly-allocated RegisterMap, or NULL on failure.
+
+为已校验过的方法生成寄存器集合（map）
+
+对于强类型定义，我们已有所需的所有数据，因此我们只需要用一些优雅的方式对其编码。
+
+生成有寄存器集合值
+*/
 RegisterMap* dvmGenerateRegisterMapV(VerifierData* vdata)
 {
     static const int kHeaderSize = offsetof(RegisterMap, data);
@@ -204,12 +258,17 @@ RegisterMap* dvmGenerateRegisterMapV(VerifierData* vdata)
     regWidth = (vdata->method->registersSize + 7) / 8;
 
     /*
-     * Decide if we need 8 or 16 bits to hold the address.  Strictly speaking
-     * we only need 16 bits if we actually encode an address >= 256 -- if
-     * the method has a section at the end without GC points (e.g. array
-     * data) we don't need to count it.  The situation is unusual, and
-     * detecting it requires scanning the entire method, so we don't bother.
-     */
+    Decide if we need 8 or 16 bits to hold the address.  Strictly speaking
+    we only need 16 bits if we actually encode an address >= 256 -- if
+    the method has a section at the end without GC points (e.g. array
+    data) we don't need to count it.  The situation is unusual, and
+    detecting it requires scanning the entire method, so we don't bother.
+    
+    决定我们是否需要8位或16位去持有地址。严格来说，我们仅需要16位，如果我们实际
+    编码的地址address >= 256 -- 如果在方法末尾有片段没有GCpoints（即数组数据）
+    我们不需要对它计数。这种情况不常见，同时检测需要扫描整个方法体，因此我们并不
+    关注。
+    */
     if (vdata->insnsSize < 256) {
         format = kRegMapFormatCompact8;
         bytesForAddr = 1;
@@ -219,26 +278,34 @@ RegisterMap* dvmGenerateRegisterMapV(VerifierData* vdata)
     }
 
     /*
-     * Count up the number of GC point instructions.
-     *
-     * NOTE: this does not automatically include the first instruction,
-     * since we don't count method entry as a GC point.
-     */
+    Count up the number of GC point instructions.
+    
+    NOTE: this does not automatically include the first instruction,
+    since we don't count method entry as a GC point.
+    
+    对GC点指令计数。
+    
+    注意：它不会自动包含第一条指令，因为我们不是以GCpoint来对方法条目计数。
+    */
     gcPointCount = 0;
     for (i = 0; i < (int) vdata->insnsSize; i++) {
         if (dvmInsnIsGcPoint(vdata->insnFlags, i))
             gcPointCount++;
     }
     if (gcPointCount >= 65536) {
-        /* we could handle this, but in practice we don't get near this */
+        /* 
+        we could handle this, but in practice we don't get near this         
+        */
         ALOGE("ERROR: register map can't handle %d gc points in one method",
             gcPointCount);
         goto bail;
     }
 
     /*
-     * Allocate a buffer to hold the map data.
-     */
+    Allocate a buffer to hold the map data.
+    
+    为持有集合（map）数据分配一个缓冲区。
+    */
     bufSize = kHeaderSize + gcPointCount * (bytesForAddr + regWidth);
 
     ALOGV("+++ grm: %s.%s (adr=%d gpc=%d rwd=%d bsz=%d)",
@@ -252,8 +319,10 @@ RegisterMap* dvmGenerateRegisterMapV(VerifierData* vdata)
     dvmRegisterMapSetNumEntries(pMap, gcPointCount);
 
     /*
-     * Populate it.
-     */
+    Populate it.
+    
+    填充集合
+    */
     mapData = pMap->data;
     for (i = 0; i < (int) vdata->insnsSize; i++) {
         if (dvmInsnIsGcPoint(vdata->insnFlags, i)) {
@@ -280,8 +349,10 @@ RegisterMap* dvmGenerateRegisterMapV(VerifierData* vdata)
 #endif
 
     /*
-     * Try to compress the map.
-     */
+    Try to compress the map.
+    
+    尝试压缩集合（map）
+    */
     RegisterMap* pCompMap;
 
     pCompMap = compressMapDifferential(pMap, vdata->method);
@@ -339,8 +410,10 @@ bail:
 }
 
 /*
- * Release the storage held by a RegisterMap.
- */
+Release the storage held by a RegisterMap.
+
+释放寄存器map已持有的空间。
+*/
 void dvmFreeRegisterMap(RegisterMap* pMap)
 {
     if (pMap == NULL)
@@ -351,12 +424,14 @@ void dvmFreeRegisterMap(RegisterMap* pMap)
 }
 
 /*
- * Determine if the RegType value is a reference type.
- *
- * Ordinarily we include kRegTypeZero in the "is it a reference"
- * check.  There's no value in doing so here, because we know
- * the register can't hold anything but zero.
- */
+Determine if the RegType value is a reference type.
+
+Ordinarily we include kRegTypeZero in the "is it a reference"
+check.  There's no value in doing so here, because we know
+the register can't hold anything but zero.
+
+
+*/
 static inline bool isReferenceType(RegType type)
 {
     return (type > kRegTypeMAX || type == kRegTypeUninit);

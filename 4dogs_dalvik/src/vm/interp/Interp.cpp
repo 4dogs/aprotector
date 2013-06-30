@@ -1967,6 +1967,7 @@ void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
     /*
      * Save interpreter state from previous activation, linking
      * new to last.
+     * 保存之前的状态
      */
     interpSaveState = self->interpSave;
     self->interpSave.prev = &interpSaveState;
@@ -2044,6 +2045,7 @@ void dvmInterpret(Thread* self, const Method* method, JValue* pResult)
     /* Restore interpreter state from previous activation */
     self->interpSave = interpSaveState;
 #if defined(WITH_JIT)
+    /*如果使用了JIT的话的返回方式*/
     dvmJitCalleeRestore(calleeSave);
 #endif
     if (savedSubModes != kSubModeNormal) {
