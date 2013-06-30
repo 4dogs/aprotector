@@ -477,6 +477,7 @@ struct ClassObject : Object {
 /*
  * A method.  We create one of these for every method in every class
  * we load, so try to keep the size to a minimum.
+ * 对于类里面的每个函数，都要给他创建这么一个结构体，用来描述这个函数
  *
  * Much of this comes from and could be accessed in the data held in shared
  * memory.  We hold it all together here for speed.  Everything but the
@@ -484,39 +485,46 @@ struct ClassObject : Object {
  * if we're willing to convert them to offsets and take the performance
  * hit (e.g. "meth->insns" becomes "baseAddr + meth->insnsOffset") we
  * could move everything but "nativeFunc".
+ * 本来这个结构体里面的某些成员的数据是可以放在共享内存里面的
+ * 但是为了省去读取这么一个操作，为了提高速度，就都放在各自的成员处了
  */
 struct Method {
-    /* the class we are a part of */
+    /* the class we are a part of  当前的方法隶属于那个类对象*/
     ClassObject*    clazz;
 
-    /* access flags; low 16 bits are defined by spec (could be u2?) */
+    /* access flags; low 16 bits are defined by spec (could be u2?) 该方法的访问标记，低16位是空的，实际上可以用u2就满足了 */
     u4              accessFlags;
 
     /*
      * For concrete virtual methods, this is the offset of the method
      * in "vtable".
-     *
+     * 对于实际的虚函数，这个index代表该函数在虚表中的偏移
      * For abstract methods in an interface class, this is the offset
      * of the method in "iftable[n]->methodIndexArray".
+     * 对于接口类中的抽象方法，它代表函数在iftable[n]->methodIndexArray中的偏移
      */
     u2             methodIndex;
 
     /*
      * Method bounds; not needed for an abstract method.
-     *
+     * 对于一个函数，下面的三个字段描述边界的大小，但是对于抽象函数不需要这些。
      * For a native method, we compute the size of the argument list, and
      * set "insSize" and "registerSize" equal to it.
+     * 对于本地方法的话，设置的时候要注意，计算参数列表的整体大小
+     * 然后把registersSize和insSize都设置成这个整体大小(对于其他函数的话，应该是registersSize = insSize + locals)
+     * 在一个标准的栈帧中一般需要这么几个东西: 参数空间+ 局部变量空间 + 输出结果空间
      */
     u2              registersSize;  /* ins + locals */
     u2              outsSize;
     u2              insSize;
 
-    /* method name, e.g. "<init>" or "eatLunch" */
+    /* method name, e.g. "<init>" or "eatLunch"  方法的名字*/
     const char*     name;
 
     /*
      * Method prototype descriptor string (return and argument types).
-     *
+     * 一个方法的原型(返回值的类型和参数类型)
+     * 问题是这个值怎么能同时代表返回值和参数的类型呢?
      * TODO: This currently must specify the DexFile as well as the proto_ids
      * index, because generated Proxy classes don't have a DexFile.  We can
      * remove the DexFile* and reduce the size of this struct if we generate
@@ -524,19 +532,26 @@ struct Method {
      */
     DexProto        prototype;
 
-    /* short-form method descriptor string */
+    /* short-form method descriptor string  关于一个函数的短描述字符串*/
     const char*     shorty;
 
     /*
      * The remaining items are not used for abstract or native methods.
      * (JNI is currently hijacking "insns" as a function pointer, set
      * after the first call.  For internal-native this stays null.)
+     * 从这里开始往下的字段不适用于抽象和本地方法
+     * 对于JNI的相关调用的话，这里做了个技巧，就是在第一次调用后，insns会被设置为方法指针
      */
 
-    /* the actual code */
+    /* the actual code 
+    * 存放实际的该函数的指令
+    * 这里是个指针，实际存放的指令是在dex文件映射到的对应内存区域。
+    */
     const u2*       insns;          /* instructions, in memory-mapped .dex */
 
-    /* JNI: cached argument and return-type hints */
+    /* JNI: cached argument and return-type hints 
+    * 这个字段主要是工jni调用来使用的，用来表明参数和返回值类型
+    */
     int             jniArgInfo;
 
     /*
