@@ -1769,6 +1769,7 @@ void dvmInitializeInterpBreak(Thread* thread)
  * to handle exceptional events such as debugging housekeeping, instruction
  * count profiling, JIT trace building, etc.  Dalvik PC has been exported
  * prior to call, but Thread copy of dPC & fp are not current.
+ * 处理子模式
  */
 void dvmCheckBefore(const u2 *pc, u4 *fp, Thread* self)
 {

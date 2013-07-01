@@ -79,6 +79,8 @@
  * redundant with EXPORT_PC and the debugger code.  This value can be
  * compared against what we have stored on the stack with EXPORT_PC to
  * help ensure that we aren't missing any export calls.
+ * 拷贝一份当前的pc到一个变量，这个主要是为了调试使用
+ * 使得将来能有一个机会去二次比对，以避免遗漏
  */
 #if WITH_EXTRA_GC_CHECKS > 1
 # define EXPORT_EXTRA_PC() (self->currentPc2 = pc)
@@ -88,6 +90,7 @@
 
 /*
  * Adjust the program counter.  "_offset" is a signed int, in 16-bit units.
+ * 调整程序计数器，_offset是一个有符号整型的数
  *
  * Assumes the existence of "const u2* pc" and "const u2* curMethod->insns".
  *
@@ -98,6 +101,8 @@
 #ifdef CHECK_BRANCH_OFFSETS
 # define ADJUST_PC(_offset) do {                                            \
         int myoff = _offset;        /* deref only once */                   \
+
+        /*如果这个当前的pc值没有到达要解释的方法的内部，那么就输出调试信息，然后中断*/
         if (pc + myoff < curMethod->insns ||                                \
             pc + myoff >= curMethod->insns + dvmGetMethodInsnsSize(curMethod)) \
         {                                                                   \
@@ -109,6 +114,8 @@
             free(desc);                                                     \
             dvmAbort();                                                     \
         }                                                                   \
+
+	/*移动指针*/
         pc += myoff;                                                        \
         EXPORT_EXTRA_PC();                                                  \
     } while (false)

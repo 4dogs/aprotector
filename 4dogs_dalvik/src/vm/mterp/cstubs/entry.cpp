@@ -16,20 +16,28 @@ DEFINE_GOTO_TABLE(gDvmMterpHandlerNames)
  * this a slow but portable interpeter.
  *
  * This is only used for the "allstubs" variant.
+ * c 类型的多平台解释器入口点
  */
 void dvmMterpStdRun(Thread* self)
 {
     jmp_buf jmpBuf;
 
+    // 当有异常或者其他错误发生时会跳到这片区域去
     self->interpSave.bailPtr = &jmpBuf;
 
-    /* We exit via a longjmp */
+    /* 
+    * We exit via a longjmp 
+    * setjmp 和longjmp是配套使用的，他们是c语言特有的异常处理机制的一部分
+    * setjmp(jmp_buf j)它表示“使用变量j记录现在的位置。函数返回零
+    * longjmp(jmp_buf j,int i)它表示“回到j所记录的位置，让它看上去像是从原来的setjmp()函数返回一样。但是函数返回i，使代码知道它实际上是通过longjmp()返回的。
+    */
     if (setjmp(jmpBuf)) {
         LOGVV("mterp threadid=%d returning", dvmThreadSelf()->threadId);
         return;
     }
 
     /* run until somebody longjmp()s out */
+    /*这里进入一个while循环，循环的执行指令*/
     while (true) {
         typedef void (*Handler)(Thread* self);
 

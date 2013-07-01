@@ -58,6 +58,7 @@
         u4 ref;                                                             \
         u2 vsrc1, vsrc2, vdst;                                              \
         u2 inst = FETCH(0);                                                 \
+        //下面这些变量并没有赋值，只是在这里写下，避免编译器提出警告
         (void)ref; (void)vsrc1; (void)vsrc2; (void)vdst; (void)inst;
 
 #define OP_END }
@@ -66,6 +67,7 @@
  * Like the "portable" FINISH, but don't reload "inst", and return to caller
  * when done.  Further, debugger/profiler checks are handled
  * before handler execution in mterp, so we don't do them here either.
+ * 如果使用jit的话这里会多一个步骤，除此之外二者是一样的
  */
 #if defined(WITH_JIT)
 #define FINISH(_offset) {                                                   \

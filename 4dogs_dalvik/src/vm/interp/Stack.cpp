@@ -804,6 +804,7 @@ struct LineNumFromPcContext {
     u4 lineNum;
 };
 
+// 这个回调的作用要结合libdex中的相关函数来看
 static int lineNumForPcCb(void *cnxt, u4 address, u4 lineNum)
 {
     LineNumFromPcContext *pContext = (LineNumFromPcContext *)cnxt;
@@ -830,6 +831,10 @@ static int lineNumForPcCb(void *cnxt, u4 address, u4 lineNum)
  * Returns -1 if no match was found (possibly because the source files were
  * compiled without "-g", so no line number information is present).
  * Returns -2 for native methods (as expected in exception traces).
+ * 根据pc计数器来确定源码的行号
+ * pc是一个偏移，代表方法的起始
+ * 返回-1，表明指定的地址没有行号信息匹配
+ * 返回-2，表明是当前要匹配的地址存在于一个本地方法中
  */
 int dvmLineNumFromPC(const Method* method, u4 relPc)
 {
@@ -841,18 +846,23 @@ int dvmLineNumFromPC(const Method* method, u4 relPc)
         return -1;      /* can happen for abstract method stub */
     }
 
-    LineNumFromPcContext context;
+    LineNumFromPcContext context; //上下文环境  也就是存放指定地址对应的行号信息
     memset(&context, 0, sizeof(context));
+
+    //初始化这个上下文结构体	
     context.address = relPc;
     // A method with no line number info should return -1
     context.lineNum = -1;
 
+    // 解码调试信息(这个函数实现在libdex中)
+    // 这个lineNumForPcCb是一个回调函数
     dexDecodeDebugInfo(method->clazz->pDvmDex->pDexFile, pDexCode,
             method->clazz->descriptor,
             method->prototype.protoIdx,
             method->accessFlags,
             lineNumForPcCb, NULL, &context);
 
+    //返回指定地址带有的行号信息
     return context.lineNum;
 }
 
