@@ -86,11 +86,41 @@ void dvmSlayDaemons(void);
 union InterpBreak {
     volatile int64_t   all;
     struct {
-        uint16_t   subMode;
-        uint8_t    breakFlags;
+	 /*
+	 * 记录着目前正在启动的特定操作模式的一个bitMask 
+	 * 主要是用来告知interpreter在直译指令时须要根据subModebitMask的变化来做相对应的处理.
+	 * 例如,当Traceviewprofiling一被启动, kSubModeMethodTrace bit会被设定.
+	 * interpreter在直译指令时便会通知在每一个method entry和 return上的profilingsubsystem 
+	 * 详情请参考, Profile.cpp/Profile.h, Interp.cpp.
+	 * Interpreter支持最简单机制的subMode操作就是在直译任何DalvikByteCode和处理任何需求之前去检查subMode 属性并作相对应的处理. 
+	 * 这个操作会在portableinterpreter看到. 详请可以参考stubdefs.cpp和 Platform-specific source 的InterpC-portable.cpp中的FINISHMacro.
+	 */
+        uint16_t   subMode; //用来描述debug/profile/special 操作
+
+	 /*
+	 * 在处理Pre-instructionpolling subMode是相对耗费成本且subMode操作也是相当罕见. 针对一般的操作, 比较偏向避免去做检查subMode属性的动作除非所检查的subMode属性是很有效率的. 为了弥补这个缺点, 这时候curHandlerTable和breakFlags就登场了
+	 */
+	 /*
+	 * 用来通知interpreter control mechanism使用的handler table是mainHandlerTable还是altHandlerTable. 
+	 * 假若breakFlags为非0值, curHandlerTable就会使用altHandlerTable. 
+	 * breakFlags所含的bitMask是用来告知dvmCheckBefore检查哪一个subMode.
+	 */
+        uint8_t    breakFlags; // 用在降低subMode polling成本
         int8_t     unused;   /* for future expansion */
 #ifndef DVM_NO_ASM_INTERP
-        void* curHandlerTable;
+        /*
+        * 为了使Fast interpreter在从一个Dalvik byteCode转换到下一个的效率上胜过portable interpreter
+        * 在这设计上用了computed-goto机制(for ARM), 其handler entrypoints就可以由dvmAsmInstructionStart+ (opcode * 64)得到
+        * 而for X86是用了jump table机制, 其handler entrypoints是由一个Table arry中的index来指定.此table称之为jump table.
+        * 为了支持有效率的处理subMode, 对ARM来说支持了两组handler entry, 对x86来说支援两个jump table.
+        * 一组entry pointer(ARM), jump table(X86)作优化执行速度并且执行no inter-instruction检查
+        * 而另外一组entry pointer(ARM), jump table(X86)则是处理subMode检查跟测试.
+	 * 在一般的操作下(亦即subMode = 0), 专用缓存器 rIBASE (r8 for ARM, edx for x86) 持有mainHandlerTable. 
+	 * 假若需要切换到要求inter-instruction checking的subMode时, rIBASE需要改持有altHandlerTable. 
+	 * 若直接改动rIBASE的值, 有可能会因为在之后的分支rIBASE的值被改变而导致exception被丢出.
+	 * 正常的改法是修改InterpBreak结构中的curHandlerTable属性.
+	 */
+        void* curHandlerTable; //用在降低subMode polling成本
 #else
         int32_t    unused1;
 #endif
