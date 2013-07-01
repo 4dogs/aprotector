@@ -685,6 +685,7 @@ INLINE int dvmFindFieldOffset(const ClassObject* clazz,
 /*
  * Helpers.
  */
+ // 判断一个方法的属性(public，private，staticynchronized，DeclaredSynchronized)
 INLINE bool dvmIsPublicMethod(const Method* method) {
     return (method->accessFlags & ACC_PUBLIC) != 0;
 }
@@ -718,14 +719,21 @@ INLINE bool dvmIsMirandaMethod(const Method* method) {
 INLINE bool dvmIsConstructorMethod(const Method* method) {
     return *method->name == '<';
 }
-/* Dalvik puts private, static, and constructors into non-virtual table */
+/*
+* Dalvik puts private, static, and constructors into non-virtual table 
+* 这里提出一个直接调用的概念，实际上并没有什么直接调用
+* 只是dalvik认为私有的或者静态的或者构造函数都是直接调用函数
+* dalvik 要将他们放入非虚表中
+*/
 INLINE bool dvmIsDirectMethod(const Method* method) {
     return dvmIsPrivateMethod(method) ||
            dvmIsStaticMethod(method) ||
            dvmIsConstructorMethod(method);
 }
 /* Get whether the given method has associated bytecode. This is the
- * case for methods which are neither native nor abstract. */
+ * case for methods which are neither native nor abstract. 
+ * 确定一个方法是否有字节码，因为本地方法和抽象方法没有字节码可执行
+ */
 INLINE bool dvmIsBytecodeMethod(const Method* method) {
     return (method->accessFlags & (ACC_NATIVE | ACC_ABSTRACT)) == 0;
 }
@@ -792,6 +800,7 @@ INLINE bool dvmIsTheClassClass(const ClassObject* clazz) {
 /*
  * Get the associated code struct for a method. This returns NULL
  * for non-bytecode methods.
+ * 返回一个方法所关联的描述性结构体
  */
 INLINE const DexCode* dvmGetMethodCode(const Method* meth) {
     if (dvmIsBytecodeMethod(meth)) {
@@ -810,6 +819,7 @@ INLINE const DexCode* dvmGetMethodCode(const Method* meth) {
 /*
  * Get the size of the insns associated with a method. This returns 0
  * for non-bytecode methods.
+ * 获取一个方法所关联的指令的大小
  */
 INLINE u4 dvmGetMethodInsnsSize(const Method* meth) {
     const DexCode* pCode = dvmGetMethodCode(meth);
