@@ -19,9 +19,34 @@
 # handler-style command should match the target assembly interpreter.
 #
 
-#handler-style jump-table
+
+
+
+
+#指定interpreter的型态.
+#computed-goto style: 每个handler所占的内存大小式固定大小, 其长度为 table-start-address + (opcode * handler-size)
+#jump-table style: 每个handler所占的内存大小是变动的, 其handler是一组Table数组的地址.
+#"all-c" style: for the portable interpreter
+#当handler-style指定为computed-goto|jump-table所建构出来的Platform-specific source会有asm跟cpp
+#若指定为all-c, 则建构出来只有cpp.
 handler-style computed-goto
+
+
+
+#指定每一个handler所占的内存大小的固定长度. 在jump-table 和 all-c 型态被设定时, 这个设定被忽略.
 handler-size 64
+
+
+
+#源码里含有任何需要transfer control给用c实作的function handler的assembly "stub". 此command不适用于all-c type.
+#eg.   asm-stub armv5te/stub.S
+
+
+
+#产生另一组entry points (for computed-goto interpreters)或是jump table (for jump-table interpreters).
+#eg.   asm-alt-stub armv5te/alt_stub.S
+
+
 
 # C file header and basic definitions
 import c/header.cpp
@@ -32,16 +57,36 @@ import cstubs/stubdefs.cpp
 # common defs for the C opcodes
 import c/opcommon.cpp
 
+
+
+
 # opcode list; argument to op-start is default directory
+#Op code list的起始点. directory为要加载Opcode source 的默认目录
 op-start c
-    # use nothing but C stubs
+    # op <opcode> <directory>
+    # 只能出现在" op-start " 和 " op-end " command之间. 
+    # 用来从指定目录下载所指定的opcode, e.g. "op OP_NOP armv5te" will load from "armv5te/OP_NOP.S".
+
+    # alt <opcode> <directory>
+    # 只能出现在" op-start " 和 " op-end " command之间. 
+    # 功能跟op command类似, 差别在于所指定的是opcode的table. 
+    # e.g. "alt OP_NOP armv5te" will load from  "armv5te/ALT_OP_NOP.S".
+
+
+#Op code list的起始点. 一旦发现到任何opcode没有辅合固定大小指令操作空间, 所有kNumPackedOpcodes的opcode都会被释放.
 op-end
 
-# arch-specific entry point to interpreter
+
+
+# arch-specific entry point to interpreter 入口点代码
 import cstubs/entry.cpp
 
-# "helper" code
+
+
+# "helper" code 辅助代码
 import c/gotoTargets.cpp
 
-# finish
+
+
+# finish 结束代码
 import cstubs/enddefs.cpp
