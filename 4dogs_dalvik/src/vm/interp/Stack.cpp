@@ -149,7 +149,8 @@ static bool dvmPushInterpFrame(Thread* self, const Method* method)
  *
  *
  *<<<<<<<<<<<<Java method ---> Native method>>>>>>>>>>>>>>>>>>>
- *
+ * 这种情况会推入两个栈帧，第一个是break frame，第二个普通的
+ * 第一个中断栈帧主要是为了JNI本地引用的跟踪作用
  */
 bool dvmPushJNIFrame(Thread* self, const Method* method)
 {
@@ -160,6 +161,7 @@ bool dvmPushJNIFrame(Thread* self, const Method* method)
 
     assert(dvmIsNativeMethod(method));
 
+    // 两个栈帧，但是没有out区域
     stackReq = method->registersSize * 4        // params only
                 + sizeof(StackSaveArea) * 2;    // break frame + regular frame
 
@@ -373,7 +375,7 @@ static bool dvmPopFrame(Thread* self)
  * Common code for dvmCallMethodV/A and dvmInvokeMethod.
  *
  * Pushes a call frame on, advancing self->interpSave.curFrame.
- * 插入一个调用框架(通过调用dvmCallMethodV/A and dvmInvokeMethod时发生)
+ * 插入一个调用框架(也就是栈帧，通过调用dvmCallMethodV/A and dvmInvokeMethod时发生)
  */
 static ClassObject* callPrep(Thread* self, const Method* method, Object* obj,
     bool checkAccess)
@@ -420,14 +422,17 @@ static ClassObject* callPrep(Thread* self, const Method* method, Object* obj,
      *
      * This updates self->interpSave.curFrame.
      */
+    // 推入一个调用栈帧
     if (dvmIsNativeMethod(method)) {
         /* native code calling native code the hard way */
+        // 推入一个JNI调用栈帧
         if (!dvmPushJNIFrame(self, method)) {
             assert(dvmCheckException(self));
             return NULL;
         }
     } else {
         /* native code calling interpreted code */
+        // 推入一个一般的栈帧
         if (!dvmPushInterpFrame(self, method)) {
             assert(dvmCheckException(self));
             return NULL;
@@ -444,6 +449,8 @@ static ClassObject* callPrep(Thread* self, const Method* method, Object* obj,
  *
  * (Note this can't be inlined because it takes a variable number of args.)
  */
+ // 实现很简单，它通过调用另外一个函数dvmCallMethodV来通知Dalvik虚拟机解释器执行参数method所描述的一个Java函数。
+ // 实际上就是执行java.lang.Thread类的成员函数run
 void dvmCallMethod(Thread* self, const Method* method, Object* obj,
     JValue* pResult, ...)
 {
@@ -465,7 +472,7 @@ void dvmCallMethod(Thread* self, const Method* method, Object* obj,
 void dvmCallMethodV(Thread* self, const Method* method, Object* obj,
     bool fromJni, JValue* pResult, va_list args)
 {
-    const char* desc = &(method->shorty[1]); // [0] is the return type.
+    const char* desc = &(method->shorty[1]); // [0] is the return type. 返回值类型
     int verifyCount = 0;
     ClassObject* clazz;
     u4* ins;
@@ -536,6 +543,8 @@ void dvmCallMethodV(Thread* self, const Method* method, Object* obj,
 
     //dvmDumpThreadStack(dvmThreadSelf());
 
+    // 检查参数method描述的函数是否是一个JNI方法。
+    // 如果是的话，那么它所指向的一个Method对象的成员变量nativeFunc就指向该JNI方法的地址，因此就可以直接对它进行调用。
     if (dvmIsNativeMethod(method)) {
         TRACE_METHOD_ENTER(self, method);
         /*
@@ -546,12 +555,14 @@ void dvmCallMethodV(Thread* self, const Method* method, Object* obj,
                               method, self);
         TRACE_METHOD_EXIT(self, method);
     } else {
+        // 否则的话，就说明参数method描述的是一个Java函数，这时候就需要继续调用函数dvmInterpret来执行它的代码。
         dvmInterpret(self, method, pResult);
     }
 
 #ifndef NDEBUG
 bail:
 #endif
+    // 弹出栈帧
     dvmPopFrame(self);
 }
 
