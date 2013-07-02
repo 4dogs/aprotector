@@ -1,0 +1,38 @@
+dalvik JIT 上层运行流程分析
+
+（以下说明以x86平台的解释器为参考，其他平台的类似
+以trace模式为例，method模式类似）
+
+总体说明：
+1.JIT入口点在common_updateProfile处，这个函数在汇编解释器中（InterpAsm-x86.S中）。
+
+2.并不是一上来JIT就会工作，而是需要在汇编解释器中跑过2n+1遍之后的代码才会被JIT，这里的n是threshold，在ICS上取值为40，那个1是表示JIT编译好后至少要在debugger模式下跑上一遍确保不出问题。Dalvik同时用了一个小小的trick去检查某一个地址开始的代码是否已经被JIT编译了，那就是拿当前的Dalvik PC(rPC)来做一个简单的hash运算得到一个值，然后查表;
+
+3.若完成了2n遍的解释，Dalvik汇编解释器会调用函数dvmJitGetTraceAddrThread() 来获取编译好的代码;
+
+4.若函数dvmJitGetTraceAddrThread()返回non-zero值，表示可以直接执行编译好的trace，通过"bxne r0"跳转过去执行;
+
+5.否则，调用dvmJitCheckTraceRequest()来启动编译线程去编译trace，并继续执行Dalvik code;
+
+
+执行路径：
+查看附件（流程图）
+
+执行路径解释：
+
+1.过程2肯定是进入dvmMterpStd ，不会进入dvmInterpretPortable，因为只有fast模式才会使用JIT的。
+
+2.过程7和9这两个函数是在汇编代码里面调用的，但是这两个函数的实现是在jit.cpp里面的。
+
+3.过程13应该就进入你分析的那部分内容了。（最起码应该是由交集了）
+
+4.过程10完后不是直接调用dvmCheckJit，而是通过过程11来更新一个子模式，然后当再次进入解释循环的时候，在过程4就检测到这个子模式被设置了，发现被设置的话就走到过程13了。
+
+
+需要分析的函数：
+
+1.dvmCheckJit
+2.dvmJitGetTraceAddrThread 
+3.dvmJitCheckTraceRequest 
+
+以上三个函数的实现全部在vm\interp\JIT.CPP中
