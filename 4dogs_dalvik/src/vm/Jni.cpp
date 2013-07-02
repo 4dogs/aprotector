@@ -2976,7 +2976,8 @@ shutdown:
  *      Function tables
  * ===========================================================================
  */
-
+// 结构体JNINativeInterface用来描述一个本地接口表。
+// 当我们需要在C/C++代码在中调用Java函数，就要用到这个本地接口表
 static const struct JNINativeInterface gNativeInterface = {
     NULL,
     NULL,
@@ -2986,7 +2987,7 @@ static const struct JNINativeInterface gNativeInterface = {
     GetVersion,
 
     DefineClass,
-    FindClass,
+    FindClass, //调用函数FindClass可以找到指定的Java类
 
     FromReflectedMethod,
     FromReflectedField,
@@ -3022,7 +3023,7 @@ static const struct JNINativeInterface gNativeInterface = {
     GetObjectClass,
     IsInstanceOf,
 
-    GetMethodID,
+    GetMethodID, //调用函数GetMethodID可以获得一个Java类的成员函数，并且可以通过类似CallObjectMethod函数来间接调用它；
 
     CallObjectMethod,
     CallObjectMethodV,
@@ -3086,7 +3087,7 @@ static const struct JNINativeInterface gNativeInterface = {
     CallNonvirtualVoidMethodV,
     CallNonvirtualVoidMethodA,
 
-    GetFieldID,
+    GetFieldID, // 调用函数GetFieldID可以获得一个Java类的成员变量，并且可以通过类似SetIntField的函数来设置它的值；
 
     GetObjectField,
     GetBooleanField,
@@ -3222,13 +3223,14 @@ static const struct JNINativeInterface gNativeInterface = {
     SetFloatArrayRegion,
     SetDoubleArrayRegion,
 
+    // 调用函数RegisterNatives和UnregisterNatives可以注册和反注册JNI方法到一个Java类中去，以便可以在Java函数中调用；
     RegisterNatives,
     UnregisterNatives,
 
     MonitorEnter,
     MonitorExit,
 
-    GetJavaVM,
+    GetJavaVM, // 调用函数GetJavaVM可以获得当前进程中的Dalvik虚拟机实例。
 
     GetStringRegion,
     GetStringUTFRegion,
@@ -3276,6 +3278,9 @@ static const struct JNIInvokeInterface gInvokeInterface = {
  *
  * "self" will be NULL for the main thread, since the VM hasn't started
  * yet; the value will be filled in later.
+ * 用来为新创建的Dalvik虚拟机线程创建一个JNI环境，也就是创建一个JNIEnvExt对象，
+ * 并且为该JNIEnvExt对象创建一个Java代码访问函数表。
+ * 有了这个Java代码访问函数表之后，我们才可以在JNI方法中访问Java对象，以及执行Java代码。
  */
 JNIEnv* dvmCreateJNIEnv(Thread* self) {
     JavaVMExt* vm = (JavaVMExt*) gDvmJni.jniVm;
@@ -3285,8 +3290,18 @@ JNIEnv* dvmCreateJNIEnv(Thread* self) {
 
     assert(vm != NULL);
 
+	
+    // 创建一个JNIEnvExt对象，用来描述一个JNI环境，
+    // 并且设置这个JNIEnvExt对象的宿主Dalvik虚拟机，以及所使用的本地接口表，即设置这个JNIEnvExt对象的成员变量funcTable和vm。
+    // 这里的宿主Dalvik虚拟机即为当前进程的Dalvik虚拟机，它保存在全局变量gDvm的成员变量vmList中。
+    // 本地接口表由全局变量gNativeInterface来描述。
     JNIEnvExt* newEnv = (JNIEnvExt*) calloc(1, sizeof(JNIEnvExt));
     newEnv->funcTable = &gNativeInterface;
+
+    // 参数self描述的是前面创建的JNIEnvExt对象要关联的线程，
+    // 可以通过调用函数dvmSetJniEnvThreadId来将它们关联起来
+    // 注意，当参数self的值等于NULL的时候，就表示前面的JNIEnvExt对象是要与主线程关联的，但是要等到后面再关联，因为现在用来描述主线程的Thread对象还没有准备好。
+    // 通过将一个JNIEnvExt对象的成员变量envThreadId和self的值都设置为0x77777779来表示它还没有与线程关联。
     if (self != NULL) {
         dvmSetJniEnvThreadId((JNIEnv*) newEnv, self);
         assert(newEnv->envThreadId != 0);
@@ -3302,6 +3317,10 @@ JNIEnv* dvmCreateJNIEnv(Thread* self) {
     ScopedPthreadMutexLock lock(&vm->envListLock);
 
     /* insert at head of list */
+    // 在一个Dalvik虚拟机里面，可以运行多个线程。
+    // 所有关联有JNI环境的线程都有一个对应的JNIEnvExt对象，这些JNIEnvExt对象相互连接在一起保存在用来描述其宿主Dalvik虚拟机的一个JavaVMExt对象的成员变量envList中。
+    // 因此，前面创建的JNIEnvExt对象需要连接到其宿主Dalvik虚拟机的JavaVMExt链表中去。
+    // 
     newEnv->next = vm->envList;
     assert(newEnv->prev == NULL);
     if (vm->envList == NULL) {
