@@ -1671,6 +1671,9 @@ static void* interpThreadStart(void* arg)
 
     ALOGV("threadid=%d: calling run()", self->threadId);
     assert(strcmp(run->name, "run") == 0);
+
+    // dvmCallMethod来通知Dalvik虚拟机解释器执行java.lang.Thread类的成员函数run
+
     dvmCallMethod(self, run, self->threadObj, &unused);
     ALOGV("threadid=%d: exiting", self->threadId);
 
@@ -2130,9 +2133,15 @@ fail:
  * dedicated ThreadObject class for java/lang/Thread and moving all of our
  * state into that.
  */
+ // 执行清理工作
 void dvmDetachCurrentThread()
 {
+    // 获得用来描述当前即将要退出的Dalvik虚拟机线程的Native层的Thread对象self。
+    // 有了这个Native层的Thread对象self之后，就可以开始执行相应的清理工作了。
     Thread* self = dvmThreadSelf();
+
+
+	
     Object* vmThread;
     Object* group;
 
@@ -2172,11 +2181,15 @@ void dvmDetachCurrentThread()
      * frames, the only thing left are the monitors held by JNI MonitorEnter
      * calls.
      */
+    // 调用函数dvmReleaseJniMonitors来释放那些在JNI方法中持有的Monitor，
+    // 也就是MonitorExit那些被MonitorEnter了的对象。
     dvmReleaseJniMonitors(self);
 
     /*
      * Do some thread-exit uncaught exception processing if necessary.
      */
+    // 调用函数dvmCheckException来检查线程是否有未处理异常。
+    // 如果有的话，那么就调用函数threadExitUncaughtException将它们交给thread-exit-uncaught-exception handler处理。
     if (dvmCheckException(self))
         threadExitUncaughtException(self, group);
 
@@ -2212,6 +2225,9 @@ void dvmDetachCurrentThread()
      * that it's issued by the dying thread, which may still appear in
      * an "all threads" listing.
      */
+
+    // 检查当前Dalvik虚拟机是否被调试器连接了，即检查gDvm.debuggerConnected的值是否等于true。
+    // 如果被调试器连接了的话，那么就调用函数dvmDbgPostThreadDeath通知调试器当前线程要退出了。
     if (gDvm.debuggerConnected)
         dvmDbgPostThreadDeath(self);
 
@@ -2219,6 +2235,7 @@ void dvmDetachCurrentThread()
      * Thread.join() is implemented as an Object.wait() on the VMThread
      * object.  Signal anyone who is waiting.
      */
+    // 调用函数dvmObjectNotifyAll来向那些调用了Thread.join等待当前线程结束的线程发送通知。
     dvmLockObject(self, vmThread);
     dvmObjectNotifyAll(self, vmThread);
     dvmUnlockObject(self, vmThread);
@@ -2265,6 +2282,7 @@ void dvmDetachCurrentThread()
     /*
      * Lose the JNI context.
      */
+    // 调用函数dvmDestroyJNIEnv来销毁用来描述当前JNI上下文环境的一个JNIEnvExt对象。
     dvmDestroyJNIEnv(self->jniEnv);
     self->jniEnv = NULL;
 
@@ -2273,6 +2291,7 @@ void dvmDetachCurrentThread()
     /*
      * Remove ourselves from the internal thread list.
      */
+    // 将当前线程的状态设置为僵尸状态（THREAD_ZOMBIE），并且调用函数unlinkThread将当前线程从Dalvik虚拟机的线程列表中移除。
     unlinkThread(self);
 
     /*
@@ -2299,6 +2318,7 @@ void dvmDetachCurrentThread()
 
     setThreadSelf(NULL);
 
+    // 调用函数freeThread来释放当前线程的Java栈和各个引用表（即前面Step 5所描述的三个引用表）所占用的内存，以及释放Thread对象self所占用的内存。
     freeThread(self);
 }
 
