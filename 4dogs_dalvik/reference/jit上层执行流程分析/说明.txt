@@ -25,8 +25,24 @@ dalvik JIT 上层运行流程分析
 2.过程7和9这两个函数是在汇编代码里面调用的，但是这两个函数的实现是在jit.cpp里面的。
 
 3.过程13应该就进入你分析的那部分内容了。（最起码应该是由交集了）
+ 
+4.过程6不是什么时候都进入的，只有碰到如下的分支语句的时候才会进入
+L_OP_PACKED_SWITCH
+L_OP_SPARSE_SWITCH
+L_OP_IF_EQ
+L_OP_IF_NE
+L_OP_IF_LT
+L_OP_IF_GE
+L_OP_IF_GT
+L_OP_IF_LE
+L_OP_IF_EQZ
+L_OP_IF_NEZ
+L_OP_IF_LTZ
+L_OP_IF_GEZ
+L_OP_IF_GTZ
+L_OP_IF_LEZ
 
-4.过程10完后不是直接调用dvmCheckJit，而是通过过程11来更新一个子模式，然后当再次进入解释循环的时候，在过程4就检测到这个子模式被设置了，发现被设置的话就走到过程13了。
+5.过程10完后不是直接调用dvmCheckJit，而是通过过程11来更新一个子模式，然后当再次进入解释循环的时候，在过程4就检测到这个子模式被设置了，发现被设置的话就走到过程13了。
 
 
 需要分析的函数：
