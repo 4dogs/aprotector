@@ -442,6 +442,13 @@ struct DvmGlobals {
      *    one thread freeing the Thread struct while another thread is
      *    perusing it)
      */
+     /*
+     * 线程列表(存放了虚拟机的各个线程信息)，其中至少有一个main线程。
+     * 以下三种情况会用到threadListLock
+     * - 从链表中添加或者删除条目
+     * - 等待或者响应threadStartCond
+     * - 另外一个线程检查列表中某个线程结构体的时候
+     */
     Thread*     threadList;
     pthread_mutex_t threadListLock;
 
