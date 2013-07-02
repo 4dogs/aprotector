@@ -353,7 +353,7 @@ static inline void unlockThreadSuspendCount()
 
 /*
  * Grab the thread list global lock.
- *
+ * 获取线程列表的全局锁
  * This is held while "suspend all" is trying to make everybody stop.  If
  * the shutdown is in progress, and somebody tries to grab the lock, they'll
  * have to wait for the GC to finish.  Therefore it's important that the
@@ -381,8 +381,8 @@ void dvmLockThreadList(Thread* self)
         self = dvmThreadSelf();
 
     if (self != NULL) {
-        oldStatus = self->status;
-        self->status = THREAD_VMWAIT;
+        oldStatus = self->status;//保存原始的状态
+        self->status = THREAD_VMWAIT;//设置当前的状态为等待
     } else {
         /* happens during VM shutdown */
         oldStatus = THREAD_UNDEFINED;  // shut up gcc
@@ -954,6 +954,7 @@ pid_t dvmGetSysThreadId()
  *
  * NOTE: The threadListLock must be held by the caller (needed for
  * assignThreadId()).
+ * 对参数thread所描述的一个Dalvik虚拟机线程的三个引用表进行初始化
  */
 static bool prepareThread(Thread* thread)
 {
@@ -975,6 +976,7 @@ static bool prepareThread(Thread* thread)
     /*
      * Initialize invokeReq.
      */
+
     dvmInitMutex(&thread->invokeReq.lock);
     pthread_cond_init(&thread->invokeReq.cv, NULL);
 
@@ -984,14 +986,28 @@ static bool prepareThread(Thread* thread)
      * Most threads won't use jniMonitorRefTable, so we clear out the
      * structure but don't call the init function (which allocs storage).
      */
+    // 初始化JNI本地引用表。
+    // 一个Dalvik虚拟机线程在执行JNI方法的时候，可能会需要访问Java层的对象。
+    // 这些Java层对象在被JNI方法访问之前，需要往当前Dalvik虚拟机线程的JNI方法本地引用表添加一个引用，以便它们不会被GC回收。
+    // JNI方法本地引用表有两种实现方式，一种是添加到它里面的是间接引用，另一种是直接引用。
+    // 两者的区别在于，在进行GC的时候，间接引用的Java对象可以移动，而直接引用的Java对象不可以移动。
+    // 在编译Dalvik虚拟机的时候，可以通过宏USE_INDIRECT_REF来决定使用直接引用表，还是间接引用表。
     if (!thread->jniLocalRefTable.init(kJniLocalRefMin,
             kJniLocalRefMax, kIndirectKindLocal)) {
         return false;
     }
+
+    // 初始化Dalvik虚拟机内部引用表。
+    // 有时候，我们需要在Dalvik虚拟机内部为线程创建一些对象，
+    // 这些对象需要添加到一个Dalvik虚拟机内部引用表中去，以便在线程退出时，可以对它们进行清理。
     if (!dvmInitReferenceTable(&thread->internalLocalRefTable,
             kInternalRefDefault, kInternalRefMax))
         return false;
 
+    // 初始化Monitor引用表(实际上只是清空动作,这是因为我们一般很少在JNI方法中执行同步操作的，因此，就最好在使用的时候再进行初始化)。
+    // 一个Dalvik虚拟机线程在执行JNI方法的时候，除了可能需要访问Java层的对象之外，还可能需要进行一些同步操作，也就是进行MonitorEnter和MonitorExit操作。
+    // 注意，MonitorEnter和MonitorExit是Java代码中的同步指令，用来实现synchronized代码块或者函数的。
+    // Dalvik虚拟机需要跟踪在JNI方法中所执行的MonitorEnter操作，也就是将被Monitor的对象添加到Monitor引用表中去，以便在JNI方法退出时，可以隐式地进行MonitorExit操作，避免出现不对称的MonitorEnter和MonitorExit操作。
     memset(&thread->jniMonitorRefTable, 0, sizeof(thread->jniMonitorRefTable));
 
     pthread_cond_init(&thread->waitCond, NULL);
@@ -1286,15 +1302,29 @@ static void setThreadName(const char *threadName)
  *
  * The "threadObj" reference must be pinned by the caller to prevent the GC
  * from moving it around (e.g. added to the tracked allocation list).
+ * 创建一个解释器线程，指定他的java栈大小
+ * Dalvik虚拟机线程实际上具有两个栈，一个是Java栈，另一个是Native栈。
+ * Native栈是在调用Native代码时使用的，它是由操作系统来管理的，而Java栈是由Dalvik虚拟机来管理的。
+ * Dalvik虚拟机解释器在执行Java代码，每当遇到函数调用指令，就会在当前线程的Java栈上创建一个帧，用来保存当前函数的执行状态，以便要调用的函数执行完成后可以返回到当前函数来。
+ * 如果栈帧大小是0的话就是用gDvm.stackSize中的值作为接下来要创建的线程的Java栈大小。
+ * 我们可以通过Dalvik虚拟机的启动选项-Xss来指定gDvm.stackSize的值。
+ * 如果没有指定，那么gDvm.stackSize的值就设置为kDefaultStackSize (16*1024) 个字节。
  */
 bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
 {
     assert(threadObj != NULL);
 
+    /*获取线程自身*/
     Thread* self = dvmThreadSelf();
     int stackSize;
+
+    /*
+    * #define kMinStackSize       (512 + STACK_OVERFLOW_RESERVE)
+    * #define kDefaultStackSize   (16*1024)   //four 4K pages 
+    * #define kMaxStackSize       (256*1024 + STACK_OVERFLOW_RESERVE)
+    */
     if (reqStackSize == 0)
-        stackSize = gDvm.stackSize;
+        stackSize = gDvm.stackSize;//默认的栈帧大小
     else if (reqStackSize < kMinStackSize)
         stackSize = kMinStackSize;
     else if (reqStackSize > kMaxStackSize)
@@ -1302,18 +1332,26 @@ bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
     else
         stackSize = reqStackSize;
 
+    // 定义线程属性
     pthread_attr_t threadAttr;
+    // 初始化线程属性
     pthread_attr_init(&threadAttr);
+    // 设置线程为分离状态
     pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_DETACHED);
 
     /*
      * To minimize the time spent in the critical section, we allocate the
      * vmThread object here.
+     * 申请虚拟机线程对象
      */
     Object* vmThreadObj = dvmAllocObject(gDvm.classJavaLangVMThread, ALLOC_DEFAULT);
     if (vmThreadObj == NULL)
         return false;
 
+    // 按指定的栈帧大小申请并初始化一个线程结构体
+    //参数threadObj描述的是Java层的一个Thread对象，它在Dalvik虚拟机中对应有一个Native层的Thread对象。
+    //这个Native层的Thread对象是通过函数allocThread来分配的，并且与它对应的Java层的Thread对象会保存在它的成员变量threadObj中。
+    //如下几行所示
     Thread* newThread = allocThread(stackSize);
     if (newThread == NULL) {
         dvmReleaseTrackedAlloc(vmThreadObj, NULL);
@@ -1357,10 +1395,16 @@ bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
      */
     dvmUnlockThreadList();
 
+    // 改变状态
     ThreadStatus oldStatus = dvmChangeStatus(self, THREAD_VMWAIT);
     pthread_t threadHandle;
+    //真正的创建线程(第三个参数是线程函数的地址)
+    //pthread_create实际上最终是通过系统调用clone来请求内核创建一个线程的。
+    //由此就可以看出，Dalvik虚拟机线程实际上就是本地操作系统线程。
     int cc = pthread_create(&threadHandle, &threadAttr, interpThreadStart,
                             newThread);
+
+    //恢复状态
     dvmChangeStatus(self, oldStatus);
 
     if (cc != 0) {
@@ -1457,7 +1501,19 @@ bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
      * suspend-all.
      */
     dvmLockThreadList(self);
+
+    // 到此，自身的线程已经启动起来了
     assert(self->status == THREAD_RUNNING);
+
+    /*
+    * 新创建的Dalvik虚拟机线程启动完成之后，就会将自己的状态设置为THREAD_STARTING，
+    * 而当前线程会通过一个while循环来等待新创建的Dalvik虚拟机线程的状态被设置为THREAD_STARTING之后再继续往前执行，
+    * 主要就是：
+
+        1. 将用来描述新创建的Dalvik虚拟机线程的Native层的Thread对象保存在gDvm.threadList所描述的一个线程列表中，这是因为当前所有Dalvik虚拟机线程都保存在这个列表中。
+
+        2. 将新创建的Dalvik虚拟机线程的状态设置为THREAD_VMWAIT，使得新创建的Dalvik虚拟机线程继续往前执行，这是因为新创建的Dalvik虚拟机线程将自己的状态设置为THREAD_STARTING唤醒创建它的线程之后，又会等待创建它的线程通知它继续往前执行。
+    */
     self->status = THREAD_VMWAIT;
     while (newThread->status != THREAD_STARTING)
         pthread_cond_wait(&gDvm.threadStartCond, &gDvm.threadListLock);
@@ -1493,6 +1549,7 @@ bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
      */
     dvmLockThreadList(self);
 
+    
     assert(newThread->status == THREAD_STARTING);
     newThread->status = THREAD_VMWAIT;
     pthread_cond_broadcast(&gDvm.threadStartCond);
@@ -1510,9 +1567,13 @@ fail:
 
 /*
  * pthread entry function for threads started from interpreted code.
+ * Dalvik虚拟机线程的入口点函数
  */
 static void* interpThreadStart(void* arg)
 {
+    // 参数arg指向的是一个Native层的Thread对象，
+    // 这个Thread对象最后会被保存在变量self，
+    // 用来描述新创建的Dalvik虚拟机线程，也就是当前执行的线程。
     Thread* self = (Thread*) arg;
 
     std::string threadName(dvmGetThreadName(self));
@@ -1522,6 +1583,8 @@ static void* interpThreadStart(void* arg)
      * Finish initializing the Thread struct.
      */
     dvmLockThreadList(self);
+
+    // 初始化新创建的Dalvik虚拟机线程
     prepareThread(self);
 
     LOG_THREAD("threadid=%d: created from interp", self->threadId);
@@ -1530,6 +1593,8 @@ static void* interpThreadStart(void* arg)
      * Change our status and wake our parent, who will add us to the
      * thread list and advance our state to VMWAIT.
      */
+    // 将新创建的Dalvik虚拟机线程的状态设置为THREAD_STARTING，
+    // 以便其父线程，也就是创建它的线程可以继续往前执行
     self->status = THREAD_STARTING;
     pthread_cond_broadcast(&gDvm.threadStartCond);
 
@@ -1546,6 +1611,8 @@ static void* interpThreadStart(void* arg)
      * wait for us to suspend.  We'll be in the tail end of pthread_cond_wait
      * trying to get the lock.
      */
+    // 通过一个while循环来等待父线程通知自己继续往前执行，
+    // 也就是等待父线程将自己的状态设置为THREAD_VMWAIT。
     while (self->status != THREAD_VMWAIT)
         pthread_cond_wait(&gDvm.threadStartCond, &gDvm.threadListLock);
 
@@ -1554,12 +1621,15 @@ static void* interpThreadStart(void* arg)
     /*
      * Add a JNI context.
      */
+    // 调用函数dvmCreateJNIEnv来为新创建的Dalvik虚拟机线程创建一个JNI环境。
     self->jniEnv = dvmCreateJNIEnv(self);
 
     /*
      * Change our state so the GC will wait for us from now on.  If a GC is
      * in progress this call will suspend us.
      */
+    // 调用函数dvmChangeStatus将新创建的Dalvik虚拟机线程的状态设置为THREAD_RUNNING，
+    // 表示它正式进入运行状态。
     dvmChangeStatus(self, THREAD_RUNNING);
 
     /*
@@ -1567,6 +1637,9 @@ static void* interpThreadStart(void* arg)
      * us to suspend ourselves (and others).  The thread state may change
      * to VMWAIT briefly if network packets are sent.
      */
+    // 如果此时gDvm.debuggerConnected的值等于true，
+    // 那么就说明有调试器连接到当前Dalvik虚拟机来了，
+    // 这时候就调用函数dvmDbgPostThreadStart来通知调试器新创建了一个线程。
     if (gDvm.debuggerConnected)
         dvmDbgPostThreadStart(self);
 
@@ -1578,6 +1651,8 @@ static void* interpThreadStart(void* arg)
      * setPriority(), and then starts the thread.  We could manage this with
      * a "needs priority update" flag to avoid the redundant call.
      */
+    // 调用函数dvmChangeThreadPriority来设置新创建的Dalvik虚拟机线程的优先级，
+    // 这个优先级值保存在用来描述新创建的Dalvik虚拟机线程的一个Java层Thread对象的成员变量priority中。
     int priority = dvmGetFieldInt(self->threadObj,
                         gDvm.offJavaLangThread_priority);
     dvmChangeThreadPriority(self, priority);
@@ -1588,6 +1663,9 @@ static void* interpThreadStart(void* arg)
      * At this point our stack is empty, so somebody who comes looking for
      * stack traces right now won't have much to look at.  This is normal.
      */
+    // 找到Java层的java.lang.Thread类的成员函数run，
+    //并且通过函数dvmCallMethod来交给Dalvik虚拟机解释器执行，
+    //这个java.lang.Thread类的成员函数run即为Dalvik虚拟机线程的Java代码入口点函数。
     Method* run = self->threadObj->clazz->vtable[gDvm.voffJavaLangThread_run];
     JValue unused;
 
@@ -1600,6 +1678,7 @@ static void* interpThreadStart(void* arg)
      * Remove the thread from various lists, report its death, and free
      * its resources.
      */
+    // 从函数dvmCallMethod返回来之后，新创建的Dalvik虚拟机线程就完成自己的使命了，这时候就可以调用函数dvmDetachCurrentThread来执行清理工作。
     dvmDetachCurrentThread();
 
     return NULL;
