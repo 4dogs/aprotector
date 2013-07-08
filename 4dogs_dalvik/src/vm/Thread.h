@@ -87,40 +87,40 @@ union InterpBreak {
     volatile int64_t   all;
     struct {
 	 /*
-	 * ¼ÇÂ¼×ÅÄ¿Ç°ÕıÔÚÆô¶¯µÄÌØ¶¨²Ù×÷Ä£Ê½µÄÒ»¸öbitMask 
-	 * Ö÷ÒªÊÇÓÃÀ´¸æÖªinterpreterÔÚÖ±ÒëÖ¸ÁîÊ±ĞëÒª¸ù¾İsubModebitMaskµÄ±ä»¯À´×öÏà¶ÔÓ¦µÄ´¦Àí.
-	 * ÀıÈç,µ±TraceviewprofilingÒ»±»Æô¶¯, kSubModeMethodTrace bit»á±»Éè¶¨.
-	 * interpreterÔÚÖ±ÒëÖ¸ÁîÊ±±ã»áÍ¨ÖªÔÚÃ¿Ò»¸ömethod entryºÍ returnÉÏµÄprofilingsubsystem 
-	 * ÏêÇéÇë²Î¿¼, Profile.cpp/Profile.h, Interp.cpp.
-	 * InterpreterÖ§³Ö×î¼òµ¥»úÖÆµÄsubMode²Ù×÷¾ÍÊÇÔÚÖ±ÒëÈÎºÎDalvikByteCodeºÍ´¦ÀíÈÎºÎĞèÇóÖ®Ç°È¥¼ì²ésubMode ÊôĞÔ²¢×÷Ïà¶ÔÓ¦µÄ´¦Àí. 
-	 * Õâ¸ö²Ù×÷»áÔÚportableinterpreter¿´µ½. ÏêÇë¿ÉÒÔ²Î¿¼stubdefs.cppºÍ Platform-specific source µÄInterpC-portable.cppÖĞµÄFINISHMacro.
+	 * å½•è„Ÿè„—å½•è„³è„œè„›é©´è„Ÿæ³è„®åª’è„­è„·è„ä¹ˆéœ²ç‚‰ç¢Œè„›è„¤è„´éœ²ç¯“è™è„µè„³æ¢…è„›æ‹¢è„¢é™†ç¢Œè„›è„ªç¦„èµ‚æšbitMask 
+	 * è„°æ¢…è„ªé™‹è„¢è„Ÿè„«è„™è„Œéº“èµ‚å¿™è„°é™‹interpreterè„­è„·è„°å¤è„ªæ¯›è„°èµ‚è„•å¯è„¢å¤è„¨æ¯›è„ªé™‹èµ‚éœ‰æˆ®è„»subModebitMaskç¢Œè„›å¤ç›²ç¦„ç‚‰è„Œéº“è„³æšè„§è„¿éœ²è„­è„«å¨„ç¢Œè„›éº“å¨„è„Œé“†.
+	 * è„Œåª’è„ è½,ç¢Œå¤Traceviewprofilingè„ªç¦„å¤ç¦„è„ä¹ˆéœ²ç‚‰, kSubModeMethodTrace bitç¦„è°©å¤ç¦„è„¡çŒ«éœ²ç¯“.
+	 * interpreterè„­è„·è„°å¤è„ªæ¯›è„°èµ‚è„•å¯è„¢å¤å¤èŒ«ç¦„è°©è„¥ç¯“è„°é™‹è„­è„·è„™é©´è„ªç¦„èµ‚æšmethod entryæ½è„¥ returnè„¡è„§ç¢Œè„›profilingsubsystem 
+	 * è„§é”šè„ŸèŒ…è„Ÿæ¯›è™è„¦é©´å½•, Profile.cpp/Profile.h, Interp.cpp.
+	 * Interpreterè„°æ‚é²è„°è„³å¯å½•è²Œç¢Œæ¥¼ç¦„ç…¤è„°è„ç¢Œè„›subModeè™è„µè„³æ¢…æˆ®è„¥è„¢è„Ÿè„­è„·è„°å¤è„ªæ¯›è„ è„¦æ½è„¦DalvikByteCodeæ½è„¥éº“å¨„è„Œé“†è„ è„¦æ½è„¦è„¨çŒ«è„Ÿè´¸è„°åºè„Ÿæ³è„ æ¥¼å½•çŸ›è™èŒ…subMode è„¢ä¹ˆè„¨è„­è™å„è„³æ¢…è„§è„¿éœ²è„­è„«å¨„ç¢Œè„›éº“å¨„è„Œé“†. 
+	 * è„®èŠ’èµ‚æšè™è„µè„³æ¢…ç¦„è°©è„­è„·portableinterpreteré©´éº“ç¢Œé™†. è„§é”šè„Ÿæ¯›é©´è„¡è„ªè„­è™è„¦é©´å½•stubdefs.cppæ½è„¥ Platform-specific source ç¢Œè„›InterpC-portable.cppè„°è„¨ç¢Œè„›FINISHMacro.
 	 */
-        uint16_t   subMode; //ÓÃÀ´ÃèÊödebug/profile/special ²Ù×÷
+        uint16_t   subMode; //è„«è„™è„Œéº“è„™çŒ«è„¢æšdebug/profile/special è™è„µè„³æ¢…
 
 	 /*
-	 * ÔÚ´¦ÀíPre-instructionpolling subModeÊÇÏà¶ÔºÄ·Ñ³É±¾ÇÒsubMode²Ù×÷Ò²ÊÇÏàµ±º±¼û. Õë¶ÔÒ»°ãµÄ²Ù×÷, ±È½ÏÆ«Ïò±ÜÃâÈ¥×ö¼ì²ésubModeÊôĞÔµÄ¶¯×÷³ı·ÇËù¼ì²éµÄsubModeÊôĞÔÊÇºÜÓĞĞ§ÂÊµÄ. ÎªÁËÃÖ²¹Õâ¸öÈ±µã, ÕâÊ±ºòcurHandlerTableºÍbreakFlags¾ÍµÇ³¡ÁË
+	 * è„­è„·éº“å¨„è„Œé“†Pre-instructionpolling subModeè„¢è„Ÿè„§è„¿éœ²è„­æ½è„›è·¯è„©é²è„¡å¤æˆ®è„Ÿè„ªsubModeè™è„µè„³æ¢…è„ªè™è„¢è„Ÿè„§è„¿ç¢Œå¤æ½å¤å½•æ²¡. è„®æ¯›éœ²è„­è„ªç¦„æ³èŒ«ç¢Œè„›è™è„µè„³æ¢…, å¤è„ é™†è„§è„èŠ¦è„§è²Œå¤è„ºè„™èŠ’è„ æ¥¼è„³æšå½•çŸ›è™èŒ…subModeè„¢ä¹ˆè„¨è„­ç¢Œè„›éœ²ç‚‰è„³æ¢…é²åª’è·¯è„Ÿè„£éœ‰å½•çŸ›è™èŒ…ç¢Œè„›subModeè„¢ä¹ˆè„¨è„­è„¢è„Ÿæ½è„ºè„«è„¨è„¨æ‚è„—è„¢ç¢Œè„›. è„¦é™‹è„•è„£è„™è„°è™é¹¿è„®èŠ’èµ‚æšè„ å¤ç¢ŒèŒ«, è„®èŠ’è„¢å¤æ½è²ŒcurHandlerTableæ½è„¥breakFlagsæˆ®è„¥ç¢Œè„Ÿé²éš†è„•è„£
 	 */
 	 /*
-	 * ÓÃÀ´Í¨Öªinterpreter control mechanismÊ¹ÓÃµÄhandler tableÊÇmainHandlerTable»¹ÊÇaltHandlerTable. 
-	 * ¼ÙÈôbreakFlagsÎª·Ç0Öµ, curHandlerTable¾Í»áÊ¹ÓÃaltHandlerTable. 
-	 * breakFlagsËùº¬µÄbitMaskÊÇÓÃÀ´¸æÖªdvmCheckBefore¼ì²éÄÄÒ»¸ösubMode.
+	 * è„«è„™è„Œéº“è„¥ç¯“è„°é™‹interpreter control mechanismè„¢é¹¿è„«è„™ç¢Œè„›handler tableè„¢è„ŸmainHandlerTableç¦„é¹¿è„¢è„ŸaltHandlerTable. 
+	 * å½•è„µè„ ä¹ˆbreakFlagsè„¦é™‹è·¯è„Ÿ0è„°ç¢Œ, curHandlerTableæˆ®è„¥ç¦„è°©è„¢é¹¿è„«è„™altHandlerTable. 
+	 * breakFlagsè„£éœ‰æ½å¢ç¢Œè„›bitMaskè„¢è„Ÿè„«è„™è„Œéº“èµ‚å¿™è„°é™‹dvmCheckBeforeå½•çŸ›è™èŒ…è„›è„›è„ªç¦„èµ‚æšsubMode.
 	 */
-        uint8_t    breakFlags; // ÓÃÔÚ½µµÍsubMode polling³É±¾
+        uint8_t    breakFlags; // è„«è„™è„­è„·é™†ç¢Œç¢Œè„¥subMode pollingé²è„¡å¤æˆ®
         int8_t     unused;   /* for future expansion */
 #ifndef DVM_NO_ASM_INTERP
         /*
-        * ÎªÁËÊ¹Fast interpreterÔÚ´ÓÒ»¸öDalvik byteCode×ª»»µ½ÏÂÒ»¸öµÄĞ§ÂÊÉÏÊ¤¹ıportable interpreter
-        * ÔÚÕâÉè¼ÆÉÏÓÃÁËcomputed-goto»úÖÆ(for ARM), Æähandler entrypoints¾Í¿ÉÒÔÓÉdvmAsmInstructionStart+ (opcode * 64)µÃµ½
-        * ¶øfor X86ÊÇÓÃÁËjump table»úÖÆ, Æähandler entrypointsÊÇÓÉÒ»¸öTable arryÖĞµÄindexÀ´Ö¸¶¨.´Ëtable³ÆÖ®Îªjump table.
-        * ÎªÁËÖ§³ÖÓĞĞ§ÂÊµÄ´¦ÀísubMode, ¶ÔARMÀ´ËµÖ§³ÖÁËÁ½×éhandler entry, ¶Ôx86À´ËµÖ§Ô®Á½¸öjump table.
-        * Ò»×éentry pointer(ARM), jump table(X86)×÷ÓÅ»¯Ö´ĞĞËÙ¶È²¢ÇÒÖ´ĞĞno inter-instruction¼ì²é
-        * ¶øÁíÍâÒ»×éentry pointer(ARM), jump table(X86)ÔòÊÇ´¦ÀísubMode¼ì²é¸ú²âÊÔ.
-	 * ÔÚÒ»°ãµÄ²Ù×÷ÏÂ(Òà¼´subMode = 0), ×¨ÓÃ»º´æÆ÷ rIBASE (r8 for ARM, edx for x86) ³ÖÓĞmainHandlerTable. 
-	 * ¼ÙÈôĞèÒªÇĞ»»µ½ÒªÇóinter-instruction checkingµÄsubModeÊ±, rIBASEĞèÒª¸Ä³ÖÓĞaltHandlerTable. 
-	 * ÈôÖ±½Ó¸Ä¶¯rIBASEµÄÖµ, ÓĞ¿ÉÄÜ»áÒòÎªÔÚÖ®ºóµÄ·ÖÖ§rIBASEµÄÖµ±»¸Ä±ä¶øµ¼ÖÂexception±»¶ª³ö.
-	 * Õı³£µÄ¸Ä·¨ÊÇĞŞ¸ÄInterpBreak½á¹¹ÖĞµÄcurHandlerTableÊôĞÔ.
+        * è„¦é™‹è„•è„£è„¢é¹¿Fast interpreterè„­è„·éº“è„«è„ªç¦„èµ‚æšDalvik byteCodeè„³é™‹ç¦„ç¦„ç¢Œé™†è„§è„—è„ªç¦„èµ‚æšç¢Œè„›è„¨æ‚è„—è„¢è„¡è„§è„¢é™‡é¹¿åª’portable interpreter
+        * è„­è„·è„®èŠ’è„¡çŒ«å½•è„è„¡è„§è„«è„™è„•è„£computed-gotoç¦„ç…¤è„°è„(for ARM), è„ç›²handler entrypointsæˆ®è„¥é©´è„¡è„ªè„­è„«è„¡dvmAsmInstructionStart+ (opcode * 64)ç¢Œè„™ç¢Œé™†
+        * éœ²é…¶for X86è„¢è„Ÿè„«è„™è„•è„£jump tableç¦„ç…¤è„°è„, è„ç›²handler entrypointsè„¢è„Ÿè„«è„¡è„ªç¦„èµ‚æšTable arryè„°è„¨ç¢Œè„›indexè„Œéº“è„°èµ‚éœ²ç¯“.éº“è„£tableé²è„è„°åºè„¦é™‹jump table.
+        * è„¦é™‹è„•è„£è„°æ‚é²è„°è„«è„¨è„¨æ‚è„—è„¢ç¢Œè„›éº“å¨„è„Œé“†subMode, éœ²è„­ARMè„Œéº“è„£ç¢Œè„°æ‚é²è„°è„•è„£è„•é™†è„³èŒ…handler entry, éœ²è„­x86è„Œéº“è„£ç¢Œè„°æ‚è„­åºè„•é™†èµ‚æšjump table.
+        * è„ªç¦„è„³èŒ…entry pointer(ARM), jump table(X86)è„³æ¢…è„«è„œç¦„ç‚‰è„°éº“è„¨è„¨è„£è„µéœ²è„ è™å„è„Ÿè„ªè„°éº“è„¨è„¨no inter-instructionå½•çŸ›è™èŒ…
+        * éœ²é…¶è„•é“†è„¥èŠ’è„ªç¦„è„³èŒ…entry pointer(ARM), jump table(X86)è„­è²Œè„¢è„Ÿéº“å¨„è„Œé“†subModeå½•çŸ›è™èŒ…èµ‚ç…¤è™èŠ’è„¢è„­.
+	 * è„­è„·è„ªç¦„æ³èŒ«ç¢Œè„›è™è„µè„³æ¢…è„§è„—(è„ªè„¿å½•éº“subMode = 0), è„³ç¯“è„«è„™ç¦„æ½éº“å¿™è„æ¢… rIBASE (r8 for ARM, edx for x86) é²è„°è„«è„¨mainHandlerTable. 
+	 * å½•è„µè„ ä¹ˆè„¨çŒ«è„ªé™‹è„Ÿè„¨ç¦„ç¦„ç¢Œé™†è„ªé™‹è„Ÿè´¸inter-instruction checkingç¢Œè„›subModeè„¢å¤, rIBASEè„¨çŒ«è„ªé™‹èµ‚è„›é²è„°è„«è„¨altHandlerTable. 
+	 * è„ ä¹ˆè„°å¤é™†è„«èµ‚è„›éœ²ç‚‰rIBASEç¢Œè„›è„°ç¢Œ, è„«è„¨é©´è„¡è„›è„ºç¦„è°©è„ªè²Œè„¦é™‹è„­è„·è„°åºæ½è´¸ç¢Œè„›è·¯è„°è„°æ‚rIBASEç¢Œè„›è„°ç¢Œå¤ç¦„èµ‚è„›å¤ç›²éœ²é…¶ç¢Œå½•è„°è„—exceptionå¤ç¦„éœ²é™‹é²æš.
+	 * è„®åª’é²æ‹¢ç¢Œè„›èµ‚è„›è·¯ç¯“è„¢è„Ÿè„¨è„¼èµ‚è„›InterpBreaké™†è°©é¹¿é¹¿è„°è„¨ç¢Œè„›curHandlerTableè„¢ä¹ˆè„¨è„­.
 	 */
-        void* curHandlerTable; //ÓÃÔÚ½µµÍsubMode polling³É±¾
+        void* curHandlerTable; //è„«è„™è„­è„·é™†ç¢Œç¢Œè„¥subMode pollingé²è„¡å¤æˆ®
 #else
         int32_t    unused1;
 #endif
@@ -211,6 +211,9 @@ struct Thread {
      */
     int         singleStepCount;
 
+	/*
+	 * JITé©´é©´
+	 */
 #ifdef WITH_JIT
     struct JitToInterpEntries jitToInterpEntries;
     /*
@@ -232,20 +235,27 @@ struct Thread {
     const Method*     methodToCall;
 #endif
 
+	
     /* JNI local reference tracking */
     IndirectRefTable jniLocalRefTable;
-
 #if defined(WITH_JIT)
+	/* JITé©´é©´é©´é©´é©´ */
 #if defined(WITH_SELF_VERIFICATION)
     /* Buffer for register state during self verification */
-    struct ShadowSpace* shadowSpace;
+    struct ShadowSpace* shadowSpace;			/* é©´é©´é©´é©´é©´é©´é©´é©´é©´é©´é©´é©´é©´ */
 #endif
-    int         currTraceRun;
+    int         currTraceRun;					/* é©´é©´é©´é©´é©´é©´traceé©´é©´ */
+	/* é©´é©´é©´traceé©´é©´é©´ */
     int         totalTraceLen;  // Number of Dalvik insts in trace
+	/* é©´é©´é©´é©´é©´traceé©´é©´ */
     const u2*   currTraceHead;  // Start of the trace we're building
+	/* é©´é©´é©´é©´traceé©´é©´ */
     const u2*   currRunHead;    // Start of run we're building
+	/* traceé©´é©´é©´ */
     int         currRunLen;     // Length of run in 16-bit words
+	/* é©´é©´é©´traceé©´é©´é©´é©´é©´é©´é©´ */
     const u2*   lastPC;         // Stage the PC for the threaded interpreter
+	/* é©´é©´é©´traceé©´é©´é©´é©´é©´é©´é©´ */
     const Method*  traceMethod; // Starting method of current trace
     intptr_t    threshFilter[JIT_TRACE_THRESH_FILTER_SIZE];
     JitTraceRun trace[MAX_JIT_RUN_LEN];

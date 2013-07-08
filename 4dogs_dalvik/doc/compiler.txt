@@ -10,10 +10,302 @@ WITH_JIT_TUNING 打开此宏后会统计编译信息。在发布版本时可以�
 WITH_SELF_VERIFICATION 开启自身校验。
 ARCH_IA32 定义在X86体系下所用到的代码
 SIGNATURE_BREAKPOINT 调试所用
+TRACE_OPCODE_FILTER 检查当前指令是否被JIT编译支持
+SHOW_TRACE 打印trace信息
+
+[线程结构]
+无论是虚拟机运行期间还是在JIT编译期间。指令都需要运行到一条线程之上。
+这条线程记录了当前要执行函数的基本信息。
+struct Thread {
+    /*
+     * Interpreter state which must be preserved across nested
+     * interpreter invocations (via JNI callbacks).  Must be the first
+     * element in Thread.
+     */
+	/* 解释器状态，保存此状态下对JNI接口进行访问 */
+    InterpSaveState interpSave;
+
+    /* small unique integer; useful for "thin" locks and debug messages */
+	/* 线程唯一ID号 */
+    u4          threadId;
+
+    /*
+     * Begin interpreter state which does not need to be preserved, but should
+     * be located towards the beginning of the Thread structure for
+     * efficiency.
+     */
+
+    /*
+     * interpBreak contains info about the interpreter mode, as well as
+     * a count of the number of times the thread has been suspended.  When
+     * the count drops to zero, the thread resumes.
+     */
+	/* 解释器断点，包含解释器的模式，也有一些线程被挂起的次数。当计数为0,线程挂起 */
+    InterpBreak interpBreak;
+
+    /*
+     * "dbgSuspendCount" is the portion of the suspend count that the
+     * debugger is responsible for.  This has to be tracked separately so
+     * that we can recover correctly if the debugger abruptly disconnects
+     * (suspendCount -= dbgSuspendCount).  The debugger should not be able
+     * to resume GC-suspended threads, because we ignore the debugger while
+     * a GC is in progress.
+     *
+     * Both of these are guarded by gDvm.threadSuspendCountLock.
+     *
+     * Note the non-debug component will rarely be other than 1 or 0 -- (not
+     * sure it's even possible with the way mutexes are currently used.)
+     */
+
+    int suspendCount;
+    int dbgSuspendCount;
+
+    u1*         cardTable;
+
+    /* current limit of stack; flexes for StackOverflowError */
+	/* dalvik栈底 */
+    const u1*   interpStackEnd;
+
+    /* FP of bottom-most (currently executing) stack frame on interp stack */
+	/* 解释器的栈底 */
+    void*       XcurFrame;
+    /* current exception, or NULL if nothing pending */
+	/* 当前的异常状态 */
+    Object*     exception;
+
+	/* 调试如果是函数入口 */
+    bool        debugIsMethodEntry;
+    /* interpreter stack size; our stacks are fixed-length */
+	/* 解释器栈大小；栈是固定长度 */
+    int         interpStackSize;
+	/* 栈溢出 */
+    bool        stackOverflowed;
+
+    /* thread handle, as reported by pthread_self() */
+	/* linux线程句柄 */
+    pthread_t   handle;
+
+    /* Assembly interpreter handler tables */
+	/* 汇编语言指令执行表 */
+#ifndef DVM_NO_ASM_INTERP
+    void*       mainHandlerTable;   // Table of actual instruction handler
+    void*       altHandlerTable;    // Table of breakout handlers
+#else
+    void*       unused0;            // Consume space to keep offsets
+    void*       unused1;            //   the same between builds with
+#endif
+
+    /*
+     * singleStepCount is a countdown timer used with the breakFlag
+     * kInterpSingleStep.  If kInterpSingleStep is set in breakFlags,
+     * singleStepCount will decremented each instruction execution.
+     * Once it reaches zero, the kInterpSingleStep flag in breakFlags
+     * will be cleared.  This can be used to temporarily prevent
+     * execution from re-entering JIT'd code or force inter-instruction
+     * checks by delaying the reset of curHandlerTable to mainHandlerTable.
+     */
+	/* 此变量是计数器通过breakFlag kInterpSingleStep标志。如果kInsterpSingleStep
+	   被设置在breakFlags变量，SingleStepCount将在每条指令执行后减1.一旦它减少到0
+	   在breakFlags变量的kInterpSingleStep标志将会被清除。*/
+    int         singleStepCount;
+
+	/*
+	 * JIT相关
+	 */
+#ifdef WITH_JIT
+    struct JitToInterpEntries jitToInterpEntries;
+    /*
+     * Whether the current top VM frame is in the interpreter or JIT cache:
+     *   NULL    : in the interpreter
+     *   non-NULL: entry address of the JIT'ed code (the actual value doesn't
+     *             matter)
+     */
+	/* 当前VM的栈顶在解释器或者JIT缓存：
+		NULL ： 在解释器中
+		非NULL ： 被JIT编译后的代码的入口地址
+	 */
+    void*             inJitCodeCache;
+    unsigned char*    pJitProfTable;
+    int               jitThreshold;
+    const void*       jitResumeNPC;     // Translation return point
+    const u4*         jitResumeNSP;     // Native SP at return point
+    const u2*         jitResumeDPC;     // Dalvik inst following single-step
+    JitState    jitState;
+    int         icRechainCount;
+    const void* pProfileCountdown;
+    const ClassObject* callsiteClass;
+    const Method*     methodToCall;
+#endif
+
+	
+    /* JNI local reference tracking */
+    IndirectRefTable jniLocalRefTable;
+#if defined(WITH_JIT)
+#if defined(WITH_SELF_VERIFICATION)
+    /* Buffer for register state during self verification */
+    struct ShadowSpace* shadowSpace;
+#endif
+    int         currTraceRun
+    int         totalTraceLen;  // Number of Dalvik insts in trace
+    const u2*   currTraceHead;  // Start of the trace we're building
+    const u2*   currRunHead;    // Start of run we're building
+    int         currRunLen;     // Length of run in 16-bit words
+    const u2*   lastPC;         // Stage the PC for the threaded interpreter
+    const Method*  traceMethod; // Starting method of current trace
+    intptr_t    threshFilter[JIT_TRACE_THRESH_FILTER_SIZE];
+    JitTraceRun trace[MAX_JIT_RUN_LEN];
+#endif
+
+    /*
+     * Thread's current status.  Can only be changed by the thread itself
+     * (i.e. don't mess with this from other threads).
+     */
+    volatile ThreadStatus status;
+
+    /* thread ID, only useful under Linux */
+    pid_t       systemTid;
+
+    /* start (high addr) of interp stack (subtract size to get malloc addr) */
+    u1*         interpStackStart;
+
+    /* the java/lang/Thread that we are associated with */
+    Object*     threadObj;
+
+    /* the JNIEnv pointer associated with this thread */
+    JNIEnv*     jniEnv;
+
+    /* internal reference tracking */
+    ReferenceTable  internalLocalRefTable;
+
+
+    /* JNI native monitor reference tracking (initialized on first use) */
+    ReferenceTable  jniMonitorRefTable;
+
+    /* hack to make JNI_OnLoad work right */
+    Object*     classLoaderOverride;
+
+    /* mutex to guard the interrupted and the waitMonitor members */
+    pthread_mutex_t    waitMutex;
+
+    /* pointer to the monitor lock we're currently waiting on */
+    /* guarded by waitMutex */
+    /* TODO: consider changing this to Object* for better JDWP interaction */
+    Monitor*    waitMonitor;
+
+    /* thread "interrupted" status; stays raised until queried or thrown */
+    /* guarded by waitMutex */
+    bool        interrupted;
+
+    /* links to the next thread in the wait set this thread is part of */
+    struct Thread*     waitNext;
+
+    /* object to sleep on while we are waiting for a monitor */
+    pthread_cond_t     waitCond;
+
+    /*
+     * Set to true when the thread is in the process of throwing an
+     * OutOfMemoryError.
+     */
+    bool        throwingOOME;
+
+    /* links to rest of thread list; grab global lock before traversing */
+    struct Thread* prev;
+    struct Thread* next;
+
+    /* used by threadExitCheck when a thread exits without detaching */
+    int         threadExitCheckCount;
+
+    /* JDWP invoke-during-breakpoint support */
+    DebugInvokeReq  invokeReq;
+
+    /* base time for per-thread CPU timing (used by method profiling) */
+    bool        cpuClockBaseSet;
+    u8          cpuClockBase;
+
+    /* memory allocation profiling state */
+    AllocProfState allocProf;
+
+#ifdef WITH_JNI_STACK_CHECK
+    u4          stackCrc;
+#endif
+
+#if WITH_EXTRA_GC_CHECKS > 1
+    /* PC, saved on every instruction; redundant with StackSaveArea */
+    const u2*   currentPc2;
+#endif
+
+    /* Safepoint callback state */
+    pthread_mutex_t   callbackMutex;
+    SafePointCallback callback;
+    void*             callbackArg;
+
+#if defined(ARCH_IA32) && defined(WITH_JIT)
+    u4 spillRegion[MAX_SPILL_JIT_IA];
+#endif
+};
+
+[JitTraceRun结构]
+一个完整的trace run列表传递给编译器要像以下结构一样：
+frag1
+frag2
+frag3
+meta1
+  :
+metan
+frag4
+
+frags1-4是代码属性并且存在真正的代码指针，metas 1-n是元数据区域。
+第一个元数据被与它相邻的代码块（frag3就是这种情况）用来分析数据。
+frag4被当作一个结尾使用，0数值的numInsts字段，并且"runEnd"字段被设置。
+
+例如：如果一个trace run包含一个函数，类描述/加载器 与当前的函数指针，这三样
+元素被包含在元数据信息中。
+
+struct JitTraceRun {
+    union {
+        JitCodeDesc frag;
+        void*       meta;
+    } info;
+    u4 isCode:1;
+    u4 unused:31;
+};
+
+如果以上是一个代码属性，那么此结构要被设置，这是一个位域
+struct JitCodeDesc {
+    unsigned numInsts:8;     // Number of Byte codes in run
+    unsigned runEnd:1;       // Run ends with last byte code
+    JitHint hint:7;          // Hint to apply to final code of run
+    u2 startOffset;          // Starting offset for trace run
+};
+
+Jit选项
+enum JitHint {
+   kJitHintNone = 0,
+   // 最后一条指令是一条分支指令
+   kJitHintTaken = 1,         // Last inst in run was taken branch
+   // 最后一条指令非分支指令
+   kJitHintNotTaken = 2,      // Last inst in run was not taken branch
+   // 这个需要在分析代码
+   kJitHintNoBias = 3,        // Last inst in run was unbiased branch
+};
+
+/*
+ * Element of a Jit trace description. If the isCode bit is set, it describes
+ * a contiguous sequence of Dalvik byte codes.
+ */
+struct JitCodeDesc {
+    unsigned numInsts:8;     // Number of Byte codes in run
+    unsigned runEnd:1;       // Run ends with last byte code
+    JitHint hint:7;          // Hint to apply to final code of run
+    u2 startOffset;          // Starting offset for trace run
+};
 
 [编译流程图]
 以trace模式为例
 dvmCompilerStartup -> compilerThreadStart(线程) -> dvmCompilerDoWork(codegen/arm|mips|x86) -> dvmCompileTrace
+
+<dalvik/vm/interp/Jit.cpp>
+有解释器调用JIT的接口模块，也用于对于指令进行trace时的profiling操作。并且用于订单任务的结构的建立
 
 <dalvik/vm/compiler/Compiler.cpp>
 JIT编译器主要实现的场所

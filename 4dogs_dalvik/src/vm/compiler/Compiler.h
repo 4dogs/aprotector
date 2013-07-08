@@ -25,7 +25,7 @@
  * #define SIGNATURE_BREAKPOINT
  */
 
-#define COMPILER_WORK_QUEUE_SIZE        100
+#define COMPILER_WORK_QUEUE_SIZE        100			/* 订单队列数量 */
 #define COMPILER_IC_PATCH_QUEUE_SIZE    64
 #define COMPILER_PC_OFFSET_SIZE         100
 
@@ -70,6 +70,10 @@
     (gDvmJit.includeSelectedOp !=                                              \
      ((gDvmJit.opList[opcode >> 3] & (1 << (opcode & 0x7))) != 0))
 
+/**
+ * @brief 指令集合类型
+ * @note 描述了要将dalvik字节码编译到哪种硬件平台
+ */
 typedef enum JitInstructionSetType {
     DALVIK_JIT_NONE = 0,
     DALVIK_JIT_ARM,
@@ -80,13 +84,21 @@ typedef enum JitInstructionSetType {
 } JitInstructionSetType;
 
 /* Description of a compiled trace. */
+/**
+ * @brief trace编译完成的描述
+ * @note 用于存放编译完成后的结果
+ */
 typedef struct JitTranslationInfo {
-    void *codeAddress;
-    JitInstructionSetType instructionSet;
-    int profileCodeSize;
+    void *codeAddress;						/* 已编译的代码地址 */
+    JitInstructionSetType instructionSet;	/* 硬件平台类型 */
+    int profileCodeSize;					/* profile代码长度 */
+	/* 丢弃结果 */
     bool discardResult;         // Used for debugging divergence and IC patching
+	/* 不能编译整个函数 */
     bool methodCompilationAborted;  // Cannot compile the whole method
+	/* debug时需要的支持线程 */
     Thread *requestingThread;   // For debugging purpose
+	/* 标记trace请求 */
     int cacheVersion;           // Used to identify stale trace requests
 } JitTranslationInfo;
 
@@ -111,7 +123,7 @@ typedef enum WorkOrderKind {
  * @brief 编译工作的订单
  */
 typedef struct CompilerWorkOrder {
-    const u2* pc;
+    const u2* pc;					/* dalvik字节码指针 */
     WorkOrderKind kind;				/* 订单的类型 */
     void* info;						/* 订单的说明信息 */
     JitTranslationInfo result;		/* 编译代码的结果 */
@@ -135,8 +147,11 @@ typedef struct PredictedChainingCell {
 typedef struct ICPatchWorkOrder {
     PredictedChainingCell *cellAddr;    /* Address to be patched */
     PredictedChainingCell cellContent;  /* content of the new cell */
+	/* 类描述 */
     const char *classDescriptor;        /* Descriptor of the class object */
+	/* 类对象指针 */
     Object *classLoader;                /* Class loader */
+	/* serial number */
     u4 serialNumber;                    /* Serial # (for verification only) */
 } ICPatchWorkOrder;
 
@@ -146,19 +161,34 @@ typedef struct ICPatchWorkOrder {
  * conserve space in the translation cache, total length of JitTraceRun
  * array must be recomputed via seqential scan if needed.
  */
+/**
+ * @brief Jit trace的描述符号
+ */
 typedef struct {
-    const Method* method;
+    const Method* method;		/* 函数体 */
+	/* trace描述符号 */
     JitTraceRun trace[0];       // Variable-length trace descriptors
 } JitTraceDescription;
 
+/**
+ * @brief Jit函数属性
+ */
 typedef enum JitMethodAttributes {
+	/* 代码是被调用者的一部分（被一个热点路径调用） */
     kIsCallee = 0,      /* Code is part of a callee (invoked by a hot trace) */
+	/* 代码是热点的一部分 */
     kIsHot,             /* Code is part of a hot trace */
+	/* 函数是叶子节点 */
     kIsLeaf,            /* Method is leaf */
+	/* 函数是空的 */	
     kIsEmpty,           /* Method is empty */
+	/* 函数不抛出异常 */
     kIsThrowFree,       /* Method doesn't throw */
+	/* 函数是一个getter的一部分 */
     kIsGetter,          /* Method fits the getter pattern */
+	/* 函数是一个setter的一部分 */
     kIsSetter,          /* Method fits the setter pattern */
+	/* 函数不能被编译 */
     kCannotCompile,     /* Method cannot be compiled */
 } JitMethodAttributes;
 
@@ -179,9 +209,15 @@ typedef enum JitOptimizationHints {
 #define JIT_OPT_NO_LOOP         (1 << kJitOptNoLoop)
 
 /* Customized node traversal orders for different needs */
+/**
+ * @brief 数据流分析模式
+ */
 typedef enum DataFlowAnalysisMode {
+	/* 所有的节点？什么意思？ */
     kAllNodes = 0,              // All nodes
+	/* 所有节点都是可以搜索的 */
     kReachableNodes,            // All reachable nodes
+	/* 深度优先 */
     kPreOrderDFSTraversal,      // Depth-First-Search / Pre-Order
     kPostOrderDFSTraversal,     // Depth-First-Search / Post-Order
     kPostOrderDOMTraversal,     // Dominator tree / Post-Order

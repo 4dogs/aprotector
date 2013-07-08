@@ -104,7 +104,10 @@ void dvmCompilerForceWorkEnqueue(const u2 *pc, WorkOrderKind kind, void* info)
  * is false.
  */
 /**
- * 
+ * @brief 附加一个trace队列到订单
+ * @param pc 要trace的dalvik指令指针
+ * @param kind 订单的类型
+ * @param info 指向JitTraceDescription结构的指针
  */
 bool dvmCompilerWorkEnqueue(const u2 *pc, WorkOrderKind kind, void* info)
 {
@@ -113,11 +116,13 @@ bool dvmCompilerWorkEnqueue(const u2 *pc, WorkOrderKind kind, void* info)
     int numWork;
     bool result = true;
 
+	/* 加锁 */
     dvmLockMutex(&gDvmJit.compilerLock);
 
     /*
      * Return if queue or code cache is full.
      */
+	/* 如果队列或者代码缓存已经满了则直接返回 */
     if (gDvmJit.compilerQueueLength == COMPILER_WORK_QUEUE_SIZE ||
         gDvmJit.codeCacheFull == true) {
         dvmUnlockMutex(&gDvmJit.compilerLock);
@@ -129,31 +134,37 @@ bool dvmCompilerWorkEnqueue(const u2 *pc, WorkOrderKind kind, void* info)
          numWork > 0;
          numWork--) {
         /* Already enqueued */
+		/* 编译编译队列查看是否编译过 */
         if (gDvmJit.compilerWorkQueue[i++].pc == pc) {
             dvmUnlockMutex(&gDvmJit.compilerLock);
             return true;
         }
         /* Wrap around */
+		/* 下一轮  */
         if (i == COMPILER_WORK_QUEUE_SIZE)
             i = 0;
     }
 
+	/* 获取一个订单 */
     CompilerWorkOrder *newOrder =
         &gDvmJit.compilerWorkQueue[gDvmJit.compilerWorkEnqueueIndex];
-    newOrder->pc = pc;
-    newOrder->kind = kind;
-    newOrder->info = info;
-    newOrder->result.methodCompilationAborted = NULL;
+    newOrder->pc = pc;					/* 设置偏移 */
+    newOrder->kind = kind;				/* 类型 */
+    newOrder->info = info;				/* JIT描述 */
+    newOrder->result.methodCompilationAborted = NULL;		/* JitTranslationInfo结构 */
     newOrder->result.codeAddress = NULL;
+	/* 如果是以调试模式启动，则丢弃代码 */
     newOrder->result.discardResult =
         (kind == kWorkOrderTraceDebug) ? true : false;
-    newOrder->result.cacheVersion = gDvmJit.cacheVersion;
-    newOrder->result.requestingThread = dvmThreadSelf();
+    newOrder->result.cacheVersion = gDvmJit.cacheVersion;	/* trace请求版本 */
+    newOrder->result.requestingThread = dvmThreadSelf();	/* 线程句柄 */
 
-    gDvmJit.compilerWorkEnqueueIndex++;
+    gDvmJit.compilerWorkEnqueueIndex++;		/* 入列索引增加 */
+	/* 到达最大索引数 */
     if (gDvmJit.compilerWorkEnqueueIndex == COMPILER_WORK_QUEUE_SIZE)
         gDvmJit.compilerWorkEnqueueIndex = 0;
-    gDvmJit.compilerQueueLength++;
+    gDvmJit.compilerQueueLength++;			/* 队列长度增加 */
+	/* 设置条件变量 */
     cc = pthread_cond_signal(&gDvmJit.compilerQueueActivity);
     assert(cc == 0);
 
@@ -162,11 +173,15 @@ bool dvmCompilerWorkEnqueue(const u2 *pc, WorkOrderKind kind, void* info)
 }
 
 /* Block until the queue length is 0, or there is a pending suspend request */
+/**
+ * @brief 丢弃编译队列
+ */
 void dvmCompilerDrainQueue(void)
 {
     Thread *self = dvmThreadSelf();
 
     dvmLockMutex(&gDvmJit.compilerLock);
+	/* 遍历整个队列，并不停的检测编译线程是否终止，并且自身线程没有被挂起 */
     while (workQueueLength() != 0 && !gDvmJit.haltCompilerThread &&
            self->suspendCount == 0) {
         /*
@@ -175,22 +190,31 @@ void dvmCompilerDrainQueue(void)
          * emptied. Furthermore, the compiler thread may have been shutdown
          * so the blocked thread may never get the wakeup signal.
          */
+		/* 使用等待时间 - 超过一个mutator线程被阻塞但是编译器线程将
+		 * 仅有一条一次当队列被提交，编译器线程不关闭，阻塞线程将永远不会唤醒*/
         dvmRelativeCondWait(&gDvmJit.compilerQueueEmpty, &gDvmJit.compilerLock,                             1000, 0);
     }
     dvmUnlockMutex(&gDvmJit.compilerLock);
 }
 
+/**
+ * @brief 编译器设置代码缓冲
+ * @retval 0 失败
+ * @retval 1 成功
+ */
 bool dvmCompilerSetupCodeCache(void)
 {
     int fd;
 
     /* Allocate the code cache */
+	/* 分配代码缓冲 */
     fd = ashmem_create_region("dalvik-jit-code-cache", gDvmJit.codeCacheSize);
     if (fd < 0) {
         ALOGE("Could not create %u-byte ashmem region for the JIT code cache",
              gDvmJit.codeCacheSize);
         return false;
     }
+	/* 进程私有，可读可写可执行 */
     gDvmJit.codeCache = mmap(NULL, gDvmJit.codeCacheSize,
                              PROT_READ | PROT_WRITE | PROT_EXEC,
                              MAP_PRIVATE , fd, 0);
@@ -200,13 +224,16 @@ bool dvmCompilerSetupCodeCache(void)
         return false;
     }
 
+	/* 页掩码 */
     gDvmJit.pageSizeMask = getpagesize() - 1;
 
     /* This can be found through "dalvik-jit-code-cache" in /proc/<pid>/maps */
     // ALOGD("Code cache starts at %p", gDvmJit.codeCache);
 
+	/* arm mips */
 #ifndef ARCH_IA32
     /* Copy the template code into the beginning of the code cache */
+	/* 复制模板代码到代码缓冲的开始 */
     int templateSize = (intptr_t) dmvCompilerTemplateEnd -
                        (intptr_t) dvmCompilerTemplateStart;
     memcpy((void *) gDvmJit.codeCache,
@@ -217,17 +244,22 @@ bool dvmCompilerSetupCodeCache(void)
      * Work around a CPU bug by keeping the 32-bit ARM handler code in its own
      * page.
      */
+	/*
+	 * 貌似是一个CPU的BUG，保持32位的ARM处理代码在它自己的页中
+	 */
     if (dvmCompilerInstructionSet() == DALVIK_JIT_THUMB2) {
         templateSize = (templateSize + 4095) & ~4095;
     }
 
-    gDvmJit.templateSize = templateSize;
-    gDvmJit.codeCacheByteUsed = templateSize;
+    gDvmJit.templateSize = templateSize;		/* 模板的长度 */
+    gDvmJit.codeCacheByteUsed = templateSize;	/* 代码缓冲的使用情况 */
 
     /* Only flush the part in the code cache that is being used now */
+	/* 刷入被使用的代码缓存 */
     dvmCompilerCacheFlush((intptr_t) gDvmJit.codeCache,
                           (intptr_t) gDvmJit.codeCache + templateSize, 0);
 
+	/* 修改内存属性 */
     int result = mprotect(gDvmJit.codeCache, gDvmJit.codeCacheSize,
                           PROTECT_CODE_CACHE_ATTRS);
 
@@ -236,6 +268,10 @@ bool dvmCompilerSetupCodeCache(void)
         dvmAbort();
     }
 #else
+	/* 
+	 * 如果是x86体系，则有另外一套方法实现模板的设置。
+	 * 从代码上看应该是两个不同的人完成的
+	 */
     gDvmJit.codeCacheByteUsed = 0;
     stream = (char*)gDvmJit.codeCache + gDvmJit.codeCacheByteUsed;
     ALOGV("codeCache = %p stream = %p before initJIT", gDvmJit.codeCache, stream);
@@ -249,9 +285,14 @@ bool dvmCompilerSetupCodeCache(void)
     return true;
 }
 
+/**
+ * @brief 遍历dalvik栈
+ * @param thread 线程结构指针
+ * @param print 是否打印
+ */
 static void crawlDalvikStack(Thread *thread, bool print)
 {
-    void *fp = thread->interpSave.curFrame;
+    void *fp = thread->interpSave.curFrame;			/* 获取栈指针 */
     StackSaveArea* saveArea = NULL;
     int stackLevel = 0;
 
@@ -262,6 +303,7 @@ static void crawlDalvikStack(Thread *thread, bool print)
              thread->inJitCodeCache ? "jit" : "interp");
     }
     /* Crawl the Dalvik stack frames to clear the returnAddr field */
+	/* 遍历清除返回地址字段 */
     while (fp != NULL) {
         saveArea = SAVEAREA_FROM_FP(fp);
 
@@ -301,6 +343,7 @@ static void resetCodeCache(void)
     int byteUsed = gDvmJit.codeCacheByteUsed;		/* 获取当前代码缓冲的使用量 */
 
     /* If any thread is found stuck in the JIT state, don't reset the cache  */
+	/* 任意线程被发现处于JIT状态，不要重新设置缓冲 */
     dvmLockThreadList(NULL);
     for (thread = gDvm.threadList; thread != NULL; thread = thread->next) {
         /*
@@ -491,6 +534,8 @@ static bool compilerThreadStartup(void)
         goto fail;
     }
     memset(pJitProfTable, gDvmJit.threshold, JIT_PROF_SIZE);
+
+	/* 遍历JitTable并初始化 */
     for (i=0; i < gDvmJit.jitTableSize; i++) {
        pJitTable[i].u.info.chain = gDvmJit.jitTableSize;
     }

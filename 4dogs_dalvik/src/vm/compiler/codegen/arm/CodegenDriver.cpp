@@ -4723,12 +4723,18 @@ bool dvmCompilerArchInit()
     return dvmCompilerArchVariantInit();
 }
 
+/**
+ * @brief 获取解释器模板
+ */
 void *dvmCompilerGetInterpretTemplate()
 {
       return (void*) ((int)gDvmJit.codeCache +
                       templateEntryOffsets[TEMPLATE_INTERPRET]);
 }
 
+/**
+ * @brief 获取当前硬件类型
+ */
 JitInstructionSetType dvmCompilerGetInterpretTemplateSet()
 {
     return DALVIK_JIT_ARM;
