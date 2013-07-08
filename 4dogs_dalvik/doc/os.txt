@@ -1,8 +1,22 @@
 [整体介绍]
-os文件夹内的cpp主要功能是操作虚拟机内核的线程优先级的调度。最终调用的是linux线程调度的相关函数。
-并且需要了解linux的进程调度，需要调度策略与调度优先级共同影响。
+os文件夹内主要功能是提供dalvik虚拟机的线程管理。android是基于linux内核的，所以线程管理也继承了linux的线程管理机制.
 
+[linux线程调度]
+
+linux调度策略分为三种：
+1，SCHED_OTHER 分时调度策略.
+2，SCHED_FIFO实时调度策略，先到先服务.
+3，SCHED_RR实时调度策略，时间片轮转.
+
+ SCHED_OTHER是不支持优先级使用的，而SCHED_FIFO和SCHED_RR支持优先级的使用，他们分别为1和99，数值越大优先级越高。linux线程调度是通过调度策略与线程优先级共同影响。
+
+[android线程调度]
+android使⽤用两种不同的调度类(linux cgroups)bg_non_interactive 与 默认的(foreground).bg_non_interactive是低优先级的,并能利⽤用最⼤大 cpu ~5%(包括所有后台任务)与foreground(前台任务) cpu~95%. Forground意味着要么是服务要么是活动的进程从foregound启动。在启 动时服务程序总是运⾏行在 bg_non_interactive 除⾮非他们被 startForeground调度到前台。在dalvik/src/vm/os/android.cpp中,我们 可以看到set_sched_policy(dvmGetSysThreadId(), SP_BACKGROUND) 与set_sched_policy(dvmGetSysThreadId(), SP_FOREGROUND),这⾥里 的SP_BACKGROUND与SP_FOREGROUND对应的就是 bg_non_interactive后台与foregound前台.
 [dalvik\vm\os\android.cpp]
+
+android 有两种线程调度方式，一种是java api 的Thread.setPriority，权限范围是1-10.
+另一种调度方式是android.os.Process.setThreadPriority.这个允许设置更高的优先级.
+
 实现了对andriod系统的线程提权，更改权限，降低权限等的操作。
 
 [dalvik\vm\os\linux.cpp]
