@@ -36,6 +36,11 @@
  */
 #define CLASS_STATICS_ID(clazz) ((hprof_object_id)(((u4)(clazz)) | 1))
 
+/*
+ *bref:初始化堆内存dump
+ *param[ctx]:描述堆信息的上下文结构体
+ *return:0
+*/
 int hprofStartHeapDump(hprof_context_t *ctx)
 {
     UNUSED_PARAMETER(ctx);
@@ -45,11 +50,22 @@ int hprofStartHeapDump(hprof_context_t *ctx)
     return 0;
 }
 
+/*
+ *bref:将堆信息dump到文件.
+ *param[ctx]:描述堆信息的上下文结构体.
+*/
 int hprofFinishHeapDump(hprof_context_t *ctx)
 {
     return hprofStartNewRecord(ctx, HPROF_TAG_HEAP_DUMP_END, HPROF_TIME);
 }
 
+/*
+ *bref:填充hprof上下文结构体中关于gc部分的成员变量.gcThreadSerialNumber实际是threadid.
+ *param[ctx]:描述堆内存信息的上下文.
+ *param[state]:HPROF_ROOT_UNKNOWN,HPROF_ROOT_JNI_GLOBAL等等的标识.
+ *param[threadSerialNumber]:thread的标识，就是thread id.
+ *return: 0
+*/
 int hprofSetGcScanState(hprof_context_t *ctx,
                         hprof_heap_tag_t state,
                         u4 threadSerialNumber)
@@ -61,6 +77,12 @@ int hprofSetGcScanState(hprof_context_t *ctx,
     return 0;
 }
 
+/*
+ *bref:将描述数据基本类型的符号转换为hprof格式的基本类型，即C标识char，转换为hprof类型是hprof_basic_char.hprof文件是描述堆内存使用信息的文件。
+ *param[sig]:基本数据类型如 char，bool的标识 C, Z.
+ *param[sizeOut]:返回sig描述的数据类型占用的字节数.
+ *return：返回对应的hprof的基本类型.
+*/
 static hprof_basic_type signatureToBasicTypeAndSize(const char *sig,
                                                     size_t *sizeOut)
 {
@@ -89,6 +111,12 @@ static hprof_basic_type signatureToBasicTypeAndSize(const char *sig,
     return ret;
 }
 
+/*
+ *bref:将原始的数据类型转换为基本类型并返回此类型所占大小.此数据类型在dex中表示.
+ *param[prim]:原始的数据类型.
+ *param[sizeOut]:输出的类型所占的字节大小.
+ *return:返回hprof所对应的数据类型.
+*/
 static hprof_basic_type primitiveToBasicTypeAndSize(PrimitiveType prim,
                                                     size_t *sizeOut)
 {
@@ -119,6 +147,14 @@ static hprof_basic_type primitiveToBasicTypeAndSize(PrimitiveType prim,
  * only true when marking the root set or unreachable
  * objects.  Used to add rootset references to obj.
  */
+
+/*
+ *bref:除非ctx->gcScanState是非零，通常是对象不可到达或者真正的根集，当对象被标记时总是被调用，用来将rootset引用加入到对象.根据ctx的heaptag记录hprof信息到内存.
+ *param[ctx]:hprof上下文结构体.
+ *param[obj]:对象.
+ *param[jniObj]:jni对象
+ *return:成功返回0.
+*/
 int hprofMarkRootObject(hprof_context_t *ctx, const Object *obj, jobject jniObj)
 {
     hprof_record_t *rec = &ctx->curRec;
@@ -206,11 +242,20 @@ int hprofMarkRootObject(hprof_context_t *ctx, const Object *obj, jobject jniObj)
     return err;
 }
 
+/*
+ *bref:直接返回HPROF_NULL_STACK_TRACE.
+*/
 static int stackTraceSerialNumber(const void *obj)
 {
     return HPROF_NULL_STACK_TRACE;
 }
 
+/*
+ *bref:将对象的堆使用信息dump到内存，当调用hprofflush函数是将dump到文件.
+ *param[ctx]:描述hprof的上下文.
+ *param[obj]:对象.
+ *return: 0.
+*/
 int hprofDumpHeapObject(hprof_context_t *ctx, const Object *obj)
 {
     const ClassObject *clazz;
@@ -434,7 +479,7 @@ int hprofDumpHeapObject(hprof_context_t *ctx, const Object *obj)
                     const InstField *f = &sclass->ifields[i];
                     size_t size;
 
-                    (void) signatureToBasicTypeAndSize(f->signature, &size);
+hprofFinishHeapDump                    (void) signatureToBasicTypeAndSize(f->signature, &size);
                     if (size == 1) {
                         hprofAddU1ToRecord(rec,
                                 (u1)dvmGetFieldByte(obj, f->byteOffset));

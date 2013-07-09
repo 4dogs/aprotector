@@ -32,14 +32,24 @@
 #include "compiler/CompilerIR.h"
 #include <errno.h>
 
+
+/*
+ * 自校验函数过程
+ */
 #if defined(WITH_SELF_VERIFICATION)
 /* Allocate space for per-thread ShadowSpace data structures */
+/**
+ * @brief 自校验shadow空间分配
+ * @param self 线程结构指针
+ */
 void* dvmSelfVerificationShadowSpaceAlloc(Thread* self)
 {
+	/* 分配shadow空间 */
     self->shadowSpace = (ShadowSpace*) calloc(1, sizeof(ShadowSpace));
     if (self->shadowSpace == NULL)
         return NULL;
 
+	/* 寄存器个数 */
     self->shadowSpace->registerSpaceSize = REG_SPACE;
     self->shadowSpace->registerSpace =
         (int*) calloc(self->shadowSpace->registerSpaceSize, sizeof(int));
@@ -48,6 +58,9 @@ void* dvmSelfVerificationShadowSpaceAlloc(Thread* self)
 }
 
 /* Free per-thread ShadowSpace data structures */
+/**
+ * @brief 释放每条线程的shadow空间数据结构
+ */ 
 void dvmSelfVerificationShadowSpaceFree(Thread* self)
 {
     free(self->shadowSpace->registerSpace);
@@ -65,6 +78,15 @@ void dvmSelfVerificationShadowSpaceFree(Thread* self)
  *     method
  *     methodClassDex
  *     interpStackEnd
+ */
+/**
+ * @brief 自校验保存状态
+ * @param pc dalvik的PC寄存器
+ * @param fp dalvik的FP框架指针
+ * @param self 线程结构
+ * @param targetTrace
+ * @note 保存PC，FP，线程状态，以及寄存器到shadow区
+ * @return 指向一个shadow区域提供给JIT使用
  */
 void* dvmSelfVerificationSaveState(const u2* pc, u4* fp,
                                    Thread* self, int targetTrace)
@@ -129,6 +151,9 @@ void* dvmSelfVerificationSaveState(const u2* pc, u4* fp,
  * Save ending PC, FP and compiled code exit point to shadow space.
  * Return a pointer to the shadow space for JIT to restore state.
  */
+/**
+ * @brief 重新保存状态
+ */
 void* dvmSelfVerificationRestoreState(const u2* pc, u4* fp,
                                       SelfVerificationState exitState,
                                       Thread* self)
@@ -172,6 +197,9 @@ void* dvmSelfVerificationRestoreState(const u2* pc, u4* fp,
 }
 
 /* Print contents of virtual registers */
+/**
+ * @brief 打印虚拟寄存器的值
+ */
 static void selfVerificationPrintRegisters(int* addr, int* addrRef,
                                            int numWords)
 {
@@ -182,6 +210,9 @@ static void selfVerificationPrintRegisters(int* addr, int* addrRef,
 }
 
 /* Print values maintained in shadowSpace */
+/**
+ * @brief 打印shadow区域中的值
+ */
 static void selfVerificationDumpState(const u2* pc, Thread* self)
 {
     ShadowSpace* shadowSpace = self->shadowSpace;
@@ -215,6 +246,9 @@ static void selfVerificationDumpState(const u2* pc, Thread* self)
 }
 
 /* Print decoded instructions in the current trace */
+/**
+ * @brief 打印解码指令在当前的trace
+ */
 static void selfVerificationDumpTrace(const u2* pc, Thread* self)
 {
     ShadowSpace* shadowSpace = self->shadowSpace;
@@ -261,6 +295,11 @@ static void selfVerificationSpinLoop(ShadowSpace *shadowSpace)
  * number of cycles and then compare.  This would improve detection
  * of control divergences, as well as (slightly) simplify this code.
  */
+/**
+ * @brief 检查自校验
+ * @param pc dalvik pc指针
+ * @param self 线程结构
+ */
 void dvmCheckSelfVerification(const u2* pc, Thread* self)
 {
     ShadowSpace *shadowSpace = self->shadowSpace;
@@ -273,6 +312,7 @@ void dvmCheckSelfVerification(const u2* pc, Thread* self)
     //    self->threadId, (int)pc, (int)shadowSpace->endPC, state,
     //    shadowSpace->traceLength, dexGetOpcodeName(decInsn.opcode));
 
+	/* 空闲状态或者开始则打印信息 */
     if (state == kSVSIdle || state == kSVSStart) {
         ALOGD("~~~ DbgIntrp: INCORRECT PREVIOUS STATE(%d): %d",
             self->threadId, state);
@@ -284,6 +324,9 @@ void dvmCheckSelfVerification(const u2* pc, Thread* self)
      * Generalize the self verification state to kSVSDebugInterp unless the
      * entry reason is kSVSBackwardBranch or kSVSSingleStep.
      */
+	/*
+	 * 产生自校验状态到kSVSDebugInterp除非状态不等于分支状态并且不等于单步指令状态
+	 */
     if (state != kSVSBackwardBranch && state != kSVSSingleStep) {
         shadowSpace->selfVerificationState = kSVSDebugInterp;
     }
@@ -428,6 +471,9 @@ log_and_continue:
  * If one of our fixed tables or the translation buffer fills up,
  * call this routine to avoid wasting cycles on future translation requests.
  */
+/**
+ * @brief 停止翻译请求
+ */
 void dvmJitStopTranslationRequests()
 {
     /*
@@ -466,6 +512,9 @@ void dvmBumpPunt(int from)
 #endif
 
 /* Dumps debugging & tuning stats to the log */
+/**
+ * @brief 打印调试器并且转换状态到记录
+ */
 void dvmJitStats()
 {
     int i;
@@ -558,23 +607,38 @@ void dvmJitEndTraceSelect(Thread* self, const u2* dPC)
  * Find an entry in the JitTable, creating if necessary.
  * Returns null if table is full.
  */
+/**
+ * @brief 查找并且添加一个表项到表中
+ * @param dPC dalvik字节码的指针
+ * @param callerLocked 调用者锁死
+ * @param isMethodEntry 是否是函数入口项
+ * @retval non-null 查找到了并且返回表项
+ * @retval null 表已经满了
+ * @note 判断两个节点相等则isMethodEntry也必须相等
+ */
 static JitEntry *lookupAndAdd(const u2* dPC, bool callerLocked,
                               bool isMethodEntry)
 {
-    u4 chainEndMarker = gDvmJit.jitTableSize;
-    u4 idx = dvmJitHash(dPC);
+	/* 貌似在这份代码中所有关于JitTable表的项数 */
+    u4 chainEndMarker = gDvmJit.jitTableSize;	/* 获取表大小 */
+    u4 idx = dvmJitHash(dPC);					/* hash计算索引 */
 
     /*
      * Walk the bucket chain to find an exact match for our PC and trace/method
      * type
      */
+	/*
+	 * 遍历JitTable
+	 */
     while ((gDvmJit.pJitEntryTable[idx].u.info.chain != chainEndMarker) &&
            ((gDvmJit.pJitEntryTable[idx].dPC != dPC) ||
             (gDvmJit.pJitEntryTable[idx].u.info.isMethodEntry !=
              isMethodEntry))) {
+		/* 获取下一个节点的索引 */
         idx = gDvmJit.pJitEntryTable[idx].u.info.chain;
     }
 
+	/* 已经到达末尾，检查末尾最后一个节点，如果不匹配 */
     if (gDvmJit.pJitEntryTable[idx].dPC != dPC ||
         gDvmJit.pJitEntryTable[idx].u.info.isMethodEntry != isMethodEntry) {
         /*
@@ -583,6 +647,9 @@ static JitEntry *lookupAndAdd(const u2* dPC, bool callerLocked,
          * some other thread allocated the slot we were looking
          * at previuosly (perhaps even the dPC we're trying to enter).
          */
+		/*
+		 * 如果不匹配
+		 */
         if (!callerLocked)
             dvmLockMutex(&gDvmJit.tableLock);
         /*
@@ -591,9 +658,13 @@ static JitEntry *lookupAndAdd(const u2* dPC, bool callerLocked,
          * (the simple, and common case).  Otherwise we're going
          * to have to find a free slot and chain it.
          */
+		/* 检查表是否已经满了 */
         ANDROID_MEMBAR_FULL(); /* Make sure we reload [].dPC after lock */
+
+		/* 如果最后一个节点不为空 */
         if (gDvmJit.pJitEntryTable[idx].dPC != NULL) {
             u4 prev;
+			/* 循环进行匹配，匹配则循环 */
             while (gDvmJit.pJitEntryTable[idx].u.info.chain != chainEndMarker) {
                 if (gDvmJit.pJitEntryTable[idx].dPC == dPC &&
                     gDvmJit.pJitEntryTable[idx].u.info.isMethodEntry ==
@@ -603,6 +674,7 @@ static JitEntry *lookupAndAdd(const u2* dPC, bool callerLocked,
                         dvmUnlockMutex(&gDvmJit.tableLock);
                     return &gDvmJit.pJitEntryTable[idx];
                 }
+				/* 下一个节点 */
                 idx = gDvmJit.pJitEntryTable[idx].u.info.chain;
             }
             /* Here, idx should be pointing to the last cell of an
@@ -658,6 +730,9 @@ static JitEntry *lookupAndAdd(const u2* dPC, bool callerLocked,
 }
 
 /* Dump a trace description */
+/** 
+ * @brief 打印一个trace的描述
+ */
 void dvmJitDumpTraceDesc(JitTraceDescription *trace)
 {
     int i;
@@ -703,12 +778,24 @@ void dvmJitDumpTraceDesc(JitTraceDescription *trace)
  *  + thisClass (new)
  *  + calleeMethod (new)
  */
+/**
+ * @brief 插入一个类与函数的信息到trace请求中
+ * @param self 线程结构指针
+ * @param thisClass 类对象指针
+ * @param calleeMethod 被调用者指针
+ * @param insn 解码指令结构指针
+ * @note 一个trace请求必须包含以下三种组建
+ *	- trace运行在以一个invoke指令为结束(存在项)
+ *	- 类指针
+ *	- 被调用者
+ */
 static void insertClassMethodInfo(Thread* self,
                                   const ClassObject* thisClass,
                                   const Method* calleeMethod,
                                   const DecodedInstruction* insn)
 {
-    int currTraceRun = ++self->currTraceRun;
+    int currTraceRun = ++self->currTraceRun;	/* 增加当前的trace索引 */
+	/* 记录类描述 */
     self->trace[currTraceRun].info.meta = thisClass ?
                                     (void *) thisClass->descriptor : NULL;
     self->trace[currTraceRun].isCode = false;
@@ -735,29 +822,39 @@ static void insertClassMethodInfo(Thread* self,
  *
  * lastPC, len, offset are all from the preceding invoke instruction
  */
+/**
+ * @brief 插入move-result指令
+ * @param lastPC 当前要trace指令的指针
+ * @param len 当前指令的长度
+ * @param offset
+ * @param self 线程结构指针
+ * @note 检查如果下一条指令跟随invoke的是一条move-result指令则插入它到trace中
+ */
 static void insertMoveResult(const u2 *lastPC, int len, int offset,
                              Thread *self)
 {
     DecodedInstruction nextDecInsn;
-    const u2 *moveResultPC = lastPC + len;
+    const u2 *moveResultPC = lastPC + len;					/* move-result指令的地址 */
 
-    dexDecodeInstruction(moveResultPC, &nextDecInsn);
+    dexDecodeInstruction(moveResultPC, &nextDecInsn);		/* 解码 */
+	/* 如果不是return则直接返回 */
     if ((nextDecInsn.opcode != OP_MOVE_RESULT) &&
         (nextDecInsn.opcode != OP_MOVE_RESULT_WIDE) &&
         (nextDecInsn.opcode != OP_MOVE_RESULT_OBJECT))
         return;
 
     /* We need to start a new trace run */
+	/* 添加一个trace */
     int currTraceRun = ++self->currTraceRun;
-    self->currRunHead = moveResultPC;
-    self->trace[currTraceRun].info.frag.startOffset = offset + len;
-    self->trace[currTraceRun].info.frag.numInsts = 1;
-    self->trace[currTraceRun].info.frag.runEnd = false;
-    self->trace[currTraceRun].info.frag.hint = kJitHintNone;
-    self->trace[currTraceRun].isCode = true;
-    self->totalTraceLen++;
+    self->currRunHead = moveResultPC;									/* 指令的地址 */
+    self->trace[currTraceRun].info.frag.startOffset = offset + len;		/* 离函数开头的偏移 */
+    self->trace[currTraceRun].info.frag.numInsts = 1;					/* 指令数量 */
+    self->trace[currTraceRun].info.frag.runEnd = false;					/* 运行没有结束 */
+    self->trace[currTraceRun].info.frag.hint = kJitHintNone;			/* 无附加选项 */
+    self->trace[currTraceRun].isCode = true;							/* 是代码 */
+    self->totalTraceLen++;												/* trace总数增加 */
 
-    self->currRunLen = dexGetWidthFromInstruction(moveResultPC);
+    self->currRunLen = dexGetWidthFromInstruction(moveResultPC);		/* 这次trace需要的长度 */
 }
 
 /*
@@ -776,34 +873,55 @@ static void insertMoveResult(const u2 *lastPC, int len, int offset,
  * because returns cannot throw in a way that causes problems for the
  * translated code.
  */
+/**
+ * @brief 对JIT进行检查 
+ * @param pc 要编译的当前指针
+ * @param self 当前线程的结构
+ * @note 添加一个指令的当前trace请求，在指令被解释之前。这是选定函数的
+ *	主要trace。NOTE：返回指令被处理有微小的不同。通常指令被提交增加到
+ *	一个trace在解释之前。如果解释起正确的完整指令的执行，它将被作为请求
+ *	的一部分。这需要我们检查机器状态在解释指令之前，并且它也可能中断
+ *	trace请求如果指令抛出或者做了一些异常操作。但是返回指令将导致一个立即
+ *	的结束在编译请求期间 - 在传递给编译器之前返回完成。通过解释器返回一个
+ *	回应经过特殊处理的returns。
+ */
 void dvmCheckJit(const u2* pc, Thread* self)
 {
-    const ClassObject *thisClass = self->callsiteClass;
-    const Method* curMethod = self->methodToCall;
+    const ClassObject *thisClass = self->callsiteClass;	/* 获取当前的类对象 */
+    const Method* curMethod = self->methodToCall;		/* 获取当前的函数 */
     int flags, len;
     int allDone = false;
     /* Stay in break/single-stop mode for the next instruction */
+	/* 保持break/single-stop模式在下一条指令 */
     bool stayOneMoreInst = false;
 
     /* Prepare to handle last PC and stage the current PC & method*/
+	/* 指令分析的地址 */
     const u2 *lastPC = self->lastPC;
 
     self->lastPC = pc;
 
+	/* Jit的状态 */
     switch (self->jitState) {
         int offset;
         DecodedInstruction decInsn;
         case kJitTSelect:
             /* First instruction - just remember the PC and exit */
+			/* 第一条指令 - 仅记住PC指针并且退出 */
             if (lastPC == NULL) break;
             /* Grow the trace around the last PC if jitState is kJitTSelect */
+			/* 解码第一条指令 */
             dexDecodeInstruction(lastPC, &decInsn);
+			/* TRACE_OPCODE_FILTER开启OPCODE是否被JIT支持 */
 #if TRACE_OPCODE_FILTER
             /* Only add JIT support opcode to trace. End the trace if
              * this opcode is not supported.
              */
+			/*
+			 * 如果遇到不支持的OPCODE指令则直接退出循环
+			 */
             if (!dvmIsOpcodeSupportedByJit(decInsn.opcode)) {
-                self->jitState = kJitTSelectEnd;
+                self->jitState = kJitTSelectEnd;		/* 选择完毕 */
                 break;
             }
 #endif
@@ -812,6 +930,10 @@ void dvmCheckJit(const u2* pc, Thread* self)
              * to the amount of space it takes to generate the chaining
              * cells.
              */
+			/*
+			 * 遇到{PACKED,SPARSE}_SWITCH作为trace结束的指令，并且分配产生
+			 * 链接单元的空间
+			 */
             if (self->totalTraceLen != 0 &&
                 (decInsn.opcode == OP_PACKED_SWITCH ||
                  decInsn.opcode == OP_SPARSE_SWITCH)) {
@@ -819,20 +941,23 @@ void dvmCheckJit(const u2* pc, Thread* self)
                 break;
             }
 
+			/* 打印TRACE信息 */
 #if defined(SHOW_TRACE)
             ALOGD("TraceGen: adding %s. lpc:%#x, pc:%#x",
                  dexGetOpcodeName(decInsn.opcode), (int)lastPC, (int)pc);
 #endif
-            flags = dexGetFlagsFromOpcode(decInsn.opcode);
-            len = dexGetWidthFromInstruction(lastPC);
-            offset = lastPC - self->traceMethod->insns;
-            assert((unsigned) offset <
-                   dvmGetMethodInsnsSize(self->traceMethod));
+            flags = dexGetFlagsFromOpcode(decInsn.opcode);					/* 获取OP标志 */
+            len = dexGetWidthFromInstruction(lastPC);						/* 获取指令长度 */
+            offset = lastPC - self->traceMethod->insns;						/* 当前指令相对于函数头的偏移 */
+            assert((unsigned) offset < dvmGetMethodInsnsSize(self->traceMethod));
+			/* lastPC指针应该是与trace末尾同步的，不同步则是一个新的开始 */
             if (lastPC != self->currRunHead + self->currRunLen) {
                 int currTraceRun;
                 /* We need to start a new trace run */
-                currTraceRun = ++self->currTraceRun;
-                self->currRunLen = 0;
+				/* 开启一个新的trace请求 */
+                currTraceRun = ++self->currTraceRun;		/* 保存原有的 */
+				/* 重新设置开始位置 */
+                self->currRunLen = 0;						/* 总共有多少长度的指令要trace */
                 self->currRunHead = (u2*)lastPC;
                 self->trace[currTraceRun].info.frag.startOffset = offset;
                 self->trace[currTraceRun].info.frag.numInsts = 0;
@@ -840,24 +965,33 @@ void dvmCheckJit(const u2* pc, Thread* self)
                 self->trace[currTraceRun].info.frag.hint = kJitHintNone;
                 self->trace[currTraceRun].isCode = true;
             }
-            self->trace[self->currTraceRun].info.frag.numInsts++;
+            self->trace[self->currTraceRun].info.frag.numInsts++;	/* 当前trace指令数量增加 */
             self->totalTraceLen++;
-            self->currRunLen += len;
+            self->currRunLen += len;			/* trace整体代码长度增加 */
 
             /*
              * If the last instruction is an invoke, we will try to sneak in
              * the move-result* (if existent) into a separate trace run.
              */
+			/*
+			 * 如果最后一条指令是一个调用指令，则在暗中尝试move-result指令到
+			 * 一个分离的trace run中
+			 */
             {
               int needReservedRun = (flags & kInstrInvoke) ? 1 : 0;
 
               /* Will probably never hit this with the current trace builder */
+			  /* 在正常的trace编译时可能从不会遇到这种情况 */
+			  /* google为什么会这样编码呢？ */
+			  /* #define MAX_JIT_RUN_LEN 64 */
               if (self->currTraceRun ==
                    (MAX_JIT_RUN_LEN - 1 - needReservedRun)) {
                 self->jitState = kJitTSelectEnd;
               }
             }
 
+			/* 不是GOTO指令并且是分支或者SWITCH或者调用或者返回则算作
+			 * JIT结束*/
             if (!dexIsGoto(flags) &&
                   ((flags & (kInstrCanBranch |
                              kInstrCanSwitch |
@@ -875,19 +1009,28 @@ void dvmCheckJit(const u2* pc, Thread* self)
                  * If the next instruction is a variant of move-result, insert
                  * it to the trace too.
                  */
+				/*
+				 * 如果是invoke 一个虚函数或者接口,获取当前的类/函数成对的放入
+				 * trace。如果下一条指令是一个"move-result"，也插入到trace中
+				 */
                 if (flags & kInstrInvoke) {
+					/* 插入类/函数信息 */
                     insertClassMethodInfo(self, thisClass, curMethod,
                                           &decInsn);
+					/* 插入move-result指令 */
                     insertMoveResult(lastPC, len, offset, self);
                 }
             }
             /* Break on throw or self-loop */
+			/* 中断在一个trhow指令或者自循环指令 */
             if ((decInsn.opcode == OP_THROW) || (lastPC == pc)){
                 self->jitState = kJitTSelectEnd;
             }
+			/* 如果达到最大数量的trace */
             if (self->totalTraceLen >= JIT_MAX_TRACE_LEN) {
                 self->jitState = kJitTSelectEnd;
             }
+			/* 此标志没有返回标志 */
             if ((flags & kInstrCanReturn) != kInstrCanReturn) {
                 break;
             }
@@ -899,27 +1042,50 @@ void dvmCheckJit(const u2* pc, Thread* self)
                  * instruction (which is already included in the trace
                  * containing the invoke.
                  */
+				/*
+				 * 最后一条指令是return - 保持在调试解释器
+				 * 在更多的指令只要此return是一条非 void-return指令，直到我们不想
+				 * 开启一个trace通过move-result作为第一条指令
+				 */
                 if (decInsn.opcode != OP_RETURN_VOID) {
                     stayOneMoreInst = true;
                 }
             }
             /* NOTE: intentional fallthrough for returns */
+			/* 选择结束 */
         case kJitTSelectEnd:
             {
                 /* Empty trace - set to bail to interpreter */
+				/* 
+				 * 空的trace - 设置失败对解释器
+				 */
+				
+				/*
+				 * void *dvmCompilerGetInterpretTemplate()
+				 * {
+				 *		return (void*)((int)gDvmJit.codeCache +
+				 *			templateEntryOffsets[TEMPLATE_INTERPRET]);
+				 * }
+				 */
                 if (self->totalTraceLen == 0) {
-                    dvmJitSetCodeAddr(self->currTraceHead,
-                                      dvmCompilerGetInterpretTemplate(),
-                                      dvmCompilerGetInterpretTemplateSet(),
+					/* 设置代码地址 */
+                    dvmJitSetCodeAddr(self->currTraceHead,									/* 要编译的地址 */
+                                      dvmCompilerGetInterpretTemplate(),					/* 编译好后存放的地址 */
+                                      dvmCompilerGetInterpretTemplateSet(),					/* 指令集合 */
                                       false /* Not method entry */, 0);
-                    self->jitState = kJitDone;
+                    self->jitState = kJitDone;					/* 完成JIT */
                     allDone = true;
                     break;
                 }
 
-                int lastTraceDesc = self->currTraceRun;
+                int lastTraceDesc = self->currTraceRun;			/* 获取trace最后的索引 */
 
                 /* Extend a new empty desc if the last slot is meta info */
+				/*
+				 * 扩展一个新的空描述如果最后一个trace槽是meta信息
+				 * 增加一个空的trace槽  
+				 * 如果最后一个槽是一个代码则不需要添加了
+				 */
                 if (!self->trace[lastTraceDesc].isCode) {
                     lastTraceDesc = ++self->currTraceRun;
                     self->trace[lastTraceDesc].info.frag.startOffset = 0;
@@ -929,21 +1095,25 @@ void dvmCheckJit(const u2* pc, Thread* self)
                 }
 
                 /* Mark the end of the trace runs */
+				/* 标记trace结尾 */
                 self->trace[lastTraceDesc].info.frag.runEnd = true;
 
+				/* 这个JitTraceDescription要直接作用于编译相关 */
                 JitTraceDescription* desc =
                    (JitTraceDescription*)malloc(sizeof(JitTraceDescription) +
                      sizeof(JitTraceRun) * (self->currTraceRun+1));
 
                 if (desc == NULL) {
                     ALOGE("Out of memory in trace selection");
+					/* 用此函数结束编译请求 */
                     dvmJitStopTranslationRequests();
                     self->jitState = kJitDone;
                     allDone = true;
                     break;
                 }
 
-                desc->method = self->traceMethod;
+                desc->method = self->traceMethod;						/* 设置订单的函数体 */
+				/* 复制trace请求 */
                 memcpy((char*)&(desc->trace[0]),
                     (char*)&(self->trace[0]),
                     sizeof(JitTraceRun) * (self->currTraceRun+1));
@@ -951,9 +1121,11 @@ void dvmCheckJit(const u2* pc, Thread* self)
                 ALOGD("TraceGen:  trace done, adding to queue");
                 dvmJitDumpTraceDesc(desc);
 #endif
+				/* 订单入列 */
                 if (dvmCompilerWorkEnqueue(
                        self->currTraceHead,kWorkOrderTrace,desc)) {
                     /* Work order successfully enqueued */
+					/* 如果处于阻塞模式则丢弃编译队列 */
                     if (gDvmJit.blockingMode) {
                         dvmCompilerDrainQueue();
                     }
@@ -983,12 +1155,20 @@ void dvmCheckJit(const u2* pc, Thread* self)
     /*
      * If we're done with trace selection, switch off the control flags.
      */
+
+	/*
+	 * 完成trace设置，关闭控制标志
+	 */
      if (allDone) {
+		 /* 清除kSubModeJitTraceBuild标志 */
          dvmDisableSubMode(self, kSubModeJitTraceBuild);
+		 /* 如果还是等待下一条指令 */
          if (stayOneMoreInst) {
              // Clear jitResumeNPC explicitly since we know we don't need it
              // here.
+			 /* 明确的清楚jitResumeNPC变量 */
              self->jitResumeNPC = NULL;
+			 /* 继续保持单步执行一条指令 */
              // Keep going in single-step mode for at least one more inst
              if (self->singleStepCount == 0)
                  self->singleStepCount = 1;
@@ -998,16 +1178,25 @@ void dvmCheckJit(const u2* pc, Thread* self)
      return;
 }
 
+/**
+ * @brief 从JitTable中找寻JitEntry
+ * @param pc dalvik的地址
+ * @param isMethodEntry 是否是函数入口
+ */
 JitEntry *dvmJitFindEntry(const u2* pc, bool isMethodEntry)
 {
+	/* 通过pc指针地址作为哈希值 */
     int idx = dvmJitHash(pc);
 
     /* Expect a high hit rate on 1st shot */
+	/* 如果已经存在并且isMethodEntry与参数一致则直接返回 */
     if ((gDvmJit.pJitEntryTable[idx].dPC == pc) &&
         (gDvmJit.pJitEntryTable[idx].u.info.isMethodEntry == isMethodEntry))
         return &gDvmJit.pJitEntryTable[idx];
     else {
+		/* Jit表的长度 */
         int chainEndMarker = gDvmJit.jitTableSize;
+		/* 遍历 */
         while (gDvmJit.pJitEntryTable[idx].u.info.chain != chainEndMarker) {
             idx = gDvmJit.pJitEntryTable[idx].u.info.chain;
             if ((gDvmJit.pJitEntryTable[idx].dPC == pc) &&
@@ -1023,27 +1212,50 @@ JitEntry *dvmJitFindEntry(const u2* pc, bool isMethodEntry)
  * Walk through the JIT profile table and find the corresponding JIT code, in
  * the specified format (ie trace vs method). This routine needs to be fast.
  */
+/**
+ * @brief 通常的获取代码地址
+ * @param dPC dalvik字节码地址
+ * @param methodEntry 函数入口
+ * @note 遍历JIT profile表并且寻找JIT代码在指定的格式。
+ */
 void* getCodeAddrCommon(const u2* dPC, bool methodEntry)
 {
-    int idx = dvmJitHash(dPC);
-    const u2* pc = gDvmJit.pJitEntryTable[idx].dPC;
+    int idx = dvmJitHash(dPC);							/* hash值 */
+    const u2* pc = gDvmJit.pJitEntryTable[idx].dPC;		/* dalvik字节码地址 */
+
+
+	/* 如果表项地址不为空 */
     if (pc != NULL) {
-        bool hideTranslation = dvmJitHideTranslation();
+		/* vm/interp/InterpDefs.h
+		 * static inline bool dvmJitHideTranslation()
+		 * {
+		 *		return (gDvm.sumThreadSuspendCount != 0) ||
+		 *				(gDvmJit.codeCacheFull == true) ||
+		 *				(gDvmJit.pProfTable == NULL);
+		 */
+        bool hideTranslation = dvmJitHideTranslation();		/* 编译隐藏 */
+		/* 如果表项的指针与参数的相同并且isMethodEntry也相同 */
         if (pc == dPC &&
             gDvmJit.pJitEntryTable[idx].u.info.isMethodEntry == methodEntry) {
+			/*  */
             int offset = (gDvmJit.profileMode >= kTraceProfilingContinuous) ?
                  0 : gDvmJit.pJitEntryTable[idx].u.info.profileOffset;
             intptr_t codeAddress =
                 (intptr_t)gDvmJit.pJitEntryTable[idx].codeAddress;
+			/* 性能监视 */
 #if defined(WITH_JIT_TUNING)
             gDvmJit.addrLookupsFound++;
 #endif
             return hideTranslation || !codeAddress ?  NULL :
                   (void *)(codeAddress + offset);
         } else {
+			/* 如果没有找到 */
             int chainEndMarker = gDvmJit.jitTableSize;
+			/* pJitEntryTable[idx].u.info.chain指向下一个节点 */
             while (gDvmJit.pJitEntryTable[idx].u.info.chain != chainEndMarker) {
+				/* 获取下一个节点的索引 */
                 idx = gDvmJit.pJitEntryTable[idx].u.info.chain;
+				/* 如果得到匹配 */
                 if (gDvmJit.pJitEntryTable[idx].dPC == dPC &&
                     gDvmJit.pJitEntryTable[idx].u.info.isMethodEntry ==
                         methodEntry) {
@@ -1071,6 +1283,11 @@ void* getCodeAddrCommon(const u2* dPC, bool methodEntry)
  * If a translated code address, in trace format, exists for the davik byte code
  * pointer return it.
  */
+/**
+ * @brief 获取trace地址
+ * @param dPC dalvik字节码地址
+ * @return 返回一个已经经过编译的代码
+ */
 void* dvmJitGetTraceAddr(const u2* dPC)
 {
     return getCodeAddrCommon(dPC, false /* method entry */);
@@ -1079,6 +1296,11 @@ void* dvmJitGetTraceAddr(const u2* dPC)
 /*
  * If a translated code address, in whole-method format, exists for the davik
  * byte code pointer return it.
+ */
+/**
+ * @brief 获取函数入口地址
+ * @param dPC dalvik字节码指针
+ * @return 返回一个函数入口指针
  */
 void* dvmJitGetMethodAddr(const u2* dPC)
 {
@@ -1089,6 +1311,14 @@ void* dvmJitGetMethodAddr(const u2* dPC)
  * Similar to dvmJitGetTraceAddr, but returns null if the calling
  * thread is in a single-step mode.
  */
+/**
+ * @brief 获取trace地址线程
+ * @param dPC dalvik字节码
+ * @param self 线程结构指针
+ * @return 返回代码地址
+ * @note 如果线程解释器的中断标志被设置为不等于0则返回NULL
+ *	否则返回代码地址
+ */
 void* dvmJitGetTraceAddrThread(const u2* dPC, Thread* self)
 {
     return (self->interpBreak.ctl.breakFlags != 0) ? NULL :
@@ -1098,6 +1328,9 @@ void* dvmJitGetTraceAddrThread(const u2* dPC, Thread* self)
 /*
  * Similar to dvmJitGetMethodAddr, but returns null if the calling
  * thread is in a single-step mode.
+ */
+/**
+ * @brief 同dvmJitGetTraceAddr不同的是返回函数入口项
  */
 void* dvmJitGetMethodAddrThread(const u2* dPC, Thread* self)
 {
@@ -1118,6 +1351,16 @@ void* dvmJitGetMethodAddrThread(const u2* dPC, Thread* self)
  * NOTE: JitTable must not be in danger of reset while this
  * code is executing. see Issue 4271784 for details.
  */
+/**
+ * @brief 设置代码地址
+ * @param dPC 要设置的dalvik字节码地址
+ * @param nPC 编译后代码的存放地址
+ * @param set 指令类型
+ * @param isMethodEntry 是否是函数入口
+ * @param profilePrefixSize
+ * @note 注册一个要编译代码的指针到JitTable。一旦codeAddress字段从
+ *	初始化状态编译到JIT代码，首先必须关闭所有线程。
+ */
 void dvmJitSetCodeAddr(const u2* dPC, void *nPC, JitInstructionSetType set,
                        bool isMethodEntry, int profilePrefixSize)
 {
@@ -1128,6 +1371,8 @@ void dvmJitSetCodeAddr(const u2* dPC, void *nPC, JitInstructionSetType set,
      * has been reset between the time the trace was requested and
      * now.
      */
+	/* 获取JitTable槽为这个dPC(或者创建一个如果JitTable已经被重新设置
+	 * 在trace被请求与当前之间*/
     JitEntry *jitEntry = isMethodEntry ?
         lookupAndAdd(dPC, false /* caller holds tableLock */, isMethodEntry) :
                      dvmJitFindEntry(dPC, isMethodEntry);

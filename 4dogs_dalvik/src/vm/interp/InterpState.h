@@ -202,20 +202,21 @@ enum SelfVerificationState {
 
 enum JitHint {
    kJitHintNone = 0,
-   kJitHintTaken = 1,         // Last inst in run was taken branch
-   kJitHintNotTaken = 2,      // Last inst in run was not taken branch
-   kJitHintNoBias = 3,        // Last inst in run was unbiased branch
+   kJitHintTaken = 1,         // Last inst in run was taken branch 最后一条指令后有分支
+   kJitHintNotTaken = 2,      // Last inst in run was not taken branch 最后一条指令后没有分支
+   kJitHintNoBias = 3,        // Last inst in run was unbiased branch 最后一条指令时无条件分支
 };
 
 /*
  * Element of a Jit trace description. If the isCode bit is set, it describes
  * a contiguous sequence of Dalvik byte codes.
+ * 描述jit trace具体某个元素的结构体
  */
 struct JitCodeDesc {
-    unsigned numInsts:8;     // Number of Byte codes in run
-    unsigned runEnd:1;       // Run ends with last byte code
-    JitHint hint:7;          // Hint to apply to final code of run
-    u2 startOffset;          // Starting offset for trace run
+    unsigned numInsts:8;     // Number of Byte codes in run 可以运行的字节码的数量，看到它这个成员占8位，那么最大允许运行的字节码数应该是11111111b = 255byte
+    unsigned runEnd:1;       // Run ends with last byte code 标示最后一个字节码，也就是结尾
+    JitHint hint:7;          // Hint to apply to final code of run 标示最后一段代码的属性，具体参照JitHint枚举的定义
+    u2 startOffset;          // Starting offset for trace run 待运行trace代码的起始偏移
 };
 
 /*
@@ -239,6 +240,19 @@ struct JitCodeDesc {
  * For example, if a trace run contains a method inlining target, the class
  * descriptor/loader of "this" and the currently resolved method pointer are
  * three instances of meta information stored there.
+ * 该结构体描述JIT 的单个订单信息
+ * 通常一个完整的trace订单的格式看起来向下面这样:
+ *   frag1
+ *   frag2
+ *   frag3
+ *   meta1
+ *     :
+ *   metan
+ *   frag4
+ * 对以上的结构做一个大概的解释:
+ * 1.对于frag 1-4 ，或者更多的frag，可以设置isCode域，用来描述trace代码的位置或者长度
+ * 2.meta是存放一些辅助的数据，每个meta不固定大小，也可以连续有多个meta，但是这些meta都是提供给紧挨的上级frag来使用的(比如这里的所有meta都是提供给frag3使用的)
+ * 3.对于此例中的frag4，他是用作结尾的，所以他的JitCodeDesc中的numInsts可以设置为0，同时runEnd域置位，也就是说他仅仅起一个表示结尾的意思，并不指示任何的代码。
  */
 struct JitTraceRun {
     union {
@@ -248,10 +262,10 @@ struct JitTraceRun {
     u4 isCode:1;
     u4 unused:31;
 };
-
 #if defined(ARCH_IA32)
 /*
  * JIT code genarator optimization level
+ * JIT 代码生成器的优化等级
  */
 enum JitOptLevel {
     kJitOptLevelO0 = 0,

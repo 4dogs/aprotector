@@ -1,12 +1,24 @@
 [整体介绍]
-hprof文件夹内cpp实现的是一个生成hprof文件的工具。此hprof文件是供内存分析及调试工具进行内存分析。
+hprof文件是描述android程序内存使用情况的文件，通过其它分析工具分析hprof文件，可以查看内存的使用情况.
+hprof文件夹内cpp实现的是将对象等的内存使用信息记录到特定格式的hprof文件.主要是被alloc文件夹内的cpp调用.
+
+[使用方法]
+使用DDMS检查这个应用的heap使用情况。你可以使用下面的两种方法启动DDMS：
+from Eclipse: click Window > Open Perspective > Other... > DDMS
+or from the command line: run ddms (or ./ddms on Mac/Linux) in the tools/ directory
+
 [Hprof.cpp]
 主要功能是生成hprof数据，输出为两个文件，当dump heap时会产生一些数据(字符串与类),而有些分析工具需要提前获取这些类与数据类型信息。
 所以需要两个文件，一个为字符串与类等的信息文件，另一个就是分析后的数据，最后会将这两个文件进行合并，供分析工具进行分析。
+
 [HprofClass.cpp]
 Class对象内存池的分析.
+
 [HprofString.cpp]
 string对象内存的分析.
+
 [HprofOutput.cpp]
-对hprof的hprof_record_t类型的填充及输出到文件.
-<HprofHeap.cpp>
+将内存分析后的信息dump为hprof格式.
+
+[HprofHeap.cpp]
+对堆内存的分析.
