@@ -102,7 +102,7 @@ Logs an error and returns "false" on failure.
 执行一些静态检查，值得注意的是：
 - 第一条指令操作码从索引0开始
 - 只有记录过的指令可以出现
-- 每个指令跟在最后面
+- 每个指令跟在最后面	
 - 最后一条指令的最后字节是在（code_length-1）
 
 失败时记录错误并返回“false”。
@@ -260,13 +260,13 @@ We do this in three passes:
 
 校验分3次处理：
  (1) 遍历所有代码单元，确定指令位置，宽度，和其它特征。
- (2) 遍历所有代码单元，对[op](操作码or操作数？)执行静态检查。
+ (2) 遍历所有代码单元，对操作码执行静态检查。
  (3) 通过方法迭代，检查类型安全并且寻找代码流的问题。
 
 Some checks may be bypassed depending on the verification mode.  We can't
 turn this stuff off completely if we want to do "exact" GC.
 
-一些检查可以避免，这取决于校验模式。我们不能完全关闭这些校验，如果想做“精确”GC。
+一些检查可以避免，这取决于校验模式。我们不能完全关闭这些校验，如果想做“精确”的垃圾回收。
 
 TODO: cite source?
 Confirmed here:
@@ -290,7 +290,7 @@ static bool verifyMethod(Method* meth)
     
     数据校验器数据结构体。不同的值将被缓存到这里，因此我们可以通过极少的参数进行更有效查找。
     
-    可以缓存数据。其结构参见于CodeVerify.h头文件。
+    可以缓存数据。数据结构参见于CodeVerify.h头文件。
     */
     VerifierData vdata;
 #if 1   // ndef NDEBUG
@@ -342,7 +342,7 @@ static bool verifyMethod(Method* meth)
     TODO: Consider keeping a reusable pre-allocated array sitting
     around for smaller methods.
     
-    分配空间给指令
+    给指令分配空间
     */
     vdata.insnFlags = (InsnFlags*) calloc(vdata.insnsSize, sizeof(InsnFlags));
     if (vdata.insnFlags == NULL)
@@ -353,7 +353,6 @@ static bool verifyMethod(Method* meth)
     Count up the #of occurrences of certain opcodes while we're at it.
     
     计算每条指令宽度并且存储 insnFlags 中的结果。
-    
     */
     if (!computeWidthsAndCountOps(&vdata))
         goto bail;
@@ -369,25 +368,34 @@ static bool verifyMethod(Method* meth)
         goto bail;
 
     /*
-     * Set the "in try" flags for all instructions guarded by a "try" block.
-     * Also sets the "branch target" flag on exception handlers.
-     */
+    Set the "in try" flags for all instructions guarded by a "try" block.
+    Also sets the "branch target" flag on exception handlers.
+    
+    对所有try块指令设置“in try”标识。
+    同时在异常句柄处设置“branch target”标识。
+    */
     if (!scanTryCatchBlocks(meth, vdata.insnFlags))
         goto bail;
 
     /*
-     * Perform static instruction verification.  Also sets the "branch
-     * target" flags.
-     */
+    Perform static instruction verification.  Also sets the "branch
+    target" flags.
+    
+    执行静态校验。同时设置“brach target”标识。
+    */
     if (!verifyInstructions(&vdata))
         goto bail;
 
     /*
-     * Do code-flow analysis.
-     *
-     * We could probably skip this for a method with no registers, but
-     * that's so rare that there's little point in checking.
-     */
+    Do code-flow analysis.
+    
+    We could probably skip this for a method with no registers, but
+    that's so rare that there's little point in checking.
+    
+    做代码流分析
+    
+    也许可能会跳过一个没有寄存器的方法，但这种情况不见罕见，没有必要检查。
+    */
     if (!dvmVerifyCodeFlow(&vdata)) {
         //ALOGD("+++ %s failed code flow", meth->name);
         goto bail;
@@ -405,9 +413,11 @@ bail:
 
 
 /*
- * Verify an array data table.  "curOffset" is the offset of the
- * fill-array-data instruction.
- */
+Verify an array data table.  "curOffset" is the offset of the
+fill-array-data instruction.
+
+校验一个数组数据表。“curOffset”是fill-array-data指令的偏移。
+*/
 static bool checkArrayData(const Method* meth, u4 curOffset)
 {
     const u4 insnCount = dvmGetMethodInsnsSize(meth);
@@ -418,7 +428,11 @@ static bool checkArrayData(const Method* meth, u4 curOffset)
 
     assert(curOffset < insnCount);
 
-    /* make sure the start of the array data table is in range */
+    /* 
+    make sure the start of the array data table is in range 
+    
+    确保数组数据table的起始在范围之内。
+    */
     offsetToArrayData = insns[1] | (((s4)insns[2]) << 16);
     if ((s4)curOffset + offsetToArrayData < 0 ||
         curOffset + offsetToArrayData + 2 >= insnCount)
@@ -429,10 +443,18 @@ static bool checkArrayData(const Method* meth, u4 curOffset)
         return false;
     }
 
-    /* offset to array data table is a relative branch-style offset */
+    /* 
+    offset to array data table is a relative branch-style offset 
+    
+    数组数据table的偏移是一个相对branch-style偏移
+    */
     arrayData = insns + offsetToArrayData;
 
-    /* make sure the table is 32-bit aligned */
+    /* 
+    make sure the table is 32-bit aligned 
+    
+    确保table是32位对齐。
+    */
     if ((((u4) arrayData) & 0x03) != 0) {
         LOG_VFY("VFY: unaligned array data table: at %d, data offset %d",
             curOffset, offsetToArrayData);
@@ -444,7 +466,11 @@ static bool checkArrayData(const Method* meth, u4 curOffset)
 
     tableSize = 4 + (valueWidth * valueCount + 1) / 2;
 
-    /* make sure the end of the switch is in range */
+    /* 
+    make sure the end of the switch is in range 
+    
+    确保switch尾部在范围内
+    */
     if (curOffset + offsetToArrayData + tableSize > insnCount) {
         LOG_VFY("VFY: invalid array data end: at %d, data offset %d, end %d, "
                 "count %d",
@@ -457,11 +483,15 @@ static bool checkArrayData(const Method* meth, u4 curOffset)
 }
 
 /*
- * Perform static checks on a "new-instance" instruction.  Specifically,
- * make sure the class reference isn't for an array class.
- *
- * We don't need the actual class, just a pointer to the class name.
- */
+Perform static checks on a "new-instance" instruction.  Specifically,
+make sure the class reference isn't for an array class.
+
+We don't need the actual class, just a pointer to the class name.
+
+对“new-instance”指令执行静态检查。具体来说，确保类引用不是一个数组类。
+
+不需要真实的类，只是类名指针就可以。
+*/
 static bool checkNewInstance(const DvmDex* pDvmDex, u4 idx)
 {
     const char* classDescriptor;
@@ -483,10 +513,12 @@ static bool checkNewInstance(const DvmDex* pDvmDex, u4 idx)
 }
 
 /*
- * Perform static checks on a "new-array" instruction.  Specifically, make
- * sure they aren't creating an array of arrays that causes the number of
- * dimensions to exceed 255.
- */
+Perform static checks on a "new-array" instruction.  Specifically, make
+sure they aren't creating an array of arrays that causes the number of
+dimensions to exceed 255.
+
+对“new-instance”指令执行静态检查。具体来说，确保不会创建数组的维数超过255的数组
+*/
 static bool checkNewArray(const DvmDex* pDvmDex, u4 idx)
 {
     const char* classDescriptor;
@@ -520,9 +552,11 @@ static bool checkNewArray(const DvmDex* pDvmDex, u4 idx)
 }
 
 /*
- * Perform static checks on an instruction that takes a class constant.
- * Ensure that the class index is in the valid range.
- */
+Perform static checks on an instruction that takes a class constant.
+Ensure that the class index is in the valid range.
+
+NOTE TODO：
+*/
 static bool checkTypeIndex(const DvmDex* pDvmDex, u4 idx)
 {
     if (idx >= pDvmDex->pHeader->typeIdsSize) {
@@ -534,9 +568,12 @@ static bool checkTypeIndex(const DvmDex* pDvmDex, u4 idx)
 }
 
 /*
- * Perform static checks on a field get or set instruction.  All we do
- * here is ensure that the field index is in the valid range.
- */
+Perform static checks on a field get or set instruction.  All we do
+here is ensure that the field index is in the valid range.
+
+对一个域的get和set指令做静态检查。
+这里做的所有工作是为了确保字段索引在有效范围内。
+*/
 static bool checkFieldIndex(const DvmDex* pDvmDex, u4 idx)
 {
     if (idx >= pDvmDex->pHeader->fieldIdsSize) {
@@ -548,9 +585,12 @@ static bool checkFieldIndex(const DvmDex* pDvmDex, u4 idx)
 }
 
 /*
- * Perform static checks on a method invocation instruction.  All we do
- * here is ensure that the method index is in the valid range.
- */
+Perform static checks on a method invocation instruction.  All we do
+here is ensure that the method index is in the valid range.
+
+对一个方法反射指令做静态检查。
+这里做的所有工作是为了确保方法索引在有效范围内。
+*/
 static bool checkMethodIndex(const DvmDex* pDvmDex, u4 idx)
 {
     if (idx >= pDvmDex->pHeader->methodIdsSize) {
@@ -562,8 +602,10 @@ static bool checkMethodIndex(const DvmDex* pDvmDex, u4 idx)
 }
 
 /*
- * Ensure that the string index is in the valid range.
- */
+Ensure that the string index is in the valid range.
+
+确保字符串索引在有效范围内。
+*/
 static bool checkStringIndex(const DvmDex* pDvmDex, u4 idx)
 {
     if (idx >= pDvmDex->pHeader->stringIdsSize) {
@@ -575,8 +617,10 @@ static bool checkStringIndex(const DvmDex* pDvmDex, u4 idx)
 }
 
 /*
- * Ensure that the register index is valid for this method.
- */
+Ensure that the register index is valid for this method.
+
+确保方法的寄存器索引有效。
+*/
 static bool checkRegisterIndex(const Method* meth, u4 idx)
 {
     if (idx >= meth->registersSize) {
@@ -588,8 +632,10 @@ static bool checkRegisterIndex(const Method* meth, u4 idx)
 }
 
 /*
- * Ensure that the wide register index is valid for this method.
- */
+Ensure that the wide register index is valid for this method.
+
+确保方法的宽寄存器索引有效。
+*/
 static bool checkWideRegisterIndex(const Method* meth, u4 idx)
 {
     if (idx+1 >= meth->registersSize) {
@@ -601,16 +647,22 @@ static bool checkWideRegisterIndex(const Method* meth, u4 idx)
 }
 
 /*
- * Check the register indices used in a "vararg" instruction, such as
- * invoke-virtual or filled-new-array.
- *
- * vA holds word count (0-5), args[] have values.
- *
- * There are some tests we don't do here, e.g. we don't try to verify
- * that invoking a method that takes a double is done with consecutive
- * registers.  This requires parsing the target method signature, which
- * we will be doing later on during the code flow analysis.
- */
+Check the register indices used in a "vararg" instruction, such as
+invoke-virtual or filled-new-array.
+
+检查用于“vararg”指令的寄存器标记，例如：invoke-virtual 或 filled-new-array
+
+vA holds word count (0-5), args[] have values.
+
+NOTE TODO：
+
+There are some tests we don't do here, e.g. we don't try to verify
+that invoking a method that takes a double is done with consecutive
+registers.  This requires parsing the target method signature, which
+we will be doing later on during the code flow analysis.
+
+NOTE TODO：
+*/
 static bool checkVarargRegs(const Method* meth,
     const DecodedInstruction* pDecInsn)
 {
@@ -635,11 +687,15 @@ static bool checkVarargRegs(const Method* meth,
 }
 
 /*
- * Check the register indices used in a "vararg/range" instruction, such as
- * invoke-virtual/range or filled-new-array/range.
- *
- * vA holds word count, vC holds index of first reg.
- */
+Check the register indices used in a "vararg/range" instruction, such as
+invoke-virtual/range or filled-new-array/range.
+
+vA holds word count, vC holds index of first reg.
+
+检查寄存器索引
+
+NOTE TODO：
+*/
 static bool checkVarargRangeRegs(const Method* meth,
     const DecodedInstruction* pDecInsn)
 {
@@ -659,11 +715,15 @@ static bool checkVarargRangeRegs(const Method* meth,
 }
 
 /*
- * Verify a switch table.  "curOffset" is the offset of the switch
- * instruction.
- *
- * Updates "insnFlags", setting the "branch target" flag.
- */
+Verify a switch table.  "curOffset" is the offset of the switch
+instruction.
+
+Updates "insnFlags", setting the "branch target" flag.
+
+校验一个分支table。“curOffset”是分支指令偏移。
+
+更新“insnFlags”，设置“branch target“”标识。
+*/
 static bool checkSwitchTargets(const Method* meth, InsnFlags* insnFlags,
     u4 curOffset)
 {
@@ -768,17 +828,19 @@ static bool checkSwitchTargets(const Method* meth, InsnFlags* insnFlags,
 }
 
 /*
- * Verify that the target of a branch instruction is valid.
- *
- * We don't expect code to jump directly into an exception handler, but
- * it's valid to do so as long as the target isn't a "move-exception"
- * instruction.  We verify that in a later stage.
- *
- * The VM spec doesn't forbid an instruction from branching to itself,
- * but the Dalvik spec declares that only certain instructions can do so.
- *
- * Updates "insnFlags", setting the "branch target" flag.
- */
+Verify that the target of a branch instruction is valid.
+
+We don't expect code to jump directly into an exception handler, but
+it's valid to do so as long as the target isn't a "move-exception"
+instruction.  We verify that in a later stage.
+
+The VM spec doesn't forbid an instruction from branching to itself,
+but the Dalvik spec declares that only certain instructions can do so.
+
+Updates "insnFlags", setting the "branch target" flag.
+
+校验分支指令目标是否有效
+*/
 static bool checkBranchTarget(const Method* meth, InsnFlags* insnFlags,
     int curOffset, bool selfOkay)
 {
@@ -797,10 +859,12 @@ static bool checkBranchTarget(const Method* meth, InsnFlags* insnFlags,
     }
 
     /*
-     * Check for 32-bit overflow.  This isn't strictly necessary if we can
-     * depend on the VM to have identical "wrap-around" behavior, but
-     * it's unwise to depend on that.
-     */
+    Check for 32-bit overflow.  This isn't strictly necessary if we can
+    depend on the VM to have identical "wrap-around" behavior, but
+    it's unwise to depend on that.
+    
+		检查32位溢出。    
+    */
     if (((s8) curOffset + (s8) offset) != (s8)(curOffset + offset)) {
         LOG_VFY_METH(meth, "VFY: branch target overflow %#x +%d",
             curOffset, offset);
@@ -822,39 +886,41 @@ static bool checkBranchTarget(const Method* meth, InsnFlags* insnFlags,
 
 
 /*
- * Perform static verification on instructions.
- *
- * As a side effect, this sets the "branch target" flags in InsnFlags.
- *
- * "(CF)" items are handled during code-flow analysis.
- *
- * v3 4.10.1
- * - target of each jump and branch instruction must be valid
- * - targets of switch statements must be valid
- * - operands referencing constant pool entries must be valid
- * - (CF) operands of getfield, putfield, getstatic, putstatic must be valid
- * - (new) verify operands of "quick" field ops
- * - (CF) operands of method invocation instructions must be valid
- * - (new) verify operands of "quick" method invoke ops
- * - (CF) only invoke-direct can call a method starting with '<'
- * - (CF) <clinit> must never be called explicitly
- * - operands of instanceof, checkcast, new (and variants) must be valid
- * - new-array[-type] limited to 255 dimensions
- * - can't use "new" on an array class
- * - (?) limit dimensions in multi-array creation
- * - local variable load/store register values must be in valid range
- *
- * v3 4.11.1.2
- * - branches must be within the bounds of the code array
- * - targets of all control-flow instructions are the start of an instruction
- * - register accesses fall within range of allocated registers
- * - (N/A) access to constant pool must be of appropriate type
- * - code does not end in the middle of an instruction
- * - execution cannot fall off the end of the code
- * - (earlier) for each exception handler, the "try" area must begin and
- *   end at the start of an instruction (end can be at the end of the code)
- * - (earlier) for each exception handler, the handler must start at a valid
- *   instruction
+Perform static verification on instructions.
+
+As a side effect, this sets the "branch target" flags in InsnFlags.
+
+"(CF)" items are handled during code-flow analysis.
+
+v3 4.10.1
+- target of each jump and branch instruction must be valid
+- targets of switch statements must be valid
+- operands referencing constant pool entries must be valid
+- (CF) operands of getfield, putfield, getstatic, putstatic must be valid
+- (new) verify operands of "quick" field ops
+- (CF) operands of method invocation instructions must be valid
+- (new) verify operands of "quick" method invoke ops
+- (CF) only invoke-direct can call a method starting with '<'
+- (CF) <clinit> must never be called explicitly
+- operands of instanceof, checkcast, new (and variants) must be valid
+- new-array[-type] limited to 255 dimensions
+- can't use "new" on an array class
+- (?) limit dimensions in multi-array creation
+- local variable load/store register values must be in valid range
+
+v3 4.11.1.2
+- branches must be within the bounds of the code array
+- targets of all control-flow instructions are the start of an instruction
+- register accesses fall within range of allocated registers
+- (N/A) access to constant pool must be of appropriate type
+- code does not end in the middle of an instruction
+- execution cannot fall off the end of the code
+- (earlier) for each exception handler, the "try" area must begin and
+  end at the start of an instruction (end can be at the end of the code)
+- (earlier) for each exception handler, the handler must start at a valid
+  instruction
+  
+执行指令的静态检查。
  */
 static bool verifyInstructions(VerifierData* vdata)
 {
@@ -865,12 +931,15 @@ static bool verifyInstructions(VerifierData* vdata)
     unsigned int codeOffset;
 
     /* the start of the method is a "branch target" */
+    /* 方法起始是一个分支目标 */    
     dvmInsnSetBranchTarget(insnFlags, 0, true);
 
     for (codeOffset = 0; codeOffset < vdata->insnsSize; /**/) {
         /*
-         * Pull the instruction apart.
-         */
+        Pull the instruction apart.
+        
+        将指令分开。
+        */
         int width = dvmInsnGetWidth(insnFlags, codeOffset);
         DecodedInstruction decInsn;
         bool okay = true;
@@ -878,14 +947,18 @@ static bool verifyInstructions(VerifierData* vdata)
         dexDecodeInstruction(meth->insns + codeOffset, &decInsn);
 
         /*
-         * Check register, type, class, field, method, and string indices
-         * for out-of-range values.  Do additional checks on branch targets
-         * and some special cases like new-instance and new-array.
-         */
+        Check register, type, class, field, method, and string indices
+        for out-of-range values.  Do additional checks on branch targets
+        and some special cases like new-instance and new-array.
+        
+        检查寄存器，类型，类，域，方法，字符串索引下标越界。
+        在分支目标上做额外检查和一些特殊的情况，如：new-instance 和 new-array。
+        */
         switch (decInsn.opcode) {
         case OP_NOP:
         case OP_RETURN_VOID:
             /* nothing to check */
+            /* 不做任何检查 */            
             break;
         case OP_MOVE_RESULT:
         case OP_MOVE_RESULT_OBJECT:

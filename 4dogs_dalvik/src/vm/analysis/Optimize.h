@@ -15,25 +15,33 @@
  */
 
 /*
- * Bytecode optimization declarations.
- */
+Bytecode optimization declarations.
+
+字节码优化声明。
+*/
 #ifndef DALVIK_OPTIMIZE_H_
 #define DALVIK_OPTIMIZE_H_
 
 /*
- * Entry point from DEX preparation.
- */
+Entry point from DEX preparation.
+
+优化类
+*/
 void dvmOptimizeClass(ClassObject* clazz, bool essentialOnly);
 
 /*
- * Update a 16-bit code unit.
- */
+Update a 16-bit code unit.
+
+更新一个16为代码单元。
+*/
 void dvmUpdateCodeUnit(const Method* meth, u2* ptr, u2 newVal);
 
 /*
- * Abbreviated resolution functions, for use by optimization and verification
- * code.
- */
+Abbreviated resolution functions, for use by optimization and verification
+code.
+
+NOTE TODO：
+*/
 ClassObject* dvmOptResolveClass(ClassObject* referrer, u4 classIdx,
     VerifyError* pFailure);
 Method* dvmOptResolveMethod(ClassObject* referrer, u4 methodIdx,

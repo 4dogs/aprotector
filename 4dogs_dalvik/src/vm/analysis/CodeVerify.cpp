@@ -327,7 +327,7 @@ versa. We do not allow free exchange between 32-bit int/float and 64-bit
 long/double.
 
 Dalvik没有在int和float之间做区别，但是我们强制当一个值被作为int使用时，它不能被
-用做flat使用，反之亦然。我们不允许32位int/float和64位long/double之间做自由转换。
+用做float使用，反之亦然。我们不允许32位int/float和64位long/double之间做自由转换。
 
 Note that Uninit+Uninit=Uninit.  This holds true because we only
 use this when the RegType value is exactly equal to kRegTypeUninit, which
@@ -701,6 +701,10 @@ Returns the map slot index, or -1 if the address isn't listed in the map
 
 Entries, once set, do not change -- a given address can only allocate
 one type of object.
+
+在指定地址处设置相关指令对象。
+
+NOTE TODO：
 */
 static int setUninitInstance(UninitInstanceMap* uninitMap, int addr,
     ClassObject* clazz)
@@ -734,8 +738,10 @@ static int setUninitInstance(UninitInstanceMap* uninitMap, int addr,
 }
 
 /*
- * Get the class object at the specified index.
- */
+Get the class object at the specified index.
+
+在指定所有获得类对象。
+*/
 static ClassObject* getUninitInstance(const UninitInstanceMap* uninitMap,
     int idx)
 {
@@ -743,19 +749,35 @@ static ClassObject* getUninitInstance(const UninitInstanceMap* uninitMap,
     return uninitMap->map[idx].clazz;
 }
 
-/* determine if "type" is actually an object reference (init/uninit/zero) */
+/* 
+determine if "type" is actually an object reference (init/uninit/zero) 
+
+确定“类型”实际是一个对象引用（init/uninit/zero）
+*/
 static inline bool regTypeIsReference(RegType type) {
     return (type > kRegTypeMAX || type == kRegTypeUninit ||
             type == kRegTypeZero);
 }
 
-/* determine if "type" is an uninitialized object reference */
+/* 
+determine if "type" is an uninitialized object reference 
+
+确定“类型”是一个未初始化的对象引用。
+*/
 static inline bool regTypeIsUninitReference(RegType type) {
     return ((type & kRegTypeUninitMask) == kRegTypeUninit);
 }
 
-/* convert the initialized reference "type" to a ClassObject pointer */
-/* (does not expect uninit ref types or "zero") */
+/* 
+convert the initialized reference "type" to a ClassObject pointer 
+
+将初始化引用“类型”转换为一个对象指针
+*/
+/* 
+(does not expect uninit ref types or "zero") 
+
+（排除未初始化引用或“0”）
+*/
 static ClassObject* regTypeInitializedReferenceToClass(RegType type)
 {
     assert(regTypeIsReference(type) && type != kRegTypeZero);
@@ -767,13 +789,21 @@ static ClassObject* regTypeInitializedReferenceToClass(RegType type)
     }
 }
 
-/* extract the index into the uninitialized instance map table */
+/* 
+extract the index into the uninitialized instance map table 
+
+从未初始化的实例集合表中获取索引
+*/
 static inline int regTypeToUninitIndex(RegType type) {
     assert(regTypeIsUninitReference(type));
     return (type & ~kRegTypeUninitMask) >> kRegTypeUninitShift;
 }
 
-/* convert the reference "type" to a ClassObject pointer */
+/* 
+convert the reference "type" to a ClassObject pointer 
+
+转换引用“类型”位类对象指针
+*/
 static ClassObject* regTypeReferenceToClass(RegType type,
     const UninitInstanceMap* uninitMap)
 {
@@ -786,34 +816,48 @@ static ClassObject* regTypeReferenceToClass(RegType type,
     }
 }
 
-/* convert the ClassObject pointer to an (initialized) register type */
+/* 
+convert the ClassObject pointer to an (initialized) register type 
+
+转换类型对象指针位一个（已初始化的）寄存器类型
+*/
 static inline RegType regTypeFromClass(ClassObject* clazz) {
     return (u4) clazz;
 }
 
-/* return the RegType for the uninitialized reference in slot "uidx" */
+/* 
+return the RegType for the uninitialized reference in slot "uidx" 
+
+在“uidx”位置返回未初始化引用的RegType
+*/
 static RegType regTypeFromUninitIndex(int uidx) {
     return (u4) (kRegTypeUninit | (uidx << kRegTypeUninitShift));
 }
 
 
 /*
- * ===========================================================================
- *      Signature operations
- * ===========================================================================
- */
+===========================================================================
+     Signature operations
+
+           信号操作
+===========================================================================
+*/
 
 /*
- * Is this method a constructor?
- */
+Is this method a constructor?
+
+这个方法是一个构造方法？
+*/
 static bool isInitMethod(const Method* meth)
 {
     return (*meth->name == '<' && strcmp(meth->name+1, "init>") == 0);
 }
 
 /*
- * Is this method a class initializer?
- */
+Is this method a class initializer?
+
+这个方法是一个类初始化器？
+*/
 #if 0
 static bool isClassInitMethod(const Method* meth)
 {
@@ -822,10 +866,14 @@ static bool isClassInitMethod(const Method* meth)
 #endif
 
 /*
- * Look up a class reference given as a simple string descriptor.
- *
- * If we can't find it, return a generic substitute when possible.
- */
+Look up a class reference given as a simple string descriptor.
+
+If we can't find it, return a generic substitute when possible.
+
+查找类引用，作为一个简单字符串描述符。
+
+如果找不到，当可能的时候返回一个通用替代者。
+*/
 static ClassObject* lookupClassByDescriptor(const Method* meth,
     const char* pDescriptor, VerifyError* pFailure)
 {
@@ -905,14 +953,19 @@ static ClassObject* lookupClassByDescriptor(const Method* meth,
 }
 
 /*
- * Look up a class reference in a signature.  Could be an arg or the
- * return value.
- *
- * Advances "*pSig" to the last character in the signature (that is, to
- * the ';').
- *
- * NOTE: this is also expected to verify the signature.
- */
+Look up a class reference in a signature.  Could be an arg or the
+return value.
+
+Advances "*pSig" to the last character in the signature (that is, to
+the ';').
+
+NOTE: this is also expected to verify the signature.
+
+
+在信号中查找一个类引用。可能是参数或是返回值。
+
+NOTE TODO：
+*/
 static ClassObject* lookupSignatureClass(const Method* meth, const char** pSig,
     VerifyError* pFailure)
 {
@@ -941,13 +994,15 @@ static ClassObject* lookupSignatureClass(const Method* meth, const char** pSig,
 }
 
 /*
- * Look up an array class reference in a signature.  Could be an arg or the
- * return value.
- *
- * Advances "*pSig" to the last character in the signature.
- *
- * NOTE: this is also expected to verify the signature.
- */
+Look up an array class reference in a signature.  Could be an arg or the
+return value.
+
+Advances "*pSig" to the last character in the signature.
+
+NOTE: this is also expected to verify the signature.
+
+在信号中查找一个数组类引用。可能是参数或是返回值。
+*/
 static ClassObject* lookupSignatureArrayClass(const Method* meth,
     const char** pSig, VerifyError* pFailure)
 {
@@ -981,13 +1036,19 @@ static ClassObject* lookupSignatureArrayClass(const Method* meth,
 }
 
 /*
- * Set the register types for the first instruction in the method based on
- * the method signature.
- *
- * This has the side-effect of validating the signature.
- *
- * Returns "true" on success.
- */
+Set the register types for the first instruction in the method based on
+the method signature.
+
+This has the side-effect of validating the signature.
+
+Returns "true" on success.
+
+给基于方法信息的方法中的第一条指令设置寄存器类型。
+
+NOTE TODO：
+
+成功返回“true”
+*/
 static bool setTypesFromSignature(const Method* meth, RegType* regTypes,
     UninitInstanceMap* uninitMap)
 {
@@ -1163,14 +1224,21 @@ bad_sig:
 }
 
 /*
- * Return the register type for the method.  We can't just use the
- * already-computed DalvikJniReturnType, because if it's a reference type
- * we need to do the class lookup.
- *
- * Returned references are assumed to be initialized.
- *
- * Returns kRegTypeUnknown for "void".
- */
+Return the register type for the method.  We can't just use the
+already-computed DalvikJniReturnType, because if it's a reference type
+we need to do the class lookup.
+
+Returned references are assumed to be initialized.
+
+Returns kRegTypeUnknown for "void".
+
+返回方法寄存器类型。不能只使用已经计算的DalvikJniReturnType，
+因为如果它是一个引用类型，我们需要做类查找。
+
+返回的引用都被初始化。
+
+“void”返回kRegTypeUnknown
+*/
 static RegType getMethodReturnType(const Method* meth)
 {
     RegType type;
@@ -1225,12 +1293,17 @@ static RegType getMethodReturnType(const Method* meth)
 }
 
 /*
- * Convert a single-character signature value (i.e. a primitive type) to
- * the corresponding RegType.  This is intended for access to object fields
- * holding primitive types.
- *
- * Returns kRegTypeUnknown for objects, arrays, and void.
- */
+Convert a single-character signature value (i.e. a primitive type) to
+the corresponding RegType.  This is intended for access to object fields
+holding primitive types.
+
+Returns kRegTypeUnknown for objects, arrays, and void.
+
+转换一个single-character信号值（即一个原始类型）到符合的寄存器类型。这是用于
+访问持有原始类型的对象域。
+
+objects, arrays, and void返回kRegTypeUnknown。
+*/
 static RegType primSigCharToRegType(char sigChar)
 {
     RegType type;
@@ -1275,8 +1348,10 @@ static RegType primSigCharToRegType(char sigChar)
 }
 
 /*
- * See if the method matches the MethodType.
- */
+See if the method matches the MethodType.
+
+方法是否匹配MethodType
+*/
 static bool isCorrectInvokeKind(MethodType methodType, Method* resMethod)
 {
     switch (methodType) {
@@ -1293,27 +1368,29 @@ static bool isCorrectInvokeKind(MethodType methodType, Method* resMethod)
 }
 
 /*
- * Verify the arguments to a method.  We're executing in "method", making
- * a call to the method reference in vB.
- *
- * If this is a "direct" invoke, we allow calls to <init>.  For calls to
- * <init>, the first argument may be an uninitialized reference.  Otherwise,
- * calls to anything starting with '<' will be rejected, as will any
- * uninitialized reference arguments.
- *
- * For non-static method calls, this will verify that the method call is
- * appropriate for the "this" argument.
- *
- * The method reference is in vBBBB.  The "isRange" parameter determines
- * whether we use 0-4 "args" values or a range of registers defined by
- * vAA and vCCCC.
- *
- * Widening conversions on integers and references are allowed, but
- * narrowing conversions are not.
- *
- * Returns the resolved method on success, NULL on failure (with *pFailure
- * set appropriately).
- */
+Verify the arguments to a method.  We're executing in "method", making
+a call to the method reference in vB.
+
+If this is a "direct" invoke, we allow calls to <init>.  For calls to
+<init>, the first argument may be an uninitialized reference.  Otherwise,
+calls to anything starting with '<' will be rejected, as will any
+uninitialized reference arguments.
+
+For non-static method calls, this will verify that the method call is
+appropriate for the "this" argument.
+
+The method reference is in vBBBB.  The "isRange" parameter determines
+whether we use 0-4 "args" values or a range of registers defined by
+vAA and vCCCC.
+
+Widening conversions on integers and references are allowed, but
+narrowing conversions are not.
+
+Returns the resolved method on success, NULL on failure (with *pFailure
+set appropriately).
+
+校验指令参数
+*/
 static Method* verifyInvocationArgs(const Method* meth,
     RegisterLine* registerLine, const int insnRegCount,
     const DecodedInstruction* pDecInsn, UninitInstanceMap* uninitMap,
@@ -1580,14 +1657,21 @@ fail:
 }
 
 /*
- * Get the class object for the type of data stored in a field.  This isn't
- * stored in the Field struct, so we have to recover it from the signature.
- *
- * This only works for reference types.  Don't call this for primitive types.
- *
- * If we can't find the class, we return java.lang.Object, so that
- * verification can continue if a field is only accessed in trivial ways.
- */
+Get the class object for the type of data stored in a field.  This isn't
+stored in the Field struct, so we have to recover it from the signature.
+
+This only works for reference types.  Don't call this for primitive types.
+
+If we can't find the class, we return java.lang.Object, so that
+verification can continue if a field is only accessed in trivial ways.
+
+为存储在域中的数据类型类对象获取类对象。它不存储在域结构中，因此不得不从信息处
+重新覆盖。
+
+NOTE TODO：
+
+获取域类型
+*/
 static ClassObject* getFieldClass(const Method* meth, const Field* field)
 {
     ClassObject* fieldClass;
@@ -1613,30 +1697,40 @@ static ClassObject* getFieldClass(const Method* meth, const Field* field)
 
 
 /*
- * ===========================================================================
- *      Register operations
- * ===========================================================================
- */
+===========================================================================
+     Register operations
+
+         寄存器操作
+===========================================================================
+*/
 
 /*
- * Get the type of register N.
- *
- * The register index was validated during the static pass, so we don't
- * need to check it here.
- */
+Get the type of register N.
+
+The register index was validated during the static pass, so we don't
+need to check it here.
+
+获取寄存器N的类型。
+*/
 static inline RegType getRegisterType(const RegisterLine* registerLine, u4 vsrc)
 {
     return registerLine->regTypes[vsrc];
 }
 
 /*
- * Get the value from a register, and cast it to a ClassObject.  Sets
- * "*pFailure" if something fails.
- *
- * This fails if the register holds an uninitialized class.
- *
- * If the register holds kRegTypeZero, this returns a NULL pointer.
- */
+Get the value from a register, and cast it to a ClassObject.  Sets
+"*pFailure" if something fails.
+
+This fails if the register holds an uninitialized class.
+
+If the register holds kRegTypeZero, this returns a NULL pointer.
+
+从一个寄存器获取值，并且转型为ClassObject。如果一些处理失败，设置“*pFailure”。
+
+如果寄存器持有1个为初始化的类型，它会导致失败。
+
+如果寄存器持有kRegTypeZero，它返回一个NULL指针。
+*/
 static ClassObject* getClassFromRegister(const RegisterLine* registerLine,
     u4 vsrc, VerifyError* pFailure)
 {
@@ -1669,15 +1763,21 @@ bail:
 }
 
 /*
- * Get the "this" pointer from a non-static method invocation.  This
- * returns the RegType so the caller can decide whether it needs the
- * reference to be initialized or not.  (Can also return kRegTypeZero
- * if the reference can only be zero at this point.)
- *
- * The argument count is in vA, and the first argument is in vC, for both
- * "simple" and "range" versions.  We just need to make sure vA is >= 1
- * and then return vC.
- */
+Get the "this" pointer from a non-static method invocation.  This
+returns the RegType so the caller can decide whether it needs the
+reference to be initialized or not.  (Can also return kRegTypeZero
+if the reference can only be zero at this point.)
+
+The argument count is in vA, and the first argument is in vC, for both
+"simple" and "range" versions.  We just need to make sure vA is >= 1
+and then return vC.
+
+从一个非静态方法反射，获取“this”指针。它返回 RegType，因此调用者可以决定是否将
+引用初始化。 (也可能返回kRegTypeZero，如果引用在这个点仅仅是0)
+
+参数个数在vA中，并且第一个参数在vC中，对于“simple”和“range”版本。只需要确保
+vA is >= 1然后返回vC。
+*/
 static RegType getInvocationThis(const RegisterLine* registerLine,
     const DecodedInstruction* pDecInsn, VerifyError* pFailure)
 {
@@ -1703,15 +1803,20 @@ bail:
 }
 
 /*
- * Set the type of register N, verifying that the register is valid.  If
- * "newType" is the "Lo" part of a 64-bit value, register N+1 will be
- * set to "newType+1".
- *
- * The register index was validated during the static pass, so we don't
- * need to check it here.
- *
- * TODO: clear mon stack bits
- */
+Set the type of register N, verifying that the register is valid.  If
+"newType" is the "Lo" part of a 64-bit value, register N+1 will be
+set to "newType+1".
+
+The register index was validated during the static pass, so we don't
+need to check it here.
+
+TODO: clear mon stack bits
+
+设置寄存器N的类型，校验寄存器是否有效。如果“newType”64未值得低位，寄存器N+1
+将设置为“newType+1”
+
+NOTE TODO：
+*/
 static void setRegisterType(RegisterLine* registerLine, u4 vdst,
     RegType newType)
 {
@@ -1758,16 +1863,18 @@ static void setRegisterType(RegisterLine* registerLine, u4 vdst,
             insnRegs[vdst] = newType;
 
             /*
-             * In most circumstances we won't see a reference to a primitive
-             * class here (e.g. "D"), since that would mean the object in the
-             * register is actually a primitive type.  It can happen as the
-             * result of an assumed-successful check-cast instruction in
-             * which the second argument refers to a primitive class.  (In
-             * practice, such an instruction will always throw an exception.)
-             *
-             * This is not an issue for instructions like const-class, where
-             * the object in the register is a java.lang.Class instance.
-             */
+            In most circumstances we won't see a reference to a primitive
+            class here (e.g. "D"), since that would mean the object in the
+            register is actually a primitive type.  It can happen as the
+            result of an assumed-successful check-cast instruction in
+            which the second argument refers to a primitive class.  (In
+            practice, such an instruction will always throw an exception.)
+            
+            This is not an issue for instructions like const-class, where
+            the object in the register is a java.lang.Class instance.
+            
+            在大多数环境中
+            */
             break;
         }
         /* bad type - fall through */
@@ -1786,17 +1893,21 @@ static void setRegisterType(RegisterLine* registerLine, u4 vdst,
 }
 
 /*
- * Verify that the contents of the specified register have the specified
- * type (or can be converted to it through an implicit widening conversion).
- *
- * This will modify the type of the source register if it was originally
- * derived from a constant to prevent mixing of int/float and long/double.
- *
- * If "vsrc" is a reference, both it and the "vsrc" register must be
- * initialized ("vsrc" may be Zero).  This will verify that the value in
- * the register is an instance of checkType, or if checkType is an
- * interface, verify that the register implements checkType.
- */
+Verify that the contents of the specified register have the specified
+type (or can be converted to it through an implicit widening conversion).
+
+This will modify the type of the source register if it was originally
+derived from a constant to prevent mixing of int/float and long/double.
+
+If "vsrc" is a reference, both it and the "vsrc" register must be
+initialized ("vsrc" may be Zero).  This will verify that the value in
+the register is an instance of checkType, or if checkType is an
+interface, verify that the register implements checkType.
+
+校验寄存器类型
+
+NOTE TODO：
+*/
 static void verifyRegisterType(RegisterLine* registerLine, u4 vsrc,
     RegType checkType, VerifyError* pFailure)
 {
@@ -1917,8 +2028,10 @@ static void verifyRegisterType(RegisterLine* registerLine, u4 vsrc,
 }
 
 /*
- * Set the type of the "result" register.
- */
+Set the type of the "result" register.
+
+设置“resutl”寄存器类型
+*/
 static void setResultRegisterType(RegisterLine* registerLine,
     const int insnRegCount, RegType newType)
 {
@@ -1927,11 +2040,14 @@ static void setResultRegisterType(RegisterLine* registerLine,
 
 
 /*
- * Update all registers holding "uninitType" to instead hold the
- * corresponding initialized reference type.  This is called when an
- * appropriate <init> method is invoked -- all copies of the reference
- * must be marked as initialized.
- */
+Update all registers holding "uninitType" to instead hold the
+corresponding initialized reference type.  This is called when an
+appropriate <init> method is invoked -- all copies of the reference
+must be marked as initialized.
+
+更新所有持有“uninitType”的寄存器，替换持有相关已初始化的引用类型。当一个<init>method被委托调用
+-- 所有引用的拷贝都必须被标识已初始化。
+*/
 static void markRefsAsInitialized(RegisterLine* registerLine, int insnRegCount,
     UninitInstanceMap* uninitMap, RegType uninitType, VerifyError* pFailure)
 {
@@ -1963,12 +2079,14 @@ static void markRefsAsInitialized(RegisterLine* registerLine, int insnRegCount,
 }
 
 /*
- * We're creating a new instance of class C at address A.  Any registers
- * holding instances previously created at address A must be initialized
- * by now.  If not, we mark them as "conflict" to prevent them from being
- * used (otherwise, markRefsAsInitialized would mark the old ones and the
- * new ones at the same time).
- */
+We're creating a new instance of class C at address A.  Any registers
+holding instances previously created at address A must be initialized
+by now.  If not, we mark them as "conflict" to prevent them from being
+used (otherwise, markRefsAsInitialized would mark the old ones and the
+new ones at the same time).
+
+创建一个类的新实例C在地址A。
+*/
 static void markUninitRefsAsInvalid(RegisterLine* registerLine,
     int insnRegCount, UninitInstanceMap* uninitMap, RegType uninitType)
 {
@@ -1990,8 +2108,10 @@ static void markUninitRefsAsInvalid(RegisterLine* registerLine,
 }
 
 /*
- * Find the register line for the specified instruction in the current method.
- */
+Find the register line for the specified instruction in the current method.
+
+获取RegisterLine通过RegisterTable和指令索引
+*/
 static inline RegisterLine* getRegisterLine(const RegisterTable* regTable,
     int insnIdx)
 {
@@ -1999,8 +2119,10 @@ static inline RegisterLine* getRegisterLine(const RegisterTable* regTable,
 }
 
 /*
- * Copy a register line.
- */
+Copy a register line.
+
+拷贝一个register line。
+*/
 static inline void copyRegisterLine(RegisterLine* dst, const RegisterLine* src,
     size_t numRegs)
 {
@@ -2019,8 +2141,10 @@ static inline void copyRegisterLine(RegisterLine* dst, const RegisterLine* src,
 }
 
 /*
- * Copy a register line into the table.
- */
+Copy a register line into the table.
+
+拷贝一个register line到RegisterTable。
+*/
 static inline void copyLineToTable(RegisterTable* regTable, int insnIdx,
     const RegisterLine* src)
 {
@@ -2030,8 +2154,10 @@ static inline void copyLineToTable(RegisterTable* regTable, int insnIdx,
 }
 
 /*
- * Copy a register line out of the table.
- */
+Copy a register line out of the table.
+
+从RegisterLine拷贝一个register line。
+*/
 static inline void copyLineFromTable(RegisterLine* dst,
     const RegisterTable* regTable, int insnIdx)
 {
@@ -2043,11 +2169,13 @@ static inline void copyLineFromTable(RegisterLine* dst,
 
 #ifndef NDEBUG
 /*
- * Compare two register lines.  Returns 0 if they match.
- *
- * Using this for a sort is unwise, since the value can change based on
- * machine endianness.
- */
+Compare two register lines.  Returns 0 if they match.
+
+Using this for a sort is unwise, since the value can change based on
+machine endianness.
+
+比较2个register lines。如果匹配返回0.
+*/
 static inline int compareLineToTable(const RegisterTable* regTable,
     int insnIdx, const RegisterLine* line2)
 {
@@ -2081,14 +2209,16 @@ static inline int compareLineToTable(const RegisterTable* regTable,
 #endif
 
 /*
- * Register type categories, for type checking.
- *
- * The spec says category 1 includes boolean, byte, char, short, int, float,
- * reference, and returnAddress.  Category 2 includes long and double.
- *
- * We treat object references separately, so we have "category1nr".  We
- * don't support jsr/ret, so there is no "returnAddress" type.
- */
+Register type categories, for type checking.
+
+The spec says category 1 includes boolean, byte, char, short, int, float,
+reference, and returnAddress.  Category 2 includes long and double.
+
+We treat object references separately, so we have "category1nr".  We
+don't support jsr/ret, so there is no "returnAddress" type.
+
+寄存器类型分类，提供给类型检查。
+*/
 enum TypeCategory {
     kTypeCategoryUnknown = 0,
     kTypeCategory1nr,           // boolean, byte, char, short, int, float
@@ -2097,17 +2227,19 @@ enum TypeCategory {
 };
 
 /*
- * See if "type" matches "cat".  All we're really looking for here is that
- * we're not mixing and matching 32-bit and 64-bit quantities, and we're
- * not mixing references with numerics.  (For example, the arguments to
- * "a < b" could be integers of different sizes, but they must both be
- * integers.  Dalvik is less specific about int vs. float, so we treat them
- * as equivalent here.)
- *
- * For category 2 values, "type" must be the "low" half of the value.
- *
- * Sets "*pFailure" if something looks wrong.
- */
+See if "type" matches "cat".  All we're really looking for here is that
+we're not mixing and matching 32-bit and 64-bit quantities, and we're
+not mixing references with numerics.  (For example, the arguments to
+"a < b" could be integers of different sizes, but they must both be
+integers.  Dalvik is less specific about int vs. float, so we treat them
+as equivalent here.)
+
+For category 2 values, "type" must be the "low" half of the value.
+
+Sets "*pFailure" if something looks wrong.
+
+检查类型分类。
+*/
 static void checkTypeCategory(RegType type, TypeCategory cat,
     VerifyError* pFailure)
 {
@@ -2162,12 +2294,14 @@ static void checkTypeCategory(RegType type, TypeCategory cat,
 }
 
 /*
- * For a category 2 register pair, verify that "typeh" is the appropriate
- * high part for "typel".
- *
- * Does not verify that "typel" is in fact the low part of a 64-bit
- * register pair.
- */
+For a category 2 register pair, verify that "typeh" is the appropriate
+high part for "typel".
+
+Does not verify that "typel" is in fact the low part of a 64-bit
+register pair.
+
+检查一个分类下2个相邻的寄存器
+*/
 static void checkWidePair(RegType typel, RegType typeh, VerifyError* pFailure)
 {
     if ((typeh != typel+1))
@@ -2175,9 +2309,11 @@ static void checkWidePair(RegType typel, RegType typeh, VerifyError* pFailure)
 }
 
 /*
- * Implement category-1 "move" instructions.  Copy a 32-bit value from
- * "vsrc" to "vdst".
- */
+Implement category-1 "move" instructions.  Copy a 32-bit value from
+"vsrc" to "vdst".
+
+实现分类-1“move”指令。从“vsrc”拷贝一个32位值到“vdst”。
+*/
 static void copyRegister1(RegisterLine* registerLine, u4 vdst, u4 vsrc,
     TypeCategory cat, VerifyError* pFailure)
 {
@@ -2196,9 +2332,11 @@ static void copyRegister1(RegisterLine* registerLine, u4 vdst, u4 vsrc,
 }
 
 /*
- * Implement category-2 "move" instructions.  Copy a 64-bit value from
- * "vsrc" to "vdst".  This copies both halves of the register.
- */
+Implement category-2 "move" instructions.  Copy a 64-bit value from
+"vsrc" to "vdst".  This copies both halves of the register.
+
+实现分类-2“move”指令。从“vsrc”拷贝一个62位值到“vdst”。
+*/
 static void copyRegister2(RegisterLine* registerLine, u4 vdst, u4 vsrc,
     VerifyError* pFailure)
 {
@@ -2216,9 +2354,11 @@ static void copyRegister2(RegisterLine* registerLine, u4 vdst, u4 vsrc,
 }
 
 /*
- * Implement "move-result".  Copy the category-1 value from the result
- * register to another register, and reset the result register.
- */
+Implement "move-result".  Copy the category-1 value from the result
+register to another register, and reset the result register.
+
+实现“move-result”。拷贝分类-1的值，从结果寄存器到另一个寄存器，并且重置结果寄存器。
+*/
 static void copyResultRegister1(RegisterLine* registerLine,
     const int insnRegCount, u4 vdst, TypeCategory cat, VerifyError* pFailure)
 {
@@ -2241,9 +2381,11 @@ static void copyResultRegister1(RegisterLine* registerLine,
 }
 
 /*
- * Implement "move-result-wide".  Copy the category-2 value from the result
- * register to another register, and reset the result register.
- */
+Implement "move-result-wide".  Copy the category-2 value from the result
+register to another register, and reset the result register.
+
+实现“move-result-wide”。拷贝分类-2的值，从结果寄存器到另一个寄存器，并且重置结果寄存器。
+*/
 static void copyResultRegister2(RegisterLine* registerLine,
     const int insnRegCount, u4 vdst, VerifyError* pFailure)
 {
@@ -2269,9 +2411,12 @@ static void copyResultRegister2(RegisterLine* registerLine,
 }
 
 /*
- * Verify types for a simple two-register instruction (e.g. "neg-int").
- * "dstType" is stored into vA, and "srcType" is verified against vB.
- */
+Verify types for a simple two-register instruction (e.g. "neg-int").
+"dstType" is stored into vA, and "srcType" is verified against vB.
+
+校验一个简单的2个寄存器指令的类型(例如：“neg-int”)。
+“dstType”存储到vA，并且“srcType”是针对vB被校验。
+*/
 static void checkUnop(RegisterLine* registerLine, DecodedInstruction* pDecInsn,
     RegType dstType, RegType srcType, VerifyError* pFailure)
 {
@@ -2280,21 +2425,23 @@ static void checkUnop(RegisterLine* registerLine, DecodedInstruction* pDecInsn,
 }
 
 /*
- * We're performing an operation like "and-int/2addr" that can be
- * performed on booleans as well as integers.  We get no indication of
- * boolean-ness, but we can infer it from the types of the arguments.
- *
- * Assumes we've already validated reg1/reg2.
- *
- * TODO: consider generalizing this.  The key principle is that the
- * result of a bitwise operation can only be as wide as the widest of
- * the operands.  You can safely AND/OR/XOR two chars together and know
- * you still have a char, so it's reasonable for the compiler or "dx"
- * to skip the int-to-char instruction.  (We need to do this for boolean
- * because there is no int-to-boolean operation.)
- *
- * Returns true if both args are Boolean, Zero, or One.
- */
+We're performing an operation like "and-int/2addr" that can be
+performed on booleans as well as integers.  We get no indication of
+boolean-ness, but we can infer it from the types of the arguments.
+
+Assumes we've already validated reg1/reg2.
+
+TODO: consider generalizing this.  The key principle is that the
+result of a bitwise operation can only be as wide as the widest of
+the operands.  You can safely AND/OR/XOR two chars together and know
+you still have a char, so it's reasonable for the compiler or "dx"
+to skip the int-to-char instruction.  (We need to do this for boolean
+because there is no int-to-boolean operation.)
+
+Returns true if both args are Boolean, Zero, or One.
+
+校验寄存器类型是否是Boolean，Zero，或者One。
+*/
 static bool upcastBooleanOp(RegisterLine* registerLine, u4 reg1, u4 reg2)
 {
     RegType type1, type2;
@@ -2313,12 +2460,15 @@ static bool upcastBooleanOp(RegisterLine* registerLine, u4 reg1, u4 reg2)
 }
 
 /*
- * Verify types for A two-register instruction with a literal constant
- * (e.g. "add-int/lit8").  "dstType" is stored into vA, and "srcType" is
- * verified against vB.
- *
- * If "checkBooleanOp" is set, we use the constant value in vC.
- */
+Verify types for A two-register instruction with a literal constant
+(e.g. "add-int/lit8").  "dstType" is stored into vA, and "srcType" is
+verified against vB.
+
+If "checkBooleanOp" is set, we use the constant value in vC.
+
+校验有字面值的2个寄存器指令的类型(例如：“add-int/lit8”)。“dstType”存储到vA，并且
+“srcType”针对vB校验。
+*/
 static void checkLitop(RegisterLine* registerLine, DecodedInstruction* pDecInsn,
     RegType dstType, RegType srcType, bool checkBooleanOp,
     VerifyError* pFailure)
@@ -2337,10 +2487,13 @@ static void checkLitop(RegisterLine* registerLine, DecodedInstruction* pDecInsn,
 }
 
 /*
- * Verify types for a simple three-register instruction (e.g. "add-int").
- * "dstType" is stored into vA, and "srcType1"/"srcType2" are verified
- * against vB/vC.
- */
+Verify types for a simple three-register instruction (e.g. "add-int").
+"dstType" is stored into vA, and "srcType1"/"srcType2" are verified
+against vB/vC.
+
+校验3个寄存器指令的类型(例如：“add-int”)。“dstType”存储到vA，并且
+“srcType1/srcType2”针对vB/vC校验。
+*/
 static void checkBinop(RegisterLine* registerLine, DecodedInstruction* pDecInsn,
     RegType dstType, RegType srcType1, RegType srcType2, bool checkBooleanOp,
     VerifyError* pFailure)
@@ -2356,9 +2509,12 @@ static void checkBinop(RegisterLine* registerLine, DecodedInstruction* pDecInsn,
 }
 
 /*
- * Verify types for a binary "2addr" operation.  "srcType1"/"srcType2"
- * are verified against vA/vB, then "dstType" is stored into vA.
- */
+Verify types for a binary "2addr" operation.  "srcType1"/"srcType2"
+are verified against vA/vB, then "dstType" is stored into vA.
+
+校验二进制“2addr”操作的类型。“srcType1"/"srcType2”针对vA/vB校验，然后
+“dstType”存储到vA。
+*/
 static void checkBinop2addr(RegisterLine* registerLine,
     DecodedInstruction* pDecInsn, RegType dstType, RegType srcType1,
     RegType srcType2, bool checkBooleanOp, VerifyError* pFailure)
@@ -2374,39 +2530,41 @@ static void checkBinop2addr(RegisterLine* registerLine,
 }
 
 /*
- * Treat right-shifting as a narrowing conversion when possible.
- *
- * For example, right-shifting an int 24 times results in a value that can
- * be treated as a byte.
- *
- * Things get interesting when contemplating sign extension.  Right-
- * shifting an integer by 16 yields a value that can be represented in a
- * "short" but not a "char", but an unsigned right shift by 16 yields a
- * value that belongs in a char rather than a short.  (Consider what would
- * happen if the result of the shift were cast to a char or short and then
- * cast back to an int.  If sign extension, or the lack thereof, causes
- * a change in the 32-bit representation, then the conversion was lossy.)
- *
- * A signed right shift by 17 on an integer results in a short.  An unsigned
- * right shfit by 17 on an integer results in a posshort, which can be
- * assigned to a short or a char.
- *
- * An unsigned right shift on a short can actually expand the result into
- * a 32-bit integer.  For example, 0xfffff123 >>> 8 becomes 0x00fffff1,
- * which can't be represented in anything smaller than an int.
- *
- * javac does not generate code that takes advantage of this, but some
- * of the code optimizers do.  It's generally a peephole optimization
- * that replaces a particular sequence, e.g. (bipush 24, ishr, i2b) is
- * replaced by (bipush 24, ishr).  Knowing that shifting a short 8 times
- * to the right yields a byte is really more than we need to handle the
- * code that's out there, but support is not much more complex than just
- * handling integer.
- *
- * Right-shifting never yields a boolean value.
- *
- * Returns the new register type.
- */
+Treat right-shifting as a narrowing conversion when possible.
+
+For example, right-shifting an int 24 times results in a value that can
+be treated as a byte.
+
+Things get interesting when contemplating sign extension.  Right-
+shifting an integer by 16 yields a value that can be represented in a
+"short" but not a "char", but an unsigned right shift by 16 yields a
+value that belongs in a char rather than a short.  (Consider what would
+happen if the result of the shift were cast to a char or short and then
+cast back to an int.  If sign extension, or the lack thereof, causes
+a change in the 32-bit representation, then the conversion was lossy.)
+
+A signed right shift by 17 on an integer results in a short.  An unsigned
+right shfit by 17 on an integer results in a posshort, which can be
+assigned to a short or a char.
+
+An unsigned right shift on a short can actually expand the result into
+a 32-bit integer.  For example, 0xfffff123 >>> 8 becomes 0x00fffff1,
+which can't be represented in anything smaller than an int.
+
+javac does not generate code that takes advantage of this, but some
+of the code optimizers do.  It's generally a peephole optimization
+that replaces a particular sequence, e.g. (bipush 24, ishr, i2b) is
+replaced by (bipush 24, ishr).  Knowing that shifting a short 8 times
+to the right yields a byte is really more than we need to handle the
+code that's out there, but support is not much more complex than just
+handling integer.
+
+Right-shifting never yields a boolean value.
+
+Returns the new register type.
+
+NOTE TODO：
+*/
 static RegType adjustForRightShift(RegisterLine* registerLine, int reg,
     unsigned int shiftCount, bool isUnsignedShift, VerifyError* pFailure)
 {
@@ -2493,16 +2651,20 @@ static RegType adjustForRightShift(RegisterLine* registerLine, int reg,
 
 
 /*
- * ===========================================================================
- *      Register merge
- * ===========================================================================
- */
+===========================================================================
+     Register merge
+
+     寄存器合并
+===========================================================================
+*/
 
 /*
- * Compute the "class depth" of a class.  This is the distance from the
- * class to the top of the tree, chasing superclass links.  java.lang.Object
- * has a class depth of 0.
- */
+Compute the "class depth" of a class.  This is the distance from the
+class to the top of the tree, chasing superclass links.  java.lang.Object
+has a class depth of 0.
+
+计算一个类的类依赖数量。这是从类到树顶端的距离，追踪父类链接。java.lang.Object类依赖为0。
+*/
 static int getClassDepth(ClassObject* clazz)
 {
     int depth = 0;
@@ -2515,12 +2677,14 @@ static int getClassDepth(ClassObject* clazz)
 }
 
 /*
- * Given two classes, walk up the superclass tree to find a common
- * ancestor.  (Called from findCommonSuperclass().)
- *
- * TODO: consider caching the class depth in the class object so we don't
- * have to search for it here.
- */
+Given two classes, walk up the superclass tree to find a common
+ancestor.  (Called from findCommonSuperclass().)
+
+TODO: consider caching the class depth in the class object so we don't
+have to search for it here.
+
+给定2个类，回朔父类树去查找一个共同的父类。
+*/
 static ClassObject* digForSuperclass(ClassObject* c1, ClassObject* c2)
 {
     int depth1, depth2;
@@ -2561,28 +2725,30 @@ static ClassObject* digForSuperclass(ClassObject* c1, ClassObject* c2)
 }
 
 /*
- * Merge two array classes.  We can't use the general "walk up to the
- * superclass" merge because the superclass of an array is always Object.
- * We want String[] + Integer[] = Object[].  This works for higher dimensions
- * as well, e.g. String[][] + Integer[][] = Object[][].
- *
- * If Foo1 and Foo2 are subclasses of Foo, Foo1[] + Foo2[] = Foo[].
- *
- * If Class implements Type, Class[] + Type[] = Type[].
- *
- * If the dimensions don't match, we want to convert to an array of Object
- * with the least dimension, e.g. String[][] + String[][][][] = Object[][].
- *
- * Arrays of primitive types effectively have one less dimension when
- * merging.  int[] + float[] = Object, int[] + String[] = Object,
- * int[][] + float[][] = Object[], int[][] + String[] = Object[].  (The
- * only time this function doesn't return an array class is when one of
- * the arguments is a 1-dimensional primitive array.)
- *
- * This gets a little awkward because we may have to ask the VM to create
- * a new array type with the appropriate element and dimensions.  However, we
- * shouldn't be doing this often.
- */
+Merge two array classes.  We can't use the general "walk up to the
+superclass" merge because the superclass of an array is always Object.
+We want String[] + Integer[] = Object[].  This works for higher dimensions
+as well, e.g. String[][] + Integer[][] = Object[][].
+
+If Foo1 and Foo2 are subclasses of Foo, Foo1[] + Foo2[] = Foo[].
+
+If Class implements Type, Class[] + Type[] = Type[].
+
+If the dimensions don't match, we want to convert to an array of Object
+with the least dimension, e.g. String[][] + String[][][][] = Object[][].
+
+Arrays of primitive types effectively have one less dimension when
+merging.  int[] + float[] = Object, int[] + String[] = Object,
+int[][] + float[][] = Object[], int[][] + String[] = Object[].  (The
+only time this function doesn't return an array class is when one of
+the arguments is a 1-dimensional primitive array.)
+
+This gets a little awkward because we may have to ask the VM to create
+a new array type with the appropriate element and dimensions.  However, we
+shouldn't be doing this often.
+
+回朔父类树，查找2个数组对象共同的父类。
+*/
 static ClassObject* findCommonArraySuperclass(ClassObject* c1, ClassObject* c2)
 {
     ClassObject* arrayClass = NULL;
@@ -2644,35 +2810,37 @@ static ClassObject* findCommonArraySuperclass(ClassObject* c1, ClassObject* c2)
 }
 
 /*
- * Find the first common superclass of the two classes.  We're not
- * interested in common interfaces.
- *
- * The easiest way to do this for concrete classes is to compute the "class
- * depth" of each, move up toward the root of the deepest one until they're
- * at the same depth, then walk both up to the root until they match.
- *
- * If both classes are arrays, we need to merge based on array depth and
- * element type.
- *
- * If one class is an interface, we check to see if the other class/interface
- * (or one of its predecessors) implements the interface.  If so, we return
- * the interface; otherwise, we return Object.
- *
- * NOTE: we continue the tradition of "lazy interface handling".  To wit,
- * suppose we have three classes:
- *   One implements Fancy, Free
- *   Two implements Fancy, Free
- *   Three implements Free
- * where Fancy and Free are unrelated interfaces.  The code requires us
- * to merge One into Two.  Ideally we'd use a common interface, which
- * gives us a choice between Fancy and Free, and no guidance on which to
- * use.  If we use Free, we'll be okay when Three gets merged in, but if
- * we choose Fancy, we're hosed.  The "ideal" solution is to create a
- * set of common interfaces and carry that around, merging further references
- * into it.  This is a pain.  The easy solution is to simply boil them
- * down to Objects and let the runtime invokeinterface call fail, which
- * is what we do.
- */
+Find the first common superclass of the two classes.  We're not
+interested in common interfaces.
+
+The easiest way to do this for concrete classes is to compute the "class
+depth" of each, move up toward the root of the deepest one until they're
+at the same depth, then walk both up to the root until they match.
+
+If both classes are arrays, we need to merge based on array depth and
+element type.
+
+If one class is an interface, we check to see if the other class/interface
+(or one of its predecessors) implements the interface.  If so, we return
+the interface; otherwise, we return Object.
+
+NOTE: we continue the tradition of "lazy interface handling".  To wit,
+suppose we have three classes:
+  One implements Fancy, Free
+  Two implements Fancy, Free
+  Three implements Free
+where Fancy and Free are unrelated interfaces.  The code requires us
+to merge One into Two.  Ideally we'd use a common interface, which
+gives us a choice between Fancy and Free, and no guidance on which to
+use.  If we use Free, we'll be okay when Three gets merged in, but if
+we choose Fancy, we're hosed.  The "ideal" solution is to create a
+set of common interfaces and carry that around, merging further references
+into it.  This is a pain.  The easy solution is to simply boil them
+down to Objects and let the runtime invokeinterface call fail, which
+is what we do.
+
+回朔父类树，查找2个类共同的父类。
+*/
 static ClassObject* findCommonSuperclass(ClassObject* c1, ClassObject* c2)
 {
     assert(!dvmIsPrimitiveClass(c1) && !dvmIsPrimitiveClass(c2));
@@ -2701,10 +2869,14 @@ static ClassObject* findCommonSuperclass(ClassObject* c1, ClassObject* c2)
 }
 
 /*
- * Merge two RegType values.
- *
- * Sets "*pChanged" to "true" if the result doesn't match "type1".
- */
+Merge two RegType values.
+
+Sets "*pChanged" to "true" if the result doesn't match "type1".
+
+合并2个寄存器类型值。
+
+这只“*pChanged”为“true”，如果结果不匹配“类型1”。
+*/
 static RegType mergeTypes(RegType type1, RegType type2, bool* pChanged)
 {
     RegType result;
@@ -2766,13 +2938,15 @@ static RegType mergeTypes(RegType type1, RegType type2, bool* pChanged)
 }
 
 /*
- * Merge the bits that indicate which monitor entry addresses on the stack
- * are associated with this register.
- *
- * The merge is a simple bitwise AND.
- *
- * Sets "*pChanged" to "true" if the result doesn't match "ents1".
- */
+Merge the bits that indicate which monitor entry addresses on the stack
+are associated with this register.
+
+The merge is a simple bitwise AND.
+
+Sets "*pChanged" to "true" if the result doesn't match "ents1".
+
+合并2个MonitorEntrie。
+*/
 static MonitorEntries mergeMonitorEntries(MonitorEntries ents1,
     MonitorEntries ents2, bool* pChanged)
 {
@@ -2783,14 +2957,16 @@ static MonitorEntries mergeMonitorEntries(MonitorEntries ents1,
 }
 
 /*
- * Control can transfer to "nextInsn".
- *
- * Merge the registers from "workLine" into "regTable" at "nextInsn", and
- * set the "changed" flag on the target address if any of the registers
- * has changed.
- *
- * Returns "false" if we detect mis-matched monitor stacks.
- */
+Control can transfer to "nextInsn".
+
+Merge the registers from "workLine" into "regTable" at "nextInsn", and
+set the "changed" flag on the target address if any of the registers
+has changed.
+
+Returns "false" if we detect mis-matched monitor stacks.
+
+NOTE TODO：
+*/
 static bool updateRegisters(const Method* meth, InsnFlags* insnFlags,
     RegisterTable* regTable, int nextInsn, const RegisterLine* workLine)
 {
@@ -2877,28 +3053,32 @@ static bool updateRegisters(const Method* meth, InsnFlags* insnFlags,
 
 
 /*
- * ===========================================================================
- *      Utility functions
- * ===========================================================================
- */
+===========================================================================
+     Utility functions
+
+		 工具类函数
+===========================================================================
+*/
 
 /*
- * Look up an instance field, specified by "fieldIdx", that is going to be
- * accessed in object "objType".  This resolves the field and then verifies
- * that the class containing the field is an instance of the reference in
- * "objType".
- *
- * It is possible for "objType" to be kRegTypeZero, meaning that we might
- * have a null reference.  This is a runtime problem, so we allow it,
- * skipping some of the type checks.
- *
- * In general, "objType" must be an initialized reference.  However, we
- * allow it to be uninitialized if this is an "<init>" method and the field
- * is declared within the "objType" class.
- *
- * Returns an InstField on success, returns NULL and sets "*pFailure"
- * on failure.
- */
+Look up an instance field, specified by "fieldIdx", that is going to be
+accessed in object "objType".  This resolves the field and then verifies
+that the class containing the field is an instance of the reference in
+"objType".
+
+It is possible for "objType" to be kRegTypeZero, meaning that we might
+have a null reference.  This is a runtime problem, so we allow it,
+skipping some of the type checks.
+
+In general, "objType" must be an initialized reference.  However, we
+allow it to be uninitialized if this is an "<init>" method and the field
+is declared within the "objType" class.
+
+Returns an InstField on success, returns NULL and sets "*pFailure"
+on failure.
+
+获取指令域
+*/
 static InstField* getInstField(const Method* meth,
     const UninitInstanceMap* uninitMap, RegType objType, int fieldIdx,
     VerifyError* pFailure)
@@ -2965,11 +3145,13 @@ bail:
 }
 
 /*
- * Look up a static field.
- *
- * Returns a StaticField on success, returns NULL and sets "*pFailure"
- * on failure.
- */
+Look up a static field.
+
+Returns a StaticField on success, returns NULL and sets "*pFailure"
+on failure.
+
+获取静态域。
+*/
 static StaticField* getStaticField(const Method* meth, int fieldIdx,
     VerifyError* pFailure)
 {
@@ -2994,11 +3176,15 @@ bail:
 }
 
 /*
- * If "field" is marked "final", make sure this is the either <clinit>
- * or <init> as appropriate.
- *
- * Sets "*pFailure" on failure.
- */
+If "field" is marked "final", make sure this is the either <clinit>
+or <init> as appropriate.
+
+Sets "*pFailure" on failure.
+
+如果“field”标识为“final”，确保它是<clint>或<init>。
+
+失败时设置“*pFailures”。
+*/
 static void checkFinalFieldAccess(const Method* meth, const Field* field,
     VerifyError* pFailure)
 {
@@ -3038,10 +3224,14 @@ static void checkFinalFieldAccess(const Method* meth, const Field* field,
 }
 
 /*
- * Make sure that the register type is suitable for use as an array index.
- *
- * Sets "*pFailure" if not.
- */
+Make sure that the register type is suitable for use as an array index.
+
+Sets "*pFailure" if not.
+
+确保寄存器类型适合，当作为一个数组索引使用。
+
+如果不是，设置“*pFailure”。
+*/
 static void checkArrayIndexType(const Method* meth, RegType regType,
     VerifyError* pFailure)
 {
@@ -3062,16 +3252,20 @@ static void checkArrayIndexType(const Method* meth, RegType regType,
 }
 
 /*
- * Check constraints on constructor return.  Specifically, make sure that
- * the "this" argument got initialized.
- *
- * The "this" argument to <init> uses code offset kUninitThisArgAddr, which
- * puts it at the start of the list in slot 0.  If we see a register with
- * an uninitialized slot 0 reference, we know it somehow didn't get
- * initialized.
- *
- * Returns "true" if all is well.
- */
+Check constraints on constructor return.  Specifically, make sure that
+the "this" argument got initialized.
+
+The "this" argument to <init> uses code offset kUninitThisArgAddr, which
+puts it at the start of the list in slot 0.  If we see a register with
+an uninitialized slot 0 reference, we know it somehow didn't get
+initialized.
+
+Returns "true" if all is well.
+
+检查构造方法返回的约束条件。确保“this”参数已经初始化。
+
+如果初始化没有调用父类初始化则校验失败。
+*/
 static bool checkConstructorReturn(const Method* meth,
     const RegisterLine* registerLine, const int insnRegCount)
 {
@@ -3093,13 +3287,15 @@ static bool checkConstructorReturn(const Method* meth,
 }
 
 /*
- * Verify that the target instruction is not "move-exception".  It's important
- * that the only way to execute a move-exception is as the first instruction
- * of an exception handler.
- *
- * Returns "true" if all is well, "false" if the target instruction is
- * move-exception.
- */
+Verify that the target instruction is not "move-exception".  It's important
+that the only way to execute a move-exception is as the first instruction
+of an exception handler.
+
+Returns "true" if all is well, "false" if the target instruction is
+move-exception.
+
+校验目标指令不是“move-exception”指令。
+*/
 static bool checkMoveException(const Method* meth, int insnIdx,
     const char* logNote)
 {
@@ -3113,16 +3309,18 @@ static bool checkMoveException(const Method* meth, int insnIdx,
 }
 
 /*
- * For the "move-exception" instruction at "insnIdx", which must be at an
- * exception handler address, determine the first common superclass of
- * all exceptions that can land here.  (For javac output, we're probably
- * looking at multiple spans of bytecode covered by one "try" that lands
- * at an exception-specific "catch", but in general the handler could be
- * shared for multiple exceptions.)
- *
- * Returns NULL if no matching exception handler can be found, or if the
- * exception is not a subclass of Throwable.
- */
+For the "move-exception" instruction at "insnIdx", which must be at an
+exception handler address, determine the first common superclass of
+all exceptions that can land here.  (For javac output, we're probably
+looking at multiple spans of bytecode covered by one "try" that lands
+at an exception-specific "catch", but in general the handler could be
+shared for multiple exceptions.)
+
+Returns NULL if no matching exception handler can be found, or if the
+exception is not a subclass of Throwable.
+
+获取捕获异常的类型。
+*/
 static ClassObject* getCaughtExceptionType(const Method* meth, int insnIdx,
     VerifyError* pFailure)
 {
@@ -3198,10 +3396,14 @@ static ClassObject* getCaughtExceptionType(const Method* meth, int insnIdx,
 }
 
 /*
- * Helper for initRegisterTable.
- *
- * Returns an updated copy of "storage".
- */
+Helper for initRegisterTable.
+
+Returns an updated copy of "storage".
+
+initRegisterTable辅助方法。
+
+返回一个已更新的“storage”的拷贝。
+*/
 static u1* assignLineStorage(u1* storage, RegisterLine* line,
     bool trackMonitors, size_t regTypeSize, size_t monEntSize, size_t stackSize)
 {
@@ -3221,18 +3423,22 @@ static u1* assignLineStorage(u1* storage, RegisterLine* line,
 }
 
 /*
- * Initialize the RegisterTable.
- *
- * Every instruction address can have a different set of information about
- * what's in which register, but for verification purposes we only need to
- * store it at branch target addresses (because we merge into that).
- *
- * By zeroing out the regType storage we are effectively initializing the
- * register information to kRegTypeUnknown.
- *
- * We jump through some hoops here to minimize the total number of
- * allocations we have to perform per method verified.
- */
+Initialize the RegisterTable.
+
+Every instruction address can have a different set of information about
+what's in which register, but for verification purposes we only need to
+store it at branch target addresses (because we merge into that).
+
+By zeroing out the regType storage we are effectively initializing the
+register information to kRegTypeUnknown.
+
+We jump through some hoops here to minimize the total number of
+allocations we have to perform per method verified.
+
+初始化RegisterTable。
+
+NOTE TODO：
+*/
 static bool initRegisterTable(const VerifierData* vdata,
     RegisterTable* regTable, RegisterTrackingMode trackRegsFor)
 {
@@ -3256,13 +3462,19 @@ static bool initRegisterTable(const VerifierData* vdata,
     assert(insnsSize > 0);
 
     /*
-     * Count up the number of "interesting" instructions.
-     *
-     * "All" means "every address that holds the start of an instruction".
-     * "Branches" and "GcPoints" mean just those addresses.
-     *
-     * "GcPoints" fills about half the addresses, "Branches" about 15%.
-     */
+    Count up the number of "interesting" instructions.
+    
+    "All" means "every address that holds the start of an instruction".
+    "Branches" and "GcPoints" mean just those addresses.
+    
+    "GcPoints" fills about half the addresses, "Branches" about 15%.
+    
+    累加“指定”指令数。
+    
+    “All”表示“每个地址持有一条指令的起始地址”。
+    “Breanches”和“GcPoints”表示只是这些地址。
+    “GcPoints”填充了一大半地址，“Branches”大约15%。
+    */
     int interestingCount = kExtraLines;
 
     for (i = 0; i < insnsSize; i++) {
@@ -3353,8 +3565,10 @@ static bool initRegisterTable(const VerifierData* vdata,
     }
 
     /*
-     * Grab storage for our "temporary" register lines.
-     */
+    Grab storage for our "temporary" register lines.
+    
+    获取临时寄存器行拷贝空间。
+    */
     storage = assignLineStorage(storage, &regTable->workLine,
         trackMonitors, regTypeSize, monEntSize, stackSize);
     storage = assignLineStorage(storage, &regTable->savedLine,
@@ -3370,8 +3584,10 @@ static bool initRegisterTable(const VerifierData* vdata,
 }
 
 /*
- * Free up any "hairy" structures associated with register lines.
- */
+Free up any "hairy" structures associated with register lines.
+
+释放和register lines相关的一些结构体。
+*/
 static void freeRegisterLineInnards(VerifierData* vdata)
 {
     unsigned int idx;
@@ -3388,10 +3604,14 @@ static void freeRegisterLineInnards(VerifierData* vdata)
 
 
 /*
- * Verify that the arguments in a filled-new-array instruction are valid.
- *
- * "resClass" is the class refered to by pDecInsn->vB.
- */
+Verify that the arguments in a filled-new-array instruction are valid.
+
+"resClass" is the class refered to by pDecInsn->vB.
+
+校验filled-new-array指令参数有效。
+
+“resClass”是一个pDecInsn->vB的类引用。
+*/
 static void verifyFilledNewArrayRegs(const Method* meth,
     RegisterLine* registerLine, const DecodedInstruction* pDecInsn,
     ClassObject* resClass, bool isRange, VerifyError* pFailure)
@@ -3433,23 +3653,25 @@ static void verifyFilledNewArrayRegs(const Method* meth,
 
 
 /*
- * Replace an instruction with "throw-verification-error".  This allows us to
- * defer error reporting until the code path is first used.
- *
- * This is expected to be called during "just in time" verification, not
- * from within dexopt.  (Verification failures in dexopt will result in
- * postponement of verification to first use of the class.)
- *
- * The throw-verification-error instruction requires two code units.  Some
- * of the replaced instructions require three; the third code unit will
- * receive a "nop".  The instruction's length will be left unchanged
- * in "insnFlags".
- *
- * The VM postpones setting of debugger breakpoints in unverified classes,
- * so there should be no clashes with the debugger.
- *
- * Returns "true" on success.
- */
+Replace an instruction with "throw-verification-error".  This allows us to
+defer error reporting until the code path is first used.
+
+This is expected to be called during "just in time" verification, not
+from within dexopt.  (Verification failures in dexopt will result in
+postponement of verification to first use of the class.)
+
+The throw-verification-error instruction requires two code units.  Some
+of the replaced instructions require three; the third code unit will
+receive a "nop".  The instruction's length will be left unchanged
+in "insnFlags".
+
+The VM postpones setting of debugger breakpoints in unverified classes,
+so there should be no clashes with the debugger.
+
+Returns "true" on success.
+
+使用throw-verification-error替换失败的指令。
+*/
 static bool replaceFailingInstruction(const Method* meth, InsnFlags* insnFlags,
     int insnIdx, VerifyError failure)
 {
@@ -3556,8 +3778,10 @@ static bool replaceFailingInstruction(const Method* meth, InsnFlags* insnFlags,
 }
 
 /*
- * Handle a monitor-enter instruction.
- */
+Handle a monitor-enter instruction.
+
+处理一个monitor-enter指令。
+*/
 void handleMonitorEnter(RegisterLine* workLine, u4 regIdx, u4 insnIdx,
     VerifyError* pFailure)
 {
@@ -3589,8 +3813,10 @@ void handleMonitorEnter(RegisterLine* workLine, u4 regIdx, u4 insnIdx,
 }
 
 /*
- * Handle a monitor-exit instruction.
- */
+Handle a monitor-exit instruction.
+
+处理一个monitor-exit指令。
+*/
 void handleMonitorExit(RegisterLine* workLine, u4 regIdx, u4 insnIdx,
     VerifyError* pFailure)
 {
@@ -3649,12 +3875,18 @@ void handleMonitorExit(RegisterLine* workLine, u4 regIdx, u4 insnIdx,
  */
 
 /*
- * One-time preparation.
- */
+One-time preparation.
+
+检查Tab合并。
+*/
 static void verifyPrep()
 {
 #ifndef NDEBUG
-    /* only need to do this if the table was updated */
+    /* 
+    only need to do this if the table was updated 
+    
+    如果table已更新，仅需要做Tab合并。
+    */
     checkMergeTab();
 #endif
 }
@@ -3683,20 +3915,30 @@ bool dvmVerifyCodeFlow(VerifierData* vdata)
 #endif
 
     /* TODO: move this elsewhere -- we don't need to do this for every method */
+    
+    /* 检查转换表的对称性 */
     verifyPrep();
-
+		
+		/* 如果方法寄存器大小 > 4M，打印警告日志：该方法是个庞大的方法体。 */
     if (meth->registersSize * insnsSize > 4*1024*1024) {
         LOG_VFY_METH(meth,
             "VFY: warning: method is huge (regs=%d insnsSize=%d)",
             meth->registersSize, insnsSize);
-        /* might be bogus data, might be some huge generated method */
+        /* 
+        might be bogus data, might be some huge generated method 
+        
+        可能是伪造的数据，也可能一些庞大的生成方法。
+        */
     }
 
     /*
-     * Create register lists, and initialize them to "Unknown".  If we're
-     * also going to create the register map, we need to retain the
-     * register lists for a larger set of addresses.
-     */
+    Create register lists, and initialize them to "Unknown".  If we're
+    also going to create the register map, we need to retain the
+    register lists for a larger set of addresses.
+    
+    创建寄存器列表，并且初始化它们到“Unknown”状态。如果要创建一个寄存器map，
+    需要为一个更大的地址组保持寄存器列表
+    */
     if (!initRegisterTable(vdata, &regTable,
             generateRegisterMap ? kTrackRegsGcPoints : kTrackRegsBranches))
         goto bail;
@@ -3704,49 +3946,63 @@ bool dvmVerifyCodeFlow(VerifierData* vdata)
     vdata->registerLines = regTable.registerLines;
 
     /*
-     * Perform liveness analysis.
-     *
-     * We can do this before or after the main verifier pass.  The choice
-     * affects whether or not we see the effects of verifier instruction
-     * changes, i.e. substitution of throw-verification-error.
-     *
-     * In practice the ordering doesn't really matter, because T-V-E
-     * just prunes "can continue", creating regions of dead code (with
-     * corresponding register map data that will never be used).
-     */
+    Perform liveness analysis.
+    
+    We can do this before or after the main verifier pass.  The choice
+    affects whether or not we see the effects of verifier instruction
+    changes, i.e. substitution of throw-verification-error.
+    
+    In practice the ordering doesn't really matter, because T-V-E
+    just prunes "can continue", creating regions of dead code (with
+    corresponding register map data that will never be used).
+    
+    执行生命周期分析。
+    
+    
+    */
     if (generateRegisterMap &&
         gDvm.registerMapMode == kRegisterMapModeLivePrecise)
     {
         /*
-         * Compute basic blocks and predecessor lists.
-         */
+        Compute basic blocks and predecessor lists.
+        
+        抽取方法中所有程序基本块，并且初始化。
+        */
         if (!dvmComputeVfyBasicBlocks(vdata))
             goto bail;
 
         /*
-         * Compute liveness.
-         */
+        Compute liveness.
+        
+        NOTE TODO：
+        */
         if (!dvmComputeLiveness(vdata))
             goto bail;
     }
 
     /*
-     * Initialize the types of the registers that correspond to the
-     * method arguments.  We can determine this from the method signature.
-     */
+    Initialize the types of the registers that correspond to the
+    method arguments.  We can determine this from the method signature.
+    
+    初始化和方法参数相关的寄存器类型。我们可以从这个方法的签名来确定。
+    */
     if (!setTypesFromSignature(meth, regTable.registerLines[0].regTypes,
             vdata->uninitMap))
         goto bail;
 
     /*
-     * Run the verifier.
-     */
+    Run the verifier.
+    
+    运行校验器。
+    */
     if (!doCodeVerification(vdata, &regTable))
         goto bail;
 
     /*
-     * Generate a register map.
-     */
+    Generate a register map.
+    
+    创建寄存器map。
+    */
     if (generateRegisterMap) {
         RegisterMap* pMap = dvmGenerateRegisterMapV(vdata);
         if (pMap != NULL) {
@@ -3772,55 +4028,57 @@ bail:
 }
 
 /*
- * Grind through the instructions.
- *
- * The basic strategy is as outlined in v3 4.11.1.2: set the "changed" bit
- * on the first instruction, process it (setting additional "changed" bits),
- * and repeat until there are no more.
- *
- * v3 4.11.1.1
- * - (N/A) operand stack is always the same size
- * - operand stack [registers] contain the correct types of values
- * - local variables [registers] contain the correct types of values
- * - methods are invoked with the appropriate arguments
- * - fields are assigned using values of appropriate types
- * - opcodes have the correct type values in operand registers
- * - there is never an uninitialized class instance in a local variable in
- *   code protected by an exception handler (operand stack is okay, because
- *   the operand stack is discarded when an exception is thrown) [can't
- *   know what's a local var w/o the debug info -- should fall out of
- *   register typing]
- *
- * v3 4.11.1.2
- * - execution cannot fall off the end of the code
- *
- * (We also do many of the items described in the "static checks" sections,
- * because it's easier to do them here.)
- *
- * We need an array of RegType values, one per register, for every
- * instruction.  If the method uses monitor-enter, we need extra data
- * for every register, and a stack for every "interesting" instruction.
- * In theory this could become quite large -- up to several megabytes for
- * a monster function.
- *
- * NOTE:
- * The spec forbids backward branches when there's an uninitialized reference
- * in a register.  The idea is to prevent something like this:
- *   loop:
- *     move r1, r0
- *     new-instance r0, MyClass
- *     ...
- *     if-eq rN, loop  // once
- *   initialize r0
- *
- * This leaves us with two different instances, both allocated by the
- * same instruction, but only one is initialized.  The scheme outlined in
- * v3 4.11.1.4 wouldn't catch this, so they work around it by preventing
- * backward branches.  We achieve identical results without restricting
- * code reordering by specifying that you can't execute the new-instance
- * instruction if a register contains an uninitialized instance created
- * by that same instrutcion.
- */
+Grind through the instructions.
+
+The basic strategy is as outlined in v3 4.11.1.2: set the "changed" bit
+on the first instruction, process it (setting additional "changed" bits),
+and repeat until there are no more.
+
+v3 4.11.1.1
+- (N/A) operand stack is always the same size
+- operand stack [registers] contain the correct types of values
+- local variables [registers] contain the correct types of values
+- methods are invoked with the appropriate arguments
+- fields are assigned using values of appropriate types
+- opcodes have the correct type values in operand registers
+- there is never an uninitialized class instance in a local variable in
+  code protected by an exception handler (operand stack is okay, because
+  the operand stack is discarded when an exception is thrown) [can't
+  know what's a local var w/o the debug info -- should fall out of
+  register typing]
+
+v3 4.11.1.2
+- execution cannot fall off the end of the code
+
+(We also do many of the items described in the "static checks" sections,
+because it's easier to do them here.)
+
+We need an array of RegType values, one per register, for every
+instruction.  If the method uses monitor-enter, we need extra data
+for every register, and a stack for every "interesting" instruction.
+In theory this could become quite large -- up to several megabytes for
+a monster function.
+
+NOTE:
+The spec forbids backward branches when there's an uninitialized reference
+in a register.  The idea is to prevent something like this:
+  loop:
+    move r1, r0
+    new-instance r0, MyClass
+    ...
+    if-eq rN, loop  // once
+  initialize r0
+
+This leaves us with two different instances, both allocated by the
+same instruction, but only one is initialized.  The scheme outlined in
+v3 4.11.1.4 wouldn't catch this, so they work around it by preventing
+backward branches.  We achieve identical results without restricting
+code reordering by specifying that you can't execute the new-instance
+instruction if a register contains an uninitialized instance created
+by that same instrutcion.
+
+将指令解码，对每条指令做详细校验，该方法涵盖了指令校验的规则，及其繁琐...
+*/
 static bool doCodeVerification(VerifierData* vdata, RegisterTable* regTable)
 {
     const Method* meth = vdata->method;
@@ -3832,8 +4090,10 @@ static bool doCodeVerification(VerifierData* vdata, RegisterTable* regTable)
     int insnIdx, startGuess;
 
     /*
-     * Begin by marking the first instruction as "changed".
-     */
+    Begin by marking the first instruction as "changed".
+    
+    开始标志第一条指令为“changed”。
+    */
     dvmInsnSetChanged(insnFlags, 0, true);
 
     if (dvmWantVerboseVerification(meth)) {
@@ -3854,13 +4114,17 @@ static bool doCodeVerification(VerifierData* vdata, RegisterTable* regTable)
     startGuess = 0;
 
     /*
-     * Continue until no instructions are marked "changed".
-     */
+    Continue until no instructions are marked "changed".
+    
+    循环处理直到没有指令标识为“changed”。
+    */
     while (true) {
         /*
-         * Find the first marked one.  Use "startGuess" as a way to find
-         * one quickly.
-         */
+        Find the first marked one.  Use "startGuess" as a way to find
+        one quickly.
+        
+        查找第一个标识为“changed”指令。使用“startGuess”这种方式快速查找。
+        */
         for (insnIdx = startGuess; insnIdx < insnsSize; insnIdx++) {
             if (dvmInsnIsChanged(insnFlags, insnIdx))
                 break;
@@ -3998,19 +4262,21 @@ bail:
 
 
 /*
- * Perform verification for a single instruction.
- *
- * This requires fully decoding the instruction to determine the effect
- * it has on registers.
- *
- * Finds zero or more following instructions and sets the "changed" flag
- * if execution at that point needs to be (re-)evaluated.  Register changes
- * are merged into "regTypes" at the target addresses.  Does not set or
- * clear any other flags in "insnFlags".
- *
- * This may alter meth->insns if we need to replace an instruction with
- * throw-verification-error.
- */
+Perform verification for a single instruction.
+
+This requires fully decoding the instruction to determine the effect
+it has on registers.
+
+Finds zero or more following instructions and sets the "changed" flag
+if execution at that point needs to be (re-)evaluated.  Register changes
+are merged into "regTypes" at the target addresses.  Does not set or
+clear any other flags in "insnFlags".
+
+This may alter meth->insns if we need to replace an instruction with
+throw-verification-error.
+
+
+*/
 static bool verifyInstruction(const Method* meth, InsnFlags* insnFlags,
     RegisterTable* regTable, int insnIdx, UninitInstanceMap* uninitMap,
     int* pStartGuess)

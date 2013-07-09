@@ -15,17 +15,21 @@
  */
 
 /*
- * Dalvik verification subroutines.
- */
+Dalvik verification subroutines.
+
+Dalvik校验子程序
+*/
 #include "Dalvik.h"
 #include "analysis/CodeVerify.h"
 #include "libdex/InstrUtils.h"
 
 
 /*
- * This is used when debugging to apply a magnifying glass to the
- * verification of a particular method.
- */
+This is used when debugging to apply a magnifying glass to the
+verification of a particular method.
+
+NOTE TODO：
+*/
 bool dvmWantVerboseVerification(const Method* meth)
 {
     return false;       /* COMMENT OUT to enable verbose debugging */
@@ -38,10 +42,13 @@ bool dvmWantVerboseVerification(const Method* meth)
 }
 
 /*
- * Output a code verifier warning message.  For the pre-verifier it's not
- * a big deal if something fails (and it may even be expected), but if
- * we're doing just-in-time verification it's significant.
- */
+Output a code verifier warning message.  For the pre-verifier it's not
+a big deal if something fails (and it may even be expected), but if
+we're doing just-in-time verification it's significant.
+
+输出代码校验器警告信息。对于预校验器，如果一些处理失败，不会有什么大问题，
+但是如果正在进行JIT校验，问题就严重了。
+*/
 void dvmLogVerifyFailure(const Method* meth, const char* format, ...)
 {
     va_list ap;
@@ -65,12 +72,14 @@ void dvmLogVerifyFailure(const Method* meth, const char* format, ...)
 }
 
 /*
- * Show a relatively human-readable message describing the failure to
- * resolve a class.
- *
- * TODO: this is somewhat misleading when resolution fails because of
- * illegal access rather than nonexistent class.
- */
+Show a relatively human-readable message describing the failure to
+resolve a class.
+
+TODO: this is somewhat misleading when resolution fails because of
+illegal access rather than nonexistent class.
+
+格式化处理失败类的日志(供人读)
+*/
 void dvmLogUnableToResolveClass(const char* missingClassDescr,
     const Method* meth)
 {
@@ -85,10 +94,20 @@ void dvmLogUnableToResolveClass(const char* missingClassDescr,
 }
 
 /*
- * Extract the relative offset from a branch instruction.
- *
- * Returns "false" on failure (e.g. this isn't a branch instruction).
- */
+Extract the relative offset from a branch instruction.
+
+Returns "false" on failure (e.g. this isn't a branch instruction).
+
+从分支指令处获取相关分支偏移量。
+
+分支指令：
+1.OP_GOTO
+2.OP_GOTO_32
+3.OP_GOTO_16
+4.OP_IF_LEZ
+
+失败返回“false”(即这不是一个分支指令)
+*/
 bool dvmGetBranchOffset(const Method* meth, const InsnFlags* insnFlags,
     int curOffset, s4* pOffset, bool* pConditional)
 {

@@ -430,7 +430,7 @@ Ordinarily we include kRegTypeZero in the "is it a reference"
 check.  There's no value in doing so here, because we know
 the register can't hold anything but zero.
 
-
+确定RegType值是否是一个引用类型。
 */
 static inline bool isReferenceType(RegType type)
 {
@@ -438,13 +438,15 @@ static inline bool isReferenceType(RegType type)
 }
 
 /*
- * Given a line of registers, output a bit vector that indicates whether
- * or not the register holds a reference type (which could be null).
- *
- * We use '1' to indicate it's a reference, '0' for anything else (numeric
- * value, uninitialized data, merge conflict).  Register 0 will be found
- * in the low bit of the first byte.
- */
+Given a line of registers, output a bit vector that indicates whether
+or not the register holds a reference type (which could be null).
+
+We use '1' to indicate it's a reference, '0' for anything else (numeric
+value, uninitialized data, merge conflict).  Register 0 will be found
+in the low bit of the first byte.
+
+NOTE TODO：
+*/
 static void outputTypeVector(const RegType* regs, int insnRegCount, u1* data)
 {
     u1 val = 0;
@@ -467,10 +469,14 @@ static void outputTypeVector(const RegType* regs, int insnRegCount, u1* data)
 }
 
 /*
- * Print the map as a series of binary strings.
- *
- * Pass in method->registersSize if known, or -1 if not.
- */
+Print the map as a series of binary strings.
+
+Pass in method->registersSize if known, or -1 if not.
+
+打印map，作为一系列而直接字符串。
+
+NOTE TODO：
+*/
 static void dumpRegisterMap(const RegisterMap* pMap, int registersSize)
 {
     const u1* rawMap = pMap->data;
@@ -533,11 +539,15 @@ static void dumpRegisterMap(const RegisterMap* pMap, int registersSize)
 }
 
 /*
- * Double-check the map.
- *
- * We run through all of the data in the map, and compare it to the original.
- * Only works on uncompressed data.
- */
+Double-check the map.
+
+We run through all of the data in the map, and compare it to the original.
+Only works on uncompressed data.
+
+双重校验map。
+
+通过运行所有map中数据，比较原始原来的数据。中只适用于未压缩的数据。
+*/ 
 static bool verifyMap(VerifierData* vdata, const RegisterMap* pMap)
 {
     const u1* rawMap = pMap->data;
@@ -626,22 +636,27 @@ static bool verifyMap(VerifierData* vdata, const RegisterMap* pMap)
 
 
 /*
- * ===========================================================================
- *      DEX generation & parsing
- * ===========================================================================
- */
-
+ ===========================================================================
+      DEX generation & parsing
+        DEX生成 & 解析
+ ===========================================================================
+*/
+ 
 /*
- * Advance "ptr" to ensure 32-bit alignment.
- */
+Advance "ptr" to ensure 32-bit alignment.
+
+向前移动“ptr”指针，以确保32位对齐。
+*/ 
 static inline u1* align32(u1* ptr)
 {
     return (u1*) (((int) ptr + 3) & ~0x03);
 }
 
 /*
- * Compute the size, in bytes, of a register map.
- */
+Compute the size, in bytes, of a register map.
+
+计算寄存器map的字节大小。
+*/
 static size_t computeRegisterMapSize(const RegisterMap* pMap)
 {
     static const int kHeaderSize = offsetof(RegisterMap, data);
@@ -672,14 +687,16 @@ static size_t computeRegisterMapSize(const RegisterMap* pMap)
 }
 
 /*
- * Output the map for a single method, if it has one.
- *
- * Abstract and native methods have no map.  All others are expected to
- * have one, since we know the class verified successfully.
- *
- * This strips the "allocated on heap" flag from the format byte, so that
- * direct-mapped maps are correctly identified as such.
- */
+Output the map for a single method, if it has one.
+
+Abstract and native methods have no map.  All others are expected to
+have one, since we know the class verified successfully.
+
+This strips the "allocated on heap" flag from the format byte, so that
+direct-mapped maps are correctly identified as such.
+
+输出单个方法的寄存器map。
+*/
 static bool writeMapForMethod(const Method* meth, u1** pPtr)
 {
     if (meth->registerMap == NULL) {
@@ -692,11 +709,19 @@ static bool writeMapForMethod(const Method* meth, u1** pPtr)
         return true;
     }
 
-    /* serialize map into the buffer */
+    /*
+    serialize map into the buffer 
+    
+    序列化map到buffer
+    */
     size_t mapSize = computeRegisterMapSize(meth->registerMap);
     memcpy(*pPtr, meth->registerMap, mapSize);
 
-    /* strip the "on heap" flag out of the format byte, which is always first */
+    /* 
+    strip the "on heap" flag out of the format byte, which is always first 
+    
+ 		NOTE TODO：   
+    */
     assert(**pPtr == meth->registerMap->format);
     **pPtr &= ~(kRegMapFormatOnHeap);
 
@@ -706,10 +731,12 @@ static bool writeMapForMethod(const Method* meth, u1** pPtr)
 }
 
 /*
- * Write maps for all methods in the specified class to the buffer, which
- * can hold at most "length" bytes.  "*pPtr" will be advanced past the end
- * of the data we write.
- */
+Write maps for all methods in the specified class to the buffer, which
+can hold at most "length" bytes.  "*pPtr" will be advanced past the end
+of the data we write.
+
+NOTE TODO：
+*/
 static bool writeMapsAllMethods(DvmDex* pDvmDex, const ClassObject* clazz,
     u1** pPtr, size_t length)
 {
@@ -728,18 +755,21 @@ static bool writeMapsAllMethods(DvmDex* pDvmDex, const ClassObject* clazz,
     methodCount = 0;
 
     /*
-     * Run through all methods, direct then virtual.  The class loader will
-     * traverse them in the same order.  (We could split them into two
-     * distinct pieces, but there doesn't appear to be any value in doing
-     * so other than that it makes class loading slightly less fragile.)
-     *
-     * The class loader won't know about miranda methods at the point
-     * where it parses this, so we omit those.
-     *
-     * TODO: consider omitting all native/abstract definitions.  Should be
-     * safe, though we lose the ability to sanity-check against the
-     * method counts in the DEX file.
-     */
+    Run through all methods, direct then virtual.  The class loader will
+    traverse them in the same order.  (We could split them into two
+    distinct pieces, but there doesn't appear to be any value in doing
+    so other than that it makes class loading slightly less fragile.)
+    
+    The class loader won't know about miranda methods at the point
+    where it parses this, so we omit those.
+    
+    TODO: consider omitting all native/abstract definitions.  Should be
+    safe, though we lose the ability to sanity-check against the
+    method counts in the DEX file.
+    
+    通过运行所有方法，直接方法和虚方法。类加载器将以同样的顺序转换它们。
+    （分割它们为2个不同的部分，似乎没有任何价值，这样做使得类加载不那么脆弱）
+    */
     for (i = 0; i < clazz->directMethodCount; i++) {
         const Method* meth = &clazz->directMethods[i];
         if (dvmIsMirandaMethod(meth))
@@ -769,11 +799,15 @@ static bool writeMapsAllMethods(DvmDex* pDvmDex, const ClassObject* clazz,
 }
 
 /*
- * Write maps for all classes to the specified buffer, which can hold at
- * most "length" bytes.
- *
- * Returns the actual length used, or 0 on failure.
- */
+Write maps for all classes to the specified buffer, which can hold at
+most "length" bytes.
+
+Returns the actual length used, or 0 on failure.
+
+写所有类的maps到指定缓冲区，持有多数“length”字节。
+
+返回使用的实际长度，或者失败返回0。
+*/
 static size_t writeMapsAllClasses(DvmDex* pDvmDex, u1* basePtr, size_t length)
 {
     DexFile* pDexFile = pDvmDex->pDexFile;
@@ -847,8 +881,10 @@ static size_t writeMapsAllClasses(DvmDex* pDvmDex, u1* basePtr, size_t length)
 }
 
 /*
- * Generate a register map set for all verified classes in "pDvmDex".
- */
+Generate a register map set for all verified classes in "pDvmDex".
+
+为在“pDvmDex”中所有已校验类生成一个寄存器map集合
+*/
 RegisterMapBuilder* dvmGenerateRegisterMaps(DvmDex* pDvmDex)
 {
     RegisterMapBuilder* pBuilder;
@@ -858,29 +894,40 @@ RegisterMapBuilder* dvmGenerateRegisterMaps(DvmDex* pDvmDex)
         return NULL;
 
     /*
-     * We have a couple of options here:
-     *  (1) Compute the size of the output, and malloc a buffer.
-     *  (2) Create a "large-enough" anonymous mmap region.
-     *
-     * The nice thing about option #2 is that we don't have to traverse
-     * all of the classes and methods twice.  The risk is that we might
-     * not make the region large enough.  Since the pages aren't mapped
-     * until used we can allocate a semi-absurd amount of memory without
-     * worrying about the effect on the rest of the system.
-     *
-     * The basic encoding on the largest jar file requires about 1MB of
-     * storage.  We map out 4MB here.  (TODO: guarantee that the last
-     * page of the mapping is marked invalid, so we reliably fail if
-     * we overrun.)
-     */
+    We have a couple of options here:
+     (1) Compute the size of the output, and malloc a buffer.
+     (2) Create a "large-enough" anonymous mmap region.
+    
+    The nice thing about option #2 is that we don't have to traverse
+    all of the classes and methods twice.  The risk is that we might
+    not make the region large enough.  Since the pages aren't mapped
+    until used we can allocate a semi-absurd amount of memory without
+    worrying about the effect on the rest of the system.
+    
+    The basic encoding on the largest jar file requires about 1MB of
+    storage.  We map out 4MB here.  (TODO: guarantee that the last
+    page of the mapping is marked invalid, so we reliably fail if
+    we overrun.)
+    
+    这里有一对选项：
+     (1)计算输出大小，并且分配一个缓冲区。
+     (2)创建一个足够大的匿名mmap映射区域。
+     
+    选项 #2 我们不必遍历所有类和方法两次。风险是这样我们可能会没有足够大的空间。
+    由于页面没有映射，我们分配的内存的使用量不必担心对其它系统的影响。
+    
+    在最大的jar文件中基本编码大概需要1MB的空间。这里映射4MB。
+    */
     if (sysCreatePrivateMap(4 * 1024 * 1024, &pBuilder->memMap) != 0) {
         free(pBuilder);
         return NULL;
     }
 
     /*
-     * Create the maps.
-     */
+    Create the maps.
+    
+    创建maps。
+    */
     size_t actual = writeMapsAllClasses(pDvmDex, (u1*)pBuilder->memMap.addr,
                                         pBuilder->memMap.length);
     if (actual == 0) {
@@ -896,8 +943,10 @@ RegisterMapBuilder* dvmGenerateRegisterMaps(DvmDex* pDvmDex)
 }
 
 /*
- * Free the builder.
- */
+Free the builder.
+
+释放寄存器maps的builder
+*/
 void dvmFreeRegisterMapBuilder(RegisterMapBuilder* pBuilder)
 {
     if (pBuilder == NULL)
@@ -909,10 +958,14 @@ void dvmFreeRegisterMapBuilder(RegisterMapBuilder* pBuilder)
 
 
 /*
- * Find the data for the specified class.
- *
- * If there's no register map data, or none for this class, we return NULL.
- */
+Find the data for the specified class.
+
+If there's no register map data, or none for this class, we return NULL.
+
+查找指定类的数据。
+
+如果没有寄存器map数据，或者这个类什么也没有，返回NULL。
+*/
 const void* dvmRegisterMapGetClassData(const DexFile* pDexFile, u4 classIdx,
     u4* pNumMaps)
 {
@@ -942,8 +995,10 @@ const void* dvmRegisterMapGetClassData(const DexFile* pDexFile, u4 classIdx,
 }
 
 /*
- * This advances "*pPtr" and returns its original value.
- */
+This advances "*pPtr" and returns its original value.
+
+移动“*pPtr”并且返回它的原始值。
+*/
 const RegisterMap* dvmRegisterMapGetNext(const void** pPtr)
 {
     const RegisterMap* pMap = (const RegisterMap*) *pPtr;
@@ -957,16 +1012,21 @@ const RegisterMap* dvmRegisterMapGetNext(const void** pPtr)
 
 
 /*
- * ===========================================================================
- *      Utility functions
- * ===========================================================================
- */
+ ===========================================================================
+      Utility functions
+          工具函数
+ ===========================================================================
+*/
 
 /*
- * Return the data for the specified address, or NULL if not found.
- *
- * The result must be released with dvmReleaseRegisterMapLine().
- */
+Return the data for the specified address, or NULL if not found.
+
+The result must be released with dvmReleaseRegisterMapLine().
+
+返回指定地址的数据，如果没找到为NULL。
+
+结果必须被释放，通过dvmReleaseRegisterMapLine()。
+*/
 const u1* dvmRegisterMapGetLine(const RegisterMap* pMap, int addr)
 {
     int addrWidth, lineWidth;
@@ -1041,10 +1101,14 @@ const u1* dvmRegisterMapGetLine(const RegisterMap* pMap, int addr)
 }
 
 /*
- * Compare two register maps.
- *
- * Returns 0 if they're equal, nonzero if not.
- */
+Compare two register maps.
+
+Returns 0 if they're equal, nonzero if not.
+
+比较2个寄存器。
+
+如果它们不相等，如果不是非0，返回0。
+*/
 static int compareMaps(const RegisterMap* pMap1, const RegisterMap* pMap2)
 {
     size_t size1, size2;
@@ -1066,15 +1130,20 @@ static int compareMaps(const RegisterMap* pMap1, const RegisterMap* pMap2)
 
 
 /*
- * Get the expanded form of the register map associated with the method.
- *
- * If the map is already in one of the uncompressed formats, we return
- * immediately.  Otherwise, we expand the map and replace method's register
- * map pointer, freeing it if it was allocated on the heap.
- *
- * NOTE: this function is not synchronized; external locking is mandatory
- * (unless we're in the zygote, where single-threaded access is guaranteed).
- */
+Get the expanded form of the register map associated with the method.
+
+If the map is already in one of the uncompressed formats, we return
+immediately.  Otherwise, we expand the map and replace method's register
+map pointer, freeing it if it was allocated on the heap.
+
+NOTE: this function is not synchronized; external locking is mandatory
+(unless we're in the zygote, where single-threaded access is guaranteed).
+
+寄存器map相关方法的扩展格式。 
+
+如果map已经是一个未压缩格式，立即返回。否则，我扩展map并替换方法的寄存器map指针，释放
+它，如果它在在堆上被分配的。
+*/
 const RegisterMap* dvmGetExpandedRegisterMap0(Method* method)
 {
     const RegisterMap* curMap = method->registerMap;
@@ -1154,23 +1223,32 @@ const RegisterMap* dvmGetExpandedRegisterMap0(Method* method)
 
 
 /*
- * ===========================================================================
- *      Map compression
- * ===========================================================================
- */
+===========================================================================
+     Map compression
+				
+				 Map压缩
+===========================================================================
+*/
 
 /*
 Notes on map compression
 
+map压缩注释
+
 The idea is to create a compressed form that will be uncompressed before
 use, with the output possibly saved in a cache.  This means we can use an
 approach that is unsuited for random access if we choose.
+
+创建一个在使用前未压缩的压缩格式，输出可能存放在一个缓存中。这意味着我们可以
+使用一种不适合随机存取的方式，如果选择这种方式。
 
 In the event that a map simply does not work with our compression scheme,
 it's reasonable to store the map without compression.  In the future we
 may want to have more than one compression scheme, and try each in turn,
 retaining the best.  (We certainly want to keep the uncompressed form if it
 turns out to be smaller or even slightly larger than the compressed form.)
+
+NOTE TODO：
 
 Each entry consists of an address and a bit vector.  Adjacent entries are
 strongly correlated, suggesting differential encoding.
@@ -1507,13 +1585,20 @@ static int computeBitDiff(const u1* bits1, const u1* bits2, int byteWidth,
 }
 
 /*
- * Compress the register map with differential encoding.
- *
- * "meth" is only needed for debug output.
- *
- * On success, returns a newly-allocated RegisterMap.  If the map is not
- * compatible for some reason, or fails to get smaller, this will return NULL.
- */
+Compress the register map with differential encoding.
+
+"meth" is only needed for debug output.
+
+On success, returns a newly-allocated RegisterMap.  If the map is not
+compatible for some reason, or fails to get smaller, this will return NULL.
+
+用不同的编码压缩寄存器map。
+
+“meth”仅仅在调试输出时需要。
+
+成功，返回一个已分配的新的RegisterMap。如果map由于一些原因不兼容，或者由于一些小问题
+导致失败，将返回NULL。
+*/
 static RegisterMap* compressMapDifferential(const RegisterMap* pMap,
     const Method* meth)
 {
@@ -1752,8 +1837,10 @@ static RegisterMap* compressMapDifferential(const RegisterMap* pMap,
 }
 
 /*
- * Toggle the value of the "idx"th bit in "ptr".
- */
+Toggle the value of the "idx"th bit in "ptr".
+
+切换“ptr”中第“idx”索引位的值。
+*/
 static inline void toggleBit(u1* ptr, int idx)
 {
     ptr[idx >> 3] ^= 1 << (idx & 0x07);

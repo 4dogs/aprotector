@@ -35,7 +35,7 @@ exceeds "addrBufSize", the items at the end of the list will not be
 represented in the output array, and this function should be called
 again with a larger buffer.
 
-
+从“pTry”中抽取catch句柄的列表到“addrBuf”。
 */
 static u4 extractCatchHandlers(const DexCode* pCode, const DexTry* pTry,
     u4* addrBuf, size_t addrBufSize)
@@ -292,10 +292,14 @@ static void dumpBasicBlocks(const VerifierData* vdata)
 
 
 /*
- * Generate a list of basic blocks and related information.
- *
- * On success, returns "true" with vdata->basicBlocks initialized.
- */
+Generate a list of basic blocks and related information.
+
+On success, returns "true" with vdata->basicBlocks initialized.
+
+创建一个基本块list和相关信息。
+
+成功返回“true”，同时vdata->basicBlocks已被初始化。
+*/
 bool dvmComputeVfyBasicBlocks(VerifierData* vdata)
 {
     const InsnFlags* insnFlags = vdata->insnFlags;
@@ -318,15 +322,18 @@ bool dvmComputeVfyBasicBlocks(VerifierData* vdata)
     }
 
     /*
-     * Allocate a data structure that allows us to map from an address to
-     * the corresponding basic block.  Initially all pointers are NULL.
-     * They are populated on demand as we proceed (either when we reach a
-     * new BB, or when we need to add an item to the predecessor list in
-     * a not-yet-reached BB).
-     *
-     * Only the first instruction in the block points to the BB structure;
-     * the rest remain NULL.
-     */
+    Allocate a data structure that allows us to map from an address to
+    the corresponding basic block.  Initially all pointers are NULL.
+    They are populated on demand as we proceed (either when we reach a
+    new BB, or when we need to add an item to the predecessor list in
+    a not-yet-reached BB).
+    
+    Only the first instruction in the block points to the BB structure;
+    the rest remain NULL.
+    
+    分配一个数据结构，它允许我们从一个地址进行映射，为了对比基本块。初始化所有指针为NULL。
+    
+    */
     vdata->basicBlocks =
         (VfyBasicBlock**) calloc(insnsSize, sizeof(VfyBasicBlock*));
     if (vdata->basicBlocks == NULL)
@@ -348,8 +355,10 @@ bool dvmComputeVfyBasicBlocks(VerifierData* vdata)
     u4 debugBBIndex = 0;
 
     /*
-     * The address associated with a basic block is the start address.
-     */
+    The address associated with a basic block is the start address.
+    
+    基本程序块相关地址是一个起始地址。
+    */
     blockStartAddr = 0;
 
     for (idx = 0; idx < insnsSize; ) {
@@ -360,19 +369,28 @@ bool dvmComputeVfyBasicBlocks(VerifierData* vdata)
          */
         if (pTries != NULL && idx >= tryEnd) {
             if (tryIndex == pCode->triesSize) {
-                /* no more try blocks in this method */
+                /* 
+                no more try blocks in this method 
+                
+                这个方法中没有try块。
+                */
                 pTries = NULL;
                 numHandlers = 0;
             } else {
                 /*
-                 * Extract the set of handlers.  We want to avoid doing
-                 * this for each block, so we copy them to local storage.
-                 * If it doesn't fit in the small stack area, we'll use
-                 * the heap instead.
-                 *
-                 * It's rare to encounter a method with more than half a
-                 * dozen possible handlers.
-                 */
+                Extract the set of handlers.  We want to avoid doing
+                this for each block, so we copy them to local storage.
+                If it doesn't fit in the small stack area, we'll use
+                the heap instead.
+                
+                It's rare to encounter a method with more than half a
+                dozen possible handlers.
+                
+                提起一组句柄。避免对每个块的直接操作，拷贝它们到本地存储(local storage)。
+                如果它不适合栈区，我们将使用堆来替代。
+                
+                NOTE TODO：
+                */
                 tryStart = pTries[tryIndex].startAddr;
                 tryEnd = tryStart + pTries[tryIndex].insnCount;
 
@@ -380,6 +398,8 @@ bool dvmComputeVfyBasicBlocks(VerifierData* vdata)
                     free(handlerListAlloc);
                     handlerListAlloc = NULL;
                 }
+                
+                /* 计算句柄数，给句柄地址数组赋值 */
                 numHandlers = extractCatchHandlers(pCode, &pTries[tryIndex],
                     handlerAddrs, kHandlerStackAllocSize);
                 assert(numHandlers > 0);    // TODO make sure this is verified
@@ -400,61 +420,86 @@ bool dvmComputeVfyBasicBlocks(VerifierData* vdata)
 
                 tryIndex++;
             }
-        }
+        }/*  */
 
         /*
-         * Check the current instruction, and possibly aspects of the
-         * next instruction, to see if this instruction ends the current
-         * basic block.
-         *
-         * Instructions that can throw only end the block if there is the
-         * possibility of a local handler catching the exception.
-         */
-        Opcode opcode = dexOpcodeFromCodeUnit(meth->insns[idx]);
-        OpcodeFlags opFlags = dexGetFlagsFromOpcode(opcode);
+        Check the current instruction, and possibly aspects of the
+        next instruction, to see if this instruction ends the current
+        basic block.
+        
+        Instructions that can throw only end the block if there is the
+        possibility of a local handler catching the exception.
+        
+        检查当前指令，和可能的一下条指令，查看这条指令是否结束当前程序块。
+        
+				NOTE TODO：
+				*/
+				
+        Opcode opcode = dexOpcodeFromCodeUnit(meth->insns[idx]); /* 获取操作码 */
+        OpcodeFlags opFlags = dexGetFlagsFromOpcode(opcode); /* 获取操作码标识，语法流向，branch、continue、switch... */
         size_t nextIdx = idx + dexGetWidthFromInstruction(&meth->insns[idx]);
         bool endBB = false;
         bool ignoreInstr = false;
 
         if ((opFlags & kInstrCanContinue) == 0) {
-            /* does not continue */
+            /*
+            does not continue 
+            
+            不continue
+            */
             endBB = true;
         } else if ((opFlags & (kInstrCanBranch | kInstrCanSwitch)) != 0) {
-            /* conditionally branches elsewhere */
+            /* 
+            conditionally branches elsewhere 
+            
+            条件分支elsewhere
+            */
             endBB = true;
         } else if ((opFlags & kInstrCanThrow) != 0 &&
                 dvmInsnIsInTry(insnFlags, idx))
         {
-            /* throws an exception that might be caught locally */
+            /* 
+            throws an exception that might be caught locally 
+            
+            抛出本地可能导致的异常
+            */
             endBB = true;
         } else if (isDataChunk(meth->insns[idx])) {
             /*
-             * If this is a data chunk (e.g. switch data) we want to skip
-             * over it entirely.  Set endBB so we don't carry this along as
-             * the start of a block, and ignoreInstr so we don't try to
-             * open a basic block for this instruction.
-             */
+            If this is a data chunk (e.g. switch data) we want to skip
+            over it entirely.  Set endBB so we don't carry this along as
+            the start of a block, and ignoreInstr so we don't try to
+            open a basic block for this instruction.
+            
+            如果是一个数据分支，(例如，swtich数据)，完全忽略跳过。
+            */
             endBB = ignoreInstr = true;
         } else if (dvmInsnIsBranchTarget(insnFlags, nextIdx)) {
             /*
-             * We also need to end it if the next instruction is a branch
-             * target.  Note we've tagged exception catch blocks as such.
-             *
-             * If we're this far along in the "else" chain, we know that
-             * this isn't a data-chunk NOP, and control can continue to
-             * the next instruction, so we're okay examining "nextIdx".
-             */
+            We also need to end it if the next instruction is a branch
+            target.  Note we've tagged exception catch blocks as such.
+            
+            If we're this far along in the "else" chain, we know that
+            this isn't a data-chunk NOP, and control can continue to
+            the next instruction, so we're okay examining "nextIdx".
+            
+            如果下一条指令是一个分支目标，设置结束标识。
+            */
             assert(nextIdx < insnsSize);
             endBB = true;
         } else if (opcode == OP_NOP && isDataChunk(meth->insns[nextIdx])) {
             /*
-             * Handle an odd special case: if this is NOP padding before a
-             * data chunk, also treat it as "ignore".  Otherwise it'll look
-             * like a block that starts and doesn't end.
-             */
+            Handle an odd special case: if this is NOP padding before a
+            data chunk, also treat it as "ignore".  Otherwise it'll look
+            like a block that starts and doesn't end.
+            
+            NOTE TODO：
+            */
             endBB = ignoreInstr = true;
         } else {
-            /* check: return ops should be caught by absence of can-continue */
+            /* 
+            check: return ops should be caught by absence of can-continue 
+            */
             assert((opFlags & kInstrCanReturn) == 0);
         }
 
@@ -493,8 +538,10 @@ bool dvmComputeVfyBasicBlocks(VerifierData* vdata)
         if (endBB) {
             if (!ignoreInstr) {
                 /*
-                 * Create a new BB if one doesn't already exist.
-                 */
+                Create a new BB if one doesn't already exist.
+                
+                如果一个已经不存在了，创建一个新的Basic Block(BB)
+                */
                 VfyBasicBlock* curBlock = vdata->basicBlocks[blockStartAddr];
                 if (curBlock == NULL) {
                     curBlock = allocVfyBasicBlock(vdata, blockStartAddr);
@@ -533,8 +580,10 @@ bail:
 }
 
 /*
- * Free the storage used by basic blocks.
- */
+Free the storage used by basic blocks.
+
+释放通过basic blocks使用的空间。
+*/
 void dvmFreeVfyBasicBlocks(VerifierData* vdata)
 {
     unsigned int idx;

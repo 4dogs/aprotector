@@ -15,8 +15,10 @@
  */
 
 /*
- * Dalvik bytecode verifier.
- */
+Dalvik bytecode verifier.
+
+Dalvik×Ö½ÚÂëÐ£ÑéÆ÷¡£
+*/
 #ifndef DALVIK_CODEVERIFY_H_
 #define DALVIK_CODEVERIFY_H_
 
@@ -123,16 +125,18 @@ typedef u4 MonitorEntries;
 #define kMaxMonitorStackDepth   (sizeof(MonitorEntries) * 8)
 
 /*
- * During verification, we associate one of these with every "interesting"
- * instruction.  We track the status of all registers, and (if the method
- * has any monitor-enter instructions) maintain a stack of entered monitors
- * (identified by code unit offset).
- *
- * If live-precise register maps are enabled, the "liveRegs" vector will
- * be populated.  Unlike the other lists of registers here, we do not
- * track the liveness of the method result register (which is not visible
- * to the GC).
- */
+During verification, we associate one of these with every "interesting"
+instruction.  We track the status of all registers, and (if the method
+has any monitor-enter instructions) maintain a stack of entered monitors
+(identified by code unit offset).
+
+If live-precise register maps are enabled, the "liveRegs" vector will
+be populated.  Unlike the other lists of registers here, we do not
+track the liveness of the method result register (which is not visible
+to the GC).
+
+NOTE TODO£º
+*/
 struct RegisterLine {
     RegType*        regTypes;
     MonitorEntries* monitorEntries;

@@ -15,10 +15,14 @@
  */
 
 /*
- * Declaration of register map data structure and related functions.
- *
- * These structures should be treated as opaque through most of the VM.
- */
+Declaration of register map data structure and related functions.
+
+These structures should be treated as opaque through most of the VM.
+
+声明寄存器map数据结构和相关函数。
+
+这些结构体对VM来说，大部分是不可见的。
+*/
 #ifndef DALVIK_REGISTERMAP_H_
 #define DALVIK_REGISTERMAP_H_
 
@@ -26,30 +30,45 @@
 #include "analysis/CodeVerify.h"
 
 /*
- * Format enumeration for RegisterMap data area.
- */
+Format enumeration for RegisterMap data area.
+
+寄存器map格式。
+*/
 enum RegisterMapFormat {
     kRegMapFormatUnknown = 0,
+    /* 无格式 */
     kRegMapFormatNone,          /* indicates no map data follows */
+    /* 压缩布局，8位地址 */
     kRegMapFormatCompact8,      /* compact layout, 8-bit addresses */
+    /* 压缩布局，16位地址 */
     kRegMapFormatCompact16,     /* compact layout, 16-bit addresses */
+    /* 已压缩，不同的编码 */
     kRegMapFormatDifferential,  /* compressed, differential encoding */
-
+		/* 位标识，指向堆上空间 */
     kRegMapFormatOnHeap = 0x80, /* bit flag, indicates allocation on heap */
 };
 
 /*
- * This is a single variable-size structure.  It may be allocated on the
- * heap or mapped out of a (post-dexopt) DEX file.
- *
- * 32-bit alignment of the structure is NOT guaranteed.  This makes it a
- * little awkward to deal with as a structure; to avoid accidents we use
- * only byte types.  Multi-byte values are little-endian.
- *
- * Size of (format==FormatNone): 1 byte
- * Size of (format==FormatCompact8): 4 + (1 + regWidth) * numEntries
- * Size of (format==FormatCompact16): 4 + (2 + regWidth) * numEntries
- */
+This is a single variable-size structure.  It may be allocated on the
+heap or mapped out of a (post-dexopt) DEX file.
+
+32-bit alignment of the structure is NOT guaranteed.  This makes it a
+little awkward to deal with as a structure; to avoid accidents we use
+only byte types.  Multi-byte values are little-endian.
+
+Size of (format==FormatNone): 1 byte
+Size of (format==FormatCompact8): 4 + (1 + regWidth) * numEntries
+Size of (format==FormatCompact16): 4 + (2 + regWidth) * numEntries
+
+这是一个单独的有效大小的结构。可能在堆上已分配空间，或映射出一个(post-dexopt)DEX文件。
+
+不确保32位对齐。这使这个结构处理起来有点麻烦;为避免麻烦只能使用字节类型。多字节
+值是小端格式。
+
+(format==FormatNone) 大小：1 byte
+(format==FormatCompact8) 大小：4 + (1 + regWidth) * numEntries
+(format==FormatCompact16) 大小： 4 + (2 + regWidth) * numEntries
+*/
 struct RegisterMap {
     /* header */
     u1      format;         /* enum RegisterMapFormat; MUST be first entry */
@@ -64,15 +83,19 @@ bool dvmRegisterMapStartup(void);
 void dvmRegisterMapShutdown(void);
 
 /*
- * Get the format.
- */
+Get the format.
+
+获取格式。
+*/
 INLINE RegisterMapFormat dvmRegisterMapGetFormat(const RegisterMap* pMap) {
     return (RegisterMapFormat)(pMap->format & ~(kRegMapFormatOnHeap));
 }
 
 /*
- * Set the format.
- */
+Set the format.
+
+设置格式。
+*/
 INLINE void dvmRegisterMapSetFormat(RegisterMap* pMap, RegisterMapFormat format)
 {
     pMap->format &= kRegMapFormatOnHeap;
@@ -80,29 +103,37 @@ INLINE void dvmRegisterMapSetFormat(RegisterMap* pMap, RegisterMapFormat format)
 }
 
 /*
- * Get the "on heap" flag.
- */
+Get the "on heap" flag.
+
+获取堆标识。
+*/
 INLINE bool dvmRegisterMapGetOnHeap(const RegisterMap* pMap) {
     return (pMap->format & kRegMapFormatOnHeap) != 0;
 }
 
 /*
- * Get the register bit vector width, in bytes.
- */
+Get the register bit vector width, in bytes.
+
+获取寄存器宽。
+*/
 INLINE u1 dvmRegisterMapGetRegWidth(const RegisterMap* pMap) {
     return pMap->regWidth;
 }
 
 /*
- * Set the register bit vector width, in bytes.
- */
+Set the register bit vector width, in bytes.
+
+设置寄存器宽
+*/
 INLINE void dvmRegisterMapSetRegWidth(RegisterMap* pMap, int regWidth) {
     pMap->regWidth = regWidth;
 }
 
 /*
- * Set the "on heap" flag.
- */
+Set the "on heap" flag.
+
+设置堆标识。
+*/
 INLINE void dvmRegisterMapSetOnHeap(RegisterMap* pMap, bool val) {
     if (val)
         pMap->format |= kRegMapFormatOnHeap;
@@ -111,29 +142,33 @@ INLINE void dvmRegisterMapSetOnHeap(RegisterMap* pMap, bool val) {
 }
 
 /*
- * Get the number of entries in this map.
- */
+Get the number of entries in this map.
+
+获取map实体数量。
+*/
 INLINE u2 dvmRegisterMapGetNumEntries(const RegisterMap* pMap) {
     return pMap->numEntries[0] | (pMap->numEntries[1] << 8);
 }
 
 /*
- * Set the number of entries in this map.
- */
+Set the number of entries in this map.
+
+设置map实体数量。
+*/
 INLINE void dvmRegisterMapSetNumEntries(RegisterMap* pMap, u2 numEntries) {
     pMap->numEntries[0] = (u1) numEntries;
     pMap->numEntries[1] = numEntries >> 8;
 }
 
 /*
- * Retrieve the bit vector for the specified address.  This is a pointer
- * to the bit data from an uncompressed map, or to a temporary copy of
- * data from a compressed map.
- *
- * The caller must call dvmReleaseRegisterMapLine() with the result.
- *
- * Returns NULL if not found.
- */
+Retrieve the bit vector for the specified address.  This is a pointer
+to the bit data from an uncompressed map, or to a temporary copy of
+data from a compressed map.
+
+The caller must call dvmReleaseRegisterMapLine() with the result.
+
+Returns NULL if not found.
+*/
 const u1* dvmRegisterMapGetLine(const RegisterMap* pMap, int addr);
 
 /*

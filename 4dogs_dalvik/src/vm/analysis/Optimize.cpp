@@ -15,9 +15,11 @@
  */
 
 /*
- * Perform some simple bytecode optimizations, chiefly "quickening" of
- * opcodes.
- */
+Perform some simple bytecode optimizations, chiefly "quickening" of
+opcodes.
+
+执行一些简单字节码的优化处理，主要是加快操作码。
+*/
 #include "Dalvik.h"
 #include "libdex/InstrUtils.h"
 #include "Optimize.h"
@@ -27,9 +29,11 @@
 #include <stdlib.h>
 
 /*
- * Virtual/direct calls to "method" are replaced with an execute-inline
- * instruction with index "idx".
- */
+Virtual/direct calls to "method" are replaced with an execute-inline
+instruction with index "idx".
+
+Virtual/direct方法调用执行一个“idx”索引的内联替换指令。
+*/
 struct InlineSub {
     Method* method;
     int     inlineIdx;
@@ -52,11 +56,13 @@ static bool needsReturnBarrier(Method* method);
 
 
 /*
- * Create a table of inline substitutions.  Sets gDvm.inlineSubs.
- *
- * TODO: this is currently just a linear array.  We will want to put this
- * into a hash table as the list size increases.
- */
+Create a table of inline substitutions.  Sets gDvm.inlineSubs.
+
+TODO: this is currently just a linear array.  We will want to put this
+into a hash table as the list size increases.
+
+创建一个内联函数替换表。设置gDvm.inlineSubs
+*/
 bool dvmCreateInlineSubsTable()
 {
     const InlineOperation* ops = dvmGetInlineOpsTable();
@@ -99,8 +105,10 @@ bool dvmCreateInlineSubsTable()
 }
 
 /*
- * Release inline sub data structure.
- */
+Release inline sub data structure.
+
+释放inline sub数据结构。
+*/
 void dvmFreeInlineSubsTable()
 {
     free(gDvm.inlineSubs);
@@ -109,14 +117,18 @@ void dvmFreeInlineSubsTable()
 
 
 /*
- * Optimize the specified class.
- *
- * If "essentialOnly" is true, we only do essential optimizations.  For
- * example, accesses to volatile 64-bit fields must be replaced with
- * "-wide-volatile" instructions or the program could behave incorrectly.
- * (Skipping non-essential optimizations makes us a little bit faster, and
- * more importantly avoids dirtying DEX pages.)
- */
+Optimize the specified class.
+
+If "essentialOnly" is true, we only do essential optimizations.  For
+example, accesses to volatile 64-bit fields must be replaced with
+"-wide-volatile" instructions or the program could behave incorrectly.
+(Skipping non-essential optimizations makes us a little bit faster, and
+more importantly avoids dirtying DEX pages.)
+
+优化指定类。
+
+如果“essentialOnly”为true，只做基本优化。
+*/
 void dvmOptimizeClass(ClassObject* clazz, bool essentialOnly)
 {
     int i;
@@ -130,19 +142,23 @@ void dvmOptimizeClass(ClassObject* clazz, bool essentialOnly)
 }
 
 /*
- * Optimize instructions in a method.
- *
- * This does a single pass through the code, examining each instruction.
- *
- * This is not expected to fail if the class was successfully verified.
- * The only significant failure modes on unverified code occur when an
- * "essential" update fails, but we can't generally identify those: if we
- * can't look up a field, we can't know if the field access was supposed
- * to be handled as volatile.
- *
- * Instead, we give it our best effort, and hope for the best.  For 100%
- * reliability, only optimize a class after verification succeeds.
- */
+Optimize instructions in a method.
+
+This does a single pass through the code, examining each instruction.
+
+This is not expected to fail if the class was successfully verified.
+The only significant failure modes on unverified code occur when an
+"essential" update fails, but we can't generally identify those: if we
+can't look up a field, we can't know if the field access was supposed
+to be handled as volatile.
+
+Instead, we give it our best effort, and hope for the best.  For 100%
+reliability, only optimize a class after verification succeeds.
+
+优化方法中指令。
+
+遍历代码，检查每一条指令。
+*/
 static void optimizeMethod(Method* method, bool essentialOnly)
 {
     bool needRetBar, forSmp;
@@ -388,12 +404,15 @@ static inline void updateOpcode(const Method* meth, u2* ptr, Opcode opcode)
 }
 
 /*
- * If "referrer" and "resClass" don't come from the same DEX file, and
- * the DEX we're working on is not destined for the bootstrap class path,
- * tweak the class loader so package-access checks work correctly.
- *
- * Only do this if we're doing pre-verification or optimization.
- */
+If "referrer" and "resClass" don't come from the same DEX file, and
+the DEX we're working on is not destined for the bootstrap class path,
+tweak the class loader so package-access checks work correctly.
+
+Only do this if we're doing pre-verification or optimization.
+
+如果“referrer”和“resClass”不是来自同一个DEX文件，并且正在处理的DEX不是指定
+引导类路径，调整类加载器使包访问检查正常工作。
+*/
 static void tweakLoader(ClassObject* referrer, ClassObject* resClass)
 {
     if (!gDvm.optimizing)
@@ -411,8 +430,10 @@ static void tweakLoader(ClassObject* referrer, ClassObject* resClass)
 }
 
 /*
- * Undo the effects of tweakLoader.
- */
+Undo the effects of tweakLoader.
+
+撤销tweakLoader的影响。
+*/
 static void untweakLoader(ClassObject* referrer, ClassObject* resClass)
 {
     if (!gDvm.optimizing || gDvm.optimizingBootstrapClass)
@@ -425,15 +446,22 @@ static void untweakLoader(ClassObject* referrer, ClassObject* resClass)
 
 
 /*
- * Alternate version of dvmResolveClass for use with verification and
- * optimization.  Performs access checks on every resolve, and refuses
- * to acknowledge the existence of classes defined in more than one DEX
- * file.
- *
- * Exceptions caused by failures are cleared before returning.
- *
- * On failure, returns NULL, and sets *pFailure if pFailure is not NULL.
- */
+Alternate version of dvmResolveClass for use with verification and
+optimization.  Performs access checks on every resolve, and refuses
+to acknowledge the existence of classes defined in more than one DEX
+file.
+
+Exceptions caused by failures are cleared before returning.
+
+On failure, returns NULL, and sets *pFailure if pFailure is not NULL.
+
+改变用于校验的dvmResolveClass的版本并且优化。
+对每一个处理执行访问检查，并且拒绝在一个以上DEX文件中定义的类的存在。
+
+清除在返回前由失败导致的异常。
+
+失败返回NULL，并且设置*pFailure，如果pFailure不为NULL。
+*/
 ClassObject* dvmOptResolveClass(ClassObject* referrer, u4 classIdx,
     VerifyError* pFailure)
 {
@@ -509,10 +537,14 @@ ClassObject* dvmOptResolveClass(ClassObject* referrer, u4 classIdx,
 }
 
 /*
- * Alternate version of dvmResolveInstField().
- *
- * On failure, returns NULL, and sets *pFailure if pFailure is not NULL.
- */
+Alternate version of dvmResolveInstField().
+
+On failure, returns NULL, and sets *pFailure if pFailure is not NULL.
+
+改变dvmResolveInstField()的版本。
+
+失败返回NULL，并且设置*pFailure，如果pFailure不为NULL。
+*/
 InstField* dvmOptResolveInstField(ClassObject* referrer, u4 ifieldIdx,
     VerifyError* pFailure)
 {
@@ -580,12 +612,18 @@ InstField* dvmOptResolveInstField(ClassObject* referrer, u4 ifieldIdx,
 }
 
 /*
- * Alternate version of dvmResolveStaticField().
- *
- * Does not force initialization of the resolved field's class.
- *
- * On failure, returns NULL, and sets *pFailure if pFailure is not NULL.
- */
+Alternate version of dvmResolveStaticField().
+
+Does not force initialization of the resolved field's class.
+
+On failure, returns NULL, and sets *pFailure if pFailure is not NULL.
+
+改变dvmResolveStaticField()的版本。
+
+不强制进行处理过域的类的的初始化。
+
+失败返回NULL，并且设置*pFailure，如果pFailure不为NULL。
+*/
 StaticField* dvmOptResolveStaticField(ClassObject* referrer, u4 sfieldIdx,
     VerifyError* pFailure)
 {
@@ -659,21 +697,29 @@ StaticField* dvmOptResolveStaticField(ClassObject* referrer, u4 sfieldIdx,
 
 
 /*
- * Rewrite an iget/iput instruction if appropriate.  These all have the form:
- *   op vA, vB, field@CCCC
- *
- * Where vA holds the value, vB holds the object reference, and CCCC is
- * the field reference constant pool offset.  For a non-volatile field,
- * we want to replace the opcode with "quickOpc" and replace CCCC with
- * the byte offset from the start of the object.  For a volatile field,
- * we just want to replace the opcode with "volatileOpc".
- *
- * If "volatileOpc" is OP_NOP we don't check to see if it's a volatile
- * field.  If "quickOpc" is OP_NOP, and this is a non-volatile field,
- * we don't do anything.
- *
- * "method" is the referring method.
- */
+Rewrite an iget/iput instruction if appropriate.  These all have the form:
+  op vA, vB, field@CCCC
+
+Where vA holds the value, vB holds the object reference, and CCCC is
+the field reference constant pool offset.  For a non-volatile field,
+we want to replace the opcode with "quickOpc" and replace CCCC with
+the byte offset from the start of the object.  For a volatile field,
+we just want to replace the opcode with "volatileOpc".
+
+If "volatileOpc" is OP_NOP we don't check to see if it's a volatile
+field.  If "quickOpc" is OP_NOP, and this is a non-volatile field,
+we don't do anything.
+
+"method" is the referring method.
+
+如果合适，重写一个iget/iput指令。这些都有各式：
+  op vA, vB, field@CCCC
+  
+  
+vA持有值，vB持有对象引用，并且CCCC是域引用常量池偏移。对一个非volatile域，
+
+NOTE TODO：
+*/
 static void rewriteInstField(Method* method, u2* insns, Opcode quickOpc,
     Opcode volatileOpc)
 {
@@ -709,11 +755,15 @@ static void rewriteInstField(Method* method, u2* insns, Opcode quickOpc,
 }
 
 /*
- * Rewrite a static field access instruction if appropriate.  If
- * the target field is volatile, we replace the opcode with "volatileOpc".
- *
- * "method" is the referring method.
- */
+Rewrite a static field access instruction if appropriate.  If
+the target field is volatile, we replace the opcode with "volatileOpc".
+
+"method" is the referring method.
+
+如果可以的话，重写一个静态域访问指令。如果目标域是volatile，用“volatileOpc”替换操作码opcode。
+
+“method”指向方法。
+*/
 static void rewriteStaticField0(Method* method, u2* insns, Opcode volatileOpc,
     u4 fieldIdx)
 {
@@ -745,12 +795,18 @@ static void rewriteStaticField(Method* method, u2* insns, Opcode volatileOpc)
 }
 
 /*
- * Alternate version of dvmResolveMethod().
- *
- * Doesn't throw exceptions, and checks access on every lookup.
- *
- * On failure, returns NULL, and sets *pFailure if pFailure is not NULL.
- */
+Alternate version of dvmResolveMethod().
+
+Doesn't throw exceptions, and checks access on every lookup.
+
+On failure, returns NULL, and sets *pFailure if pFailure is not NULL.
+
+改变dvmResolveMethod()版本。
+
+不抛出异常，并且每次查找lookup检查访问。
+
+失败返回NULL，并且如果pFailure不NULL，设置*pFailure。
+*/
 Method* dvmOptResolveMethod(ClassObject* referrer, u4 methodIdx,
     MethodType methodType, VerifyError* pFailure)
 {
@@ -878,13 +934,19 @@ Method* dvmOptResolveMethod(ClassObject* referrer, u4 methodIdx,
 }
 
 /*
- * Rewrite invoke-virtual, invoke-virtual/range, invoke-super, and
- * invoke-super/range if appropriate.  These all have the form:
- *   op vAA, meth@BBBB, reg stuff @CCCC
- *
- * We want to replace the method constant pool index BBBB with the
- * vtable index.
- */
+Rewrite invoke-virtual, invoke-virtual/range, invoke-super, and
+invoke-super/range if appropriate.  These all have the form:
+  op vAA, meth@BBBB, reg stuff @CCCC
+
+We want to replace the method constant pool index BBBB with the
+vtable index.
+
+如果可以的话，重写invoke-virtual, invoke-virtual/range, invoke-super, and
+invoke-super/range。它们的格式：
+  op vAA, meth@BBBB, reg stuff @CCCC
+
+要使用vtable index替换方法常量池index BBBB。
+*/
 static void rewriteVirtualInvoke(Method* method, u2* insns, Opcode newOpc)
 {
     ClassObject* clazz = method->clazz;
@@ -920,16 +982,21 @@ static void rewriteVirtualInvoke(Method* method, u2* insns, Opcode newOpc)
 }
 
 /*
- * Rewrite invoke-direct[/range] if the target is Object.<init>.
- *
- * This is useful as an optimization, because otherwise every object
- * instantiation will cause us to call a method that does nothing.
- * It also allows us to inexpensively mark objects as finalizable at the
- * correct time.
- *
- * TODO: verifier should ensure Object.<init> contains only return-void,
- * and issue a warning if not.
- */
+Rewrite invoke-direct[/range] if the target is Object.<init>.
+
+This is useful as an optimization, because otherwise every object
+instantiation will cause us to call a method that does nothing.
+It also allows us to inexpensively mark objects as finalizable at the
+correct time.
+
+TODO: verifier should ensure Object.<init> contains only return-void,
+and issue a warning if not.
+
+重写invoke-direct[/range]，如果目标是Objec.<init>。
+
+它对优化有用，因为每一个对象实例将调用一个不作任何事情的方法。
+它允许我们在正确的时间去标记对象为finalizable
+*/
 static bool rewriteInvokeObjectInit(Method* method, u2* insns)
 {
     ClassObject* clazz = method->clazz;
@@ -973,12 +1040,18 @@ static bool rewriteInvokeObjectInit(Method* method, u2* insns)
 }
 
 /*
- * Resolve an interface method reference.
- *
- * No method access check here -- interface methods are always public.
- *
- * Returns NULL if the method was not found.  Does not throw an exception.
- */
+Resolve an interface method reference.
+
+No method access check here -- interface methods are always public.
+
+Returns NULL if the method was not found.  Does not throw an exception.
+
+处理一个接口方法引用。
+
+没有方法检查这里 -- 接口方法永远是public修饰。
+
+如果方法没有找到返回NULL。不抛出异常。
+*/
 Method* dvmOptResolveInterfaceMethod(ClassObject* referrer, u4 methodIdx)
 {
     DvmDex* pDvmDex = referrer->pDvmDex;
@@ -1042,11 +1115,16 @@ Method* dvmOptResolveInterfaceMethod(ClassObject* referrer, u4 methodIdx)
 }
 
 /*
- * Replace invoke-virtual, invoke-direct, or invoke-static with an
- * execute-inline operation if appropriate.
- *
- * Returns "true" if we replace it.
- */
+Replace invoke-virtual, invoke-direct, or invoke-static with an
+execute-inline operation if appropriate.
+
+Returns "true" if we replace it.
+
+如果可以的话替换invoke-virtual, invoke-direct, or invoke-static with an
+execute-inline。
+
+如果替换它返回“true”。
+*/
 static bool rewriteExecuteInline(Method* method, u2* insns,
     MethodType methodType)
 {
@@ -1093,11 +1171,15 @@ static bool rewriteExecuteInline(Method* method, u2* insns,
 }
 
 /*
- * Replace invoke-virtual/range, invoke-direct/range, or invoke-static/range
- * with an execute-inline operation if appropriate.
- *
- * Returns "true" if we replace it.
- */
+Replace invoke-virtual/range, invoke-direct/range, or invoke-static/range
+with an execute-inline operation if appropriate.
+
+Returns "true" if we replace it.
+
+如果可以的话使用一个execute-inline操作替换invoke-virtual/range, invoke-direct/range, or invoke-static/range。
+
+如果替换它，返回“true”。
+*/ 
 static bool rewriteExecuteInlineRange(Method* method, u2* insns,
     MethodType methodType)
 {
@@ -1133,14 +1215,16 @@ static bool rewriteExecuteInlineRange(Method* method, u2* insns,
 }
 
 /*
- * Returns "true" if the return-void instructions in this method should
- * be converted to return-void-barrier.
- *
- * This is needed to satisfy a Java Memory Model requirement regarding
- * the construction of objects with final fields.  (This does not apply
- * to <clinit> or static fields, since appropriate barriers are guaranteed
- * by the class initialization process.)
- */
+Returns "true" if the return-void instructions in this method should
+be converted to return-void-barrier.
+
+This is needed to satisfy a Java Memory Model requirement regarding
+the construction of objects with final fields.  (This does not apply
+to <clinit> or static fields, since appropriate barriers are guaranteed
+by the class initialization process.)
+
+如果这个方法中return-void指令被转换为return-void-barrier，返回“true”。
+*/
 static bool needsReturnBarrier(Method* method)
 {
     if (!gDvm.dexOptForSmp)
@@ -1178,8 +1262,10 @@ static bool needsReturnBarrier(Method* method)
 }
 
 /*
- * Convert a return-void to a return-void-barrier.
- */
+Convert a return-void to a return-void-barrier.
+
+转换return-void到return-void-barrier。
+*/
 static void rewriteReturnVoid(Method* method, u2* insns)
 {
     assert((insns[0] & 0xff) == OP_RETURN_VOID);

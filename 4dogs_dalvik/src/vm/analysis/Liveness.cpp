@@ -15,8 +15,10 @@
  */
 
 /*
- * Liveness analysis for Dalvik bytecode.
- */
+Liveness analysis for Dalvik bytecode.
+
+Dalvik字节码生命周期分析。
+*/
 #include "Dalvik.h"
 #include "analysis/Liveness.h"
 #include "analysis/CodeVerify.h"
@@ -29,12 +31,15 @@ static void dumpLiveState(const VerifierData* vdata, u4 curIdx,
 
 
 /*
- * Create a table of instruction widths that indicate the width of the
- * *previous* instruction.  The values are copied from the width table
- * in "vdata", not derived from the instruction stream.
- *
- * Caller must free the return value.
- */
+Create a table of instruction widths that indicate the width of the
+*previous* instruction.  The values are copied from the width table
+in "vdata", not derived from the instruction stream.
+
+Caller must free the return value.
+
+创建一个指令宽度table，指向前一条指令的宽度。这些值从“vdata”的宽度table中拷贝，
+不从指令流中获取。
+*/
 static InstructionWidth* createBackwardWidthTable(VerifierData* vdata)
 {
     InstructionWidth* widths;
@@ -55,8 +60,10 @@ static InstructionWidth* createBackwardWidthTable(VerifierData* vdata)
 }
 
 /*
- * Compute the "liveness" of every register at all GC points.
- */
+Compute the "liveness" of every register at all GC points.
+
+计算所有垃圾回收点每一个寄存器的“生命周期”。
+*/
 bool dvmComputeLiveness(VerifierData* vdata)
 {
     const InsnFlags* insnFlags = vdata->insnFlags;
@@ -79,23 +86,27 @@ bool dvmComputeLiveness(VerifierData* vdata)
         goto bail;
 
     /*
-     * Allocate space for intra-block work set.  Does not include space
-     * for method result "registers", which aren't visible to the GC.
-     * (They would be made live by move-result and then die on the
-     * instruction immediately before it.)
-     */
+    Allocate space for intra-block work set.  Does not include space
+    for method result "registers", which aren't visible to the GC.
+    (They would be made live by move-result and then die on the
+    instruction immediately before it.)
+    
+    为intra-block工作组分配空间。不包含方法结果“寄存器”的空间，对垃圾回收不可见。
+    */
     workBits = dvmAllocBitVector(vdata->insnRegCount, false);
     if (workBits == NULL)
         goto bail;
 
     /*
-     * We continue until all blocks have been visited, and no block
-     * requires further attention ("visited" is set and "changed" is
-     * clear).
-     *
-     * TODO: consider creating a "dense" array of basic blocks to make
-     * the walking faster.
-     */
+    We continue until all blocks have been visited, and no block
+    requires further attention ("visited" is set and "changed" is
+    clear).
+    
+    TODO: consider creating a "dense" array of basic blocks to make
+    the walking faster.
+    
+    
+    */
     for (int iter = 0;;) {
         VfyBasicBlock* workBlock = NULL;
 
@@ -153,23 +164,33 @@ bool dvmComputeLiveness(VerifierData* vdata)
         }
 
         /*
-         * Process a single basic block.
-         *
-         * If this instruction is a GC point, we want to save the result
-         * in the RegisterLine.
-         *
-         * We don't break basic blocks on every GC point -- in particular,
-         * instructions that might throw but have no "try" block don't
-         * end a basic block -- so there could be more than one GC point
-         * in a given basic block.
-         *
-         * We could change this, but it turns out to be not all that useful.
-         * At first glance it appears that we could share the liveness bit
-         * vector between the basic block struct and the register line,
-         * but the basic block needs to reflect the state *after* the
-         * instruction has finished, while the GC points need to describe
-         * the state before the instruction starts.
-         */
+        Process a single basic block.
+        
+        If this instruction is a GC point, we want to save the result
+        in the RegisterLine.
+        
+        We don't break basic blocks on every GC point -- in particular,
+        instructions that might throw but have no "try" block don't
+        end a basic block -- so there could be more than one GC point
+        in a given basic block.
+        
+        We could change this, but it turns out to be not all that useful.
+        At first glance it appears that we could share the liveness bit
+        vector between the basic block struct and the register line,
+        but the basic block needs to reflect the state *after* the
+        instruction has finished, while the GC points need to describe
+        the state before the instruction starts.
+        
+        处理一个单独的基本块。
+        
+        如果这条指令时一个垃圾回收点，我们想要在RegisterLine中保存这个结果。
+        
+        在每个垃圾回收点，我们不能破坏基本块 -- 尤其，抛出但没有“try”块的指令不能结束一个基本块
+        -- 所以在一个给定的基本块中，有多个垃圾回收点。
+        
+        可以改变这个，但是它不能证明所有都有用。
+        
+        */
         u4 curIdx = workBlock->lastAddr;
         while (true) {
             if (!processInstruction(vdata, curIdx, workBits))
@@ -202,9 +223,11 @@ bool dvmComputeLiveness(VerifierData* vdata)
         }
 
         /*
-         * Merge changes to all predecessors.  If the new bits don't match
-         * the old bits, set the "changed" flag.
-         */
+        Merge changes to all predecessors.  If the new bits don't match
+        the old bits, set the "changed" flag.
+        
+        NOTE TODO：
+        */
         PointerSet* preds = workBlock->predecessors;
         size_t numPreds = dvmPointerSetGetCount(preds);
         unsigned int predIdx;
@@ -222,18 +245,20 @@ bool dvmComputeLiveness(VerifierData* vdata)
             }
 
             /*
-             * We want to set the "changed" flag on unvisited predecessors
-             * as a way of guiding the verifier through basic blocks in
-             * a reasonable order.  We can't count on variable liveness
-             * changing, so we force "changed" to true even if it hasn't.
-             */
+            We want to set the "changed" flag on unvisited predecessors
+            as a way of guiding the verifier through basic blocks in
+            a reasonable order.  We can't count on variable liveness
+            changing, so we force "changed" to true even if it hasn't.
+            
+            设置“changed”标识
+            */
             if (!pred->visited)
                 pred->changed = true;
 
             /*
-             * Keep track of one of the changed blocks so we can start
-             * there instead of having to scan through the list.
-             */
+            Keep track of one of the changed blocks so we can start
+            there instead of having to scan through the list.
+            */
             if (pred->changed)
                 startGuess = pred;
         }
@@ -241,10 +266,12 @@ bool dvmComputeLiveness(VerifierData* vdata)
 
 #ifndef NDEBUG
     /*
-     * Sanity check: verify that all GC point register lines have a
-     * liveness bit vector allocated.  Also, we're not expecting non-GC
-     * points to have them.
-     */
+    Sanity check: verify that all GC point register lines have a
+    liveness bit vector allocated.  Also, we're not expecting non-GC
+    points to have them.
+    
+    安全检查
+    */
     u4 checkIdx;
     for (checkIdx = 0; checkIdx < vdata->insnsSize; ) {
         if (dvmInsnIsGcPoint(insnFlags, checkIdx)) {
@@ -278,16 +305,20 @@ bail:
 
 
 /*
- * Add a register to the LIVE set.
- */
+Add a register to the LIVE set.
+
+添加一个寄存器到LIVE set中。
+*/
 static inline void GEN(BitVector* workBits, u4 regIndex)
 {
     dvmSetBit(workBits, regIndex);
 }
 
 /*
- * Add a register pair to the LIVE set.
- */
+Add a register pair to the LIVE set.
+
+添加一对寄存器到LIVE set中。
+*/
 static inline void GENW(BitVector* workBits, u4 regIndex)
 {
     dvmSetBit(workBits, regIndex);
@@ -295,16 +326,20 @@ static inline void GENW(BitVector* workBits, u4 regIndex)
 }
 
 /*
- * Remove a register from the LIVE set.
- */
+Remove a register from the LIVE set.
+
+从LIVE set中移除一个寄存器
+*/
 static inline void KILL(BitVector* workBits, u4 regIndex)
 {
     dvmClearBit(workBits, regIndex);
 }
 
 /*
- * Remove a register pair from the LIVE set.
- */
+Remove a register pair from the LIVE set.
+
+从LIVE set中移除一对寄存器。
+*/
 static inline void KILLW(BitVector* workBits, u4 regIndex)
 {
     dvmClearBit(workBits, regIndex);
@@ -312,10 +347,14 @@ static inline void KILLW(BitVector* workBits, u4 regIndex)
 }
 
 /*
- * Process a single instruction.
- *
- * Returns "false" if something goes fatally wrong.
- */
+Process a single instruction.
+
+Returns "false" if something goes fatally wrong.
+
+处理单个指令。
+
+返回“false”，如果一些处理错误。
+*/
 static bool processInstruction(VerifierData* vdata, u4 insnIdx,
     BitVector* workBits)
 {
@@ -326,10 +365,14 @@ static bool processInstruction(VerifierData* vdata, u4 insnIdx,
     dexDecodeInstruction(insns, &decInsn);
 
     /*
-     * Add registers to the "GEN" or "KILL" sets.  We want to do KILL
-     * before GEN to handle cases where the source and destination
-     * register is the same.
-     */
+    Add registers to the "GEN" or "KILL" sets.  We want to do KILL
+    before GEN to handle cases where the source and destination
+    register is the same.
+    
+    添加寄存器到“GEN”或“KILL”sets中。
+    
+    NOTE TODO：
+    */
     switch (decInsn.opcode) {
     case OP_NOP:
     case OP_RETURN_VOID:
@@ -766,21 +809,27 @@ static void markLocalsCb(void* ctxt, u2 reg, u4 startAddress, u4 endAddress,
 }
 
 /*
- * Mark all debugger-visible locals as live.
- *
- * The "locals" table describes the positions of the various locals in the
- * stack frame based on the current execution address.  If the debugger
- * wants to display one, it issues a request by "slot number".  We need
- * to ensure that references in stack slots that might be queried by the
- * debugger aren't GCed.
- *
- * (If the GC had some way to mark the slot as invalid we wouldn't have
- * to do this.  We could also have the debugger interface check the
- * register map and simply refuse to return a "dead" value, but that's
- * potentially confusing since the referred-to object might actually be
- * alive, and being able to see it without having to hunt around for a
- * "live" stack frame is useful.)
- */
+Mark all debugger-visible locals as live.
+
+The "locals" table describes the positions of the various locals in the
+stack frame based on the current execution address.  If the debugger
+wants to display one, it issues a request by "slot number".  We need
+to ensure that references in stack slots that might be queried by the
+debugger aren't GCed.
+
+(If the GC had some way to mark the slot as invalid we wouldn't have
+to do this.  We could also have the debugger interface check the
+register map and simply refuse to return a "dead" value, but that's
+potentially confusing since the referred-to object might actually be
+alive, and being able to see it without having to hunt around for a
+"live" stack frame is useful.)
+
+标记所有调试器可见本地变量为存活。
+
+“locals”表描述不同的变量未知在stack frame中，基于当前执行的地址。如果调试器想要
+展示一个local，它通过“slot number”发出一个请求。我们需要确保可能通过调试器查询栈
+位置的引用不被垃圾回收。
+*/
 static bool markDebugLocals(VerifierData* vdata)
 {
     const Method* meth = vdata->method;
@@ -794,10 +843,14 @@ static bool markDebugLocals(VerifierData* vdata)
 
 
 /*
- * Dump the liveness bits to the log.
- *
- * "curIdx" is for display only.
- */
+Dump the liveness bits to the log.
+
+"curIdx" is for display only.
+
+Dump活跃位到日志。
+
+“curIdx”仅为了显示。
+*/
 static void dumpLiveState(const VerifierData* vdata, u4 curIdx,
     const BitVector* workBits)
 {

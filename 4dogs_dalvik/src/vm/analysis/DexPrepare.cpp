@@ -15,15 +15,17 @@
  */
 
 /*
- * Prepare a DEX file for use by the VM.  Depending upon the VM options
- * we will attempt to verify and/or optimize the code, possibly appending
- * register maps.
- *
- * TODO: the format of the optimized header is currently "whatever we
- * happen to write", since the VM that writes it is by definition the same
- * as the VM that reads it.  Still, it should be better documented and
- * more rigorously structured.
- */
+Prepare a DEX file for use by the VM.  Depending upon the VM options
+we will attempt to verify and/or optimize the code, possibly appending
+register maps.
+
+TODO: the format of the optimized header is currently "whatever we
+happen to write", since the VM that writes it is by definition the same
+as the VM that reads it.  Still, it should be better documented and
+more rigorously structured.
+
+准备DEX文件，供VM使用。依赖VM选项，我们将尝试校验并且/或优化代码，可能拼接寄存器maps。
+*/
 #include "Dalvik.h"
 #include "libdex/OptInvocation.h"
 #include "analysis/RegisterMap.h"
@@ -60,8 +62,10 @@ static bool writeOptData(int fd, const DexClassLookup* pClassLookup,\
 static bool computeFileChecksum(int fd, off_t start, size_t length, u4* pSum);
 
 /*
- * Get just the directory portion of the given path. Equivalent to dirname(3).
- */
+Get just the directory portion of the given path. Equivalent to dirname(3).
+
+获取给定路径的目录部分。等价于dirname(3)。
+*/
 static std::string saneDirName(const std::string& path) {
     size_t n = path.rfind('/');
     if (n == std::string::npos) {
@@ -71,10 +75,12 @@ static std::string saneDirName(const std::string& path) {
 }
 
 /*
- * Helper for dvmOpenCacheDexFile() in a known-error case: Check to
- * see if the directory part of the given path (all but the last
- * component) exists and is writable. Complain to the log if not.
- */
+Helper for dvmOpenCacheDexFile() in a known-error case: Check to
+see if the directory part of the given path (all but the last
+component) exists and is writable. Complain to the log if not.
+
+dvmOpenCacheDexFile()辅助方法：检查给定路径的目录部分是否存在并且是否可写。
+*/
 static bool directoryIsValid(const std::string& fileName)
 {
     std::string dirName(saneDirName(fileName));
@@ -104,28 +110,30 @@ static bool directoryIsValid(const std::string& fileName)
 }
 
 /*
- * Return the fd of an open file in the DEX file cache area.  If the cache
- * file doesn't exist or is out of date, this will remove the old entry,
- * create a new one (writing only the file header), and return with the
- * "new file" flag set.
- *
- * It's possible to execute from an unoptimized DEX file directly,
- * assuming the byte ordering and structure alignment is correct, but
- * disadvantageous because some significant optimizations are not possible.
- * It's not generally possible to do the same from an uncompressed Jar
- * file entry, because we have to guarantee 32-bit alignment in the
- * memory-mapped file.
- *
- * For a Jar/APK file (a zip archive with "classes.dex" inside), "modWhen"
- * and "crc32" come from the Zip directory entry.  For a stand-alone DEX
- * file, it's the modification date of the file and the Adler32 from the
- * DEX header (which immediately follows the magic).  If these don't
- * match what's stored in the opt header, we reject the file immediately.
- *
- * On success, the file descriptor will be positioned just past the "opt"
- * file header, and will be locked with flock.  "*pCachedName" will point
- * to newly-allocated storage.
- */
+Return the fd of an open file in the DEX file cache area.  If the cache
+file doesn't exist or is out of date, this will remove the old entry,
+create a new one (writing only the file header), and return with the
+"new file" flag set.
+
+It's possible to execute from an unoptimized DEX file directly,
+assuming the byte ordering and structure alignment is correct, but
+disadvantageous because some significant optimizations are not possible.
+It's not generally possible to do the same from an uncompressed Jar
+file entry, because we have to guarantee 32-bit alignment in the
+memory-mapped file.
+
+For a Jar/APK file (a zip archive with "classes.dex" inside), "modWhen"
+and "crc32" come from the Zip directory entry.  For a stand-alone DEX
+file, it's the modification date of the file and the Adler32 from the
+DEX header (which immediately follows the magic).  If these don't
+match what's stored in the opt header, we reject the file immediately.
+
+On success, the file descriptor will be positioned just past the "opt"
+file header, and will be locked with flock.  "*pCachedName" will point
+to newly-allocated storage.
+
+打开缓存的DEX文件。
+*/
 int dvmOpenCachedDexFile(const char* fileName, const char* cacheFileName,
     u4 modWhen, u4 crc, bool isBootstrap, bool* pNewFile, bool createIfMissing)
 {
@@ -325,29 +333,31 @@ bool dvmUnlockCachedDexFile(int fd)
 
 
 /*
- * Given a descriptor for a file with DEX data in it, produce an
- * optimized version.
- *
- * The file pointed to by "fd" is expected to be a locked shared resource
- * (or private); we make no efforts to enforce multi-process correctness
- * here.
- *
- * "fileName" is only used for debug output.  "modWhen" and "crc" are stored
- * in the dependency set.
- *
- * The "isBootstrap" flag determines how the optimizer and verifier handle
- * package-scope access checks.  When optimizing, we only load the bootstrap
- * class DEX files and the target DEX, so the flag determines whether the
- * target DEX classes are given a (synthetic) non-NULL classLoader pointer.
- * This only really matters if the target DEX contains classes that claim to
- * be in the same package as bootstrap classes.
- *
- * The optimizer will need to load every class in the target DEX file.
- * This is generally undesirable, so we start a subprocess to do the
- * work and wait for it to complete.
- *
- * Returns "true" on success.  All data will have been written to "fd".
- */
+Given a descriptor for a file with DEX data in it, produce an
+optimized version.
+
+The file pointed to by "fd" is expected to be a locked shared resource
+(or private); we make no efforts to enforce multi-process correctness
+here.
+
+"fileName" is only used for debug output.  "modWhen" and "crc" are stored
+in the dependency set.
+
+The "isBootstrap" flag determines how the optimizer and verifier handle
+package-scope access checks.  When optimizing, we only load the bootstrap
+class DEX files and the target DEX, so the flag determines whether the
+target DEX classes are given a (synthetic) non-NULL classLoader pointer.
+This only really matters if the target DEX contains classes that claim to
+be in the same package as bootstrap classes.
+
+The optimizer will need to load every class in the target DEX file.
+This is generally undesirable, so we start a subprocess to do the
+work and wait for it to complete.
+
+Returns "true" on success.  All data will have been written to "fd".
+
+打开优化的DEX文件。
+*/
 bool dvmOptimizeDexFile(int fd, off_t dexOffset, long dexLength,
     const char* fileName, u4 modWhen, u4 crc, bool isBootstrap)
 {
@@ -512,18 +522,20 @@ bool dvmOptimizeDexFile(int fd, off_t dexOffset, long dexLength,
 }
 
 /*
- * Do the actual optimization.  This is executed in the dexopt process.
- *
- * For best use of disk/memory, we want to extract once and perform
- * optimizations in place.  If the file has to expand or contract
- * to match local structure padding/alignment expectations, we want
- * to do the rewrite as part of the extract, rather than extracting
- * into a temp file and slurping it back out.  (The structure alignment
- * is currently correct for all platforms, and this isn't expected to
- * change, so we should be okay with having it already extracted.)
- *
- * Returns "true" on success.
- */
+Do the actual optimization.  This is executed in the dexopt process.
+
+For best use of disk/memory, we want to extract once and perform
+optimizations in place.  If the file has to expand or contract
+to match local structure padding/alignment expectations, we want
+to do the rewrite as part of the extract, rather than extracting
+into a temp file and slurping it back out.  (The structure alignment
+is currently correct for all platforms, and this isn't expected to
+change, so we should be okay with having it already extracted.)
+
+Returns "true" on success.
+
+NOTE TODO：
+*/
 bool dvmContinueOptimization(int fd, off_t dexOffset, long dexLength,
     const char* fileName, u4 modWhen, u4 crc, bool isBootstrap)
 {
@@ -747,12 +759,14 @@ bail:
 }
 
 /*
- * Prepare an in-memory DEX file.
- *
- * The data was presented to the VM as a byte array rather than a file.
- * We want to do the same basic set of operations, but we can just leave
- * them in memory instead of writing them out to a cached optimized DEX file.
- */
+Prepare an in-memory DEX file.
+
+The data was presented to the VM as a byte array rather than a file.
+We want to do the same basic set of operations, but we can just leave
+them in memory instead of writing them out to a cached optimized DEX file.
+
+准备内存DEX文件。
+*/
 bool dvmPrepareDexInMemory(u1* addr, size_t len, DvmDex** ppDvmDex)
 {
     DexClassLookup* pClassLookup = NULL;
@@ -778,19 +792,21 @@ bool dvmPrepareDexInMemory(u1* addr, size_t len, DvmDex** ppDvmDex)
 }
 
 /*
- * Perform in-place rewrites on a memory-mapped DEX file.
- *
- * If this is called from a short-lived child process (dexopt), we can
- * go nutty with loading classes and allocating memory.  When it's
- * called to prepare classes provided in a byte array, we may want to
- * be more conservative.
- *
- * If "ppClassLookup" is non-NULL, a pointer to a newly-allocated
- * DexClassLookup will be returned on success.
- *
- * If "ppDvmDex" is non-NULL, a newly-allocated DvmDex struct will be
- * returned on success.
- */
+Perform in-place rewrites on a memory-mapped DEX file.
+
+If this is called from a short-lived child process (dexopt), we can
+go nutty with loading classes and allocating memory.  When it's
+called to prepare classes provided in a byte array, we may want to
+be more conservative.
+
+If "ppClassLookup" is non-NULL, a pointer to a newly-allocated
+DexClassLookup will be returned on success.
+
+If "ppDvmDex" is non-NULL, a newly-allocated DvmDex struct will be
+returned on success.
+
+就地重写内存映射的DEX文件。
+*/
 static bool rewriteDex(u1* addr, int len, bool doVerify, bool doOpt,
     DexClassLookup** ppClassLookup, DvmDex** ppDvmDex)
 {
@@ -904,23 +920,25 @@ bail:
 }
 
 /*
- * Try to load all classes in the specified DEX.  If they have some sort
- * of broken dependency, e.g. their superclass lives in a different DEX
- * that wasn't previously loaded into the bootstrap class path, loading
- * will fail.  This is the desired behavior.
- *
- * We have no notion of class loader at this point, so we load all of
- * the classes with the bootstrap class loader.  It turns out this has
- * exactly the behavior we want, and has no ill side effects because we're
- * running in a separate process and anything we load here will be forgotten.
- *
- * We set the CLASS_MULTIPLE_DEFS flag here if we see multiple definitions.
- * This works because we only call here as part of optimization / pre-verify,
- * not during verification as part of loading a class into a running VM.
- *
- * This returns "false" if the world is too screwed up to do anything
- * useful at all.
- */
+Try to load all classes in the specified DEX.  If they have some sort
+of broken dependency, e.g. their superclass lives in a different DEX
+that wasn't previously loaded into the bootstrap class path, loading
+will fail.  This is the desired behavior.
+
+We have no notion of class loader at this point, so we load all of
+the classes with the bootstrap class loader.  It turns out this has
+exactly the behavior we want, and has no ill side effects because we're
+running in a separate process and anything we load here will be forgotten.
+
+We set the CLASS_MULTIPLE_DEFS flag here if we see multiple definitions.
+This works because we only call here as part of optimization / pre-verify,
+not during verification as part of loading a class into a running VM.
+
+This returns "false" if the world is too screwed up to do anything
+useful at all.
+
+尝试加载指定DEX文件中的所有类。
+*/
 static bool loadAllClasses(DvmDex* pDvmDex)
 {
     u4 count = pDvmDex->pDexFile->pHeader->classDefsSize;
@@ -994,9 +1012,11 @@ static bool loadAllClasses(DvmDex* pDvmDex)
 }
 
 /*
- * Verify and/or optimize all classes that were successfully loaded from
- * this DEX file.
- */
+Verify and/or optimize all classes that were successfully loaded from
+this DEX file.
+
+校验并且/或者优化来自DEX文件所有已被成功加载的类。
+*/
 static void verifyAndOptimizeClasses(DexFile* pDexFile, bool doVerify,
     bool doOpt)
 {
@@ -1038,8 +1058,10 @@ static void verifyAndOptimizeClasses(DexFile* pDexFile, bool doVerify,
 }
 
 /*
- * Verify and/or optimize a specific class.
- */
+Verify and/or optimize a specific class.
+
+校验/或者优化一个指定类。
+*/
 static void verifyAndOptimizeClass(DexFile* pDexFile, ClassObject* clazz,
     const DexClassDef* pClassDef, bool doVerify, bool doOpt)
 {
@@ -1098,8 +1120,10 @@ static void verifyAndOptimizeClass(DexFile* pDexFile, ClassObject* clazz,
 
 
 /*
- * Get the cache file name from a ClassPathEntry.
- */
+Get the cache file name from a ClassPathEntry.
+
+从一个ClassPathEntry中获取缓存文件名。
+*/
 static const char* getCacheFileName(const ClassPathEntry* cpe)
 {
     switch (cpe->kind) {
@@ -1115,8 +1139,10 @@ static const char* getCacheFileName(const ClassPathEntry* cpe)
 }
 
 /*
- * Get the SHA-1 signature.
- */
+Get the SHA-1 signature.
+
+获取SHA-1签名。
+*/
 static const u1* getSignature(const ClassPathEntry* cpe)
 {
     DvmDex* pDvmDex;
@@ -1140,33 +1166,53 @@ static const u1* getSignature(const ClassPathEntry* cpe)
 
 
 /*
- * Dependency layout:
- *  4b  Source file modification time, in seconds since 1970 UTC
- *  4b  CRC-32 from Zip entry, or Adler32 from source DEX header
- *  4b  Dalvik VM build number
- *  4b  Number of dependency entries that follow
- *  Dependency entries:
- *    4b  Name length (including terminating null)
- *    var Full path of cache entry (null terminated)
- *    20b SHA-1 signature from source DEX file
- *
- * If this changes, update DEX_OPT_MAGIC_VERS.
- */
+Dependency layout:
+ 4b  Source file modification time, in seconds since 1970 UTC
+ 4b  CRC-32 from Zip entry, or Adler32 from source DEX header
+ 4b  Dalvik VM build number
+ 4b  Number of dependency entries that follow
+ Dependency entries:
+   4b  Name length (including terminating null)
+   var Full path of cache entry (null terminated)
+   20b SHA-1 signature from source DEX file
+
+If this changes, update DEX_OPT_MAGIC_VERS.
+
+依赖布局：
+ 4b  原文件修改时间，以从1970时间标准时间表示
+ 4b  CRC-32来自Zip实体，或者Adler32来自源DEX头
+ 4b  Dalvik VM构建数量
+ 4b  依赖项数量
+ 依赖项：
+   4b 名字长度(包含terminating null)
+   var 缓存项全路径(null terminated)
+   20b 源DEX文件SHA-1签名
+   
+如果改变，更新DEX_OPT_MAGIC_VERS
+*/
 static const size_t kMinDepSize = 4 * 4;
 static const size_t kMaxDepSize = 4 * 4 + 2048;     // sanity check
 
 /*
- * Read the "opt" header, verify it, then read the dependencies section
- * and verify that data as well.
- *
- * If "sourceAvail" is "true", this will verify that "modWhen" and "crc"
- * match up with what is stored in the header.  If they don't, we reject
- * the file so that it can be recreated from the updated original.  If
- * "sourceAvail" isn't set, e.g. for a .odex file, we ignore these arguments.
- *
- * On successful return, the file will be seeked immediately past the
- * "opt" header.
- */
+Read the "opt" header, verify it, then read the dependencies section
+and verify that data as well.
+
+If "sourceAvail" is "true", this will verify that "modWhen" and "crc"
+match up with what is stored in the header.  If they don't, we reject
+the file so that it can be recreated from the updated original.  If
+"sourceAvail" isn't set, e.g. for a .odex file, we ignore these arguments.
+
+On successful return, the file will be seeked immediately past the
+"opt" header.
+
+读取“opt”头，校验它，然后读取依赖部分并且校验其数据。
+
+如果“sourceAvail”为“true”，它将会校验存储在头中“modWhen”和“crc”是否匹配。如果
+不匹配，拒绝加载文件，因此从已更新的文件中，它可以被重新创建。如果“sourceAvail”没设置，
+例如一个.odex文件，我忽略这些参数。
+
+成功返回时，文件将立即寻找以前的“opt”header。
+*/
 bool dvmCheckOptHeaderAndDependencies(int fd, bool sourceAvail, u4 modWhen,
     u4 crc, bool expectVerify, bool expectOpt)
 {
@@ -1356,8 +1402,10 @@ bail:
 }
 
 /*
- * Write the dependency info to "fd" at the current file position.
- */
+Write the dependency info to "fd" at the current file position.
+
+在当前文件位置写入依赖信息到“fd”。
+*/
 static int writeDependencies(int fd, u4 modWhen, u4 crc)
 {
     u1* buf = NULL;
@@ -1427,11 +1475,13 @@ static int writeDependencies(int fd, u4 modWhen, u4 crc)
 
 
 /*
- * Write a block of data in "chunk" format.
- *
- * The chunk header fields are always in "native" byte order.  If "size"
- * is not a multiple of 8 bytes, the data area is padded out.
- */
+Write a block of data in "chunk" format.
+
+The chunk header fields are always in "native" byte order.  If "size"
+is not a multiple of 8 bytes, the data area is padded out.
+
+在“chunk”格式中写数据块。
+*/
 static bool writeChunk(int fd, u4 type, const void* data, size_t size)
 {
     union {             /* save a syscall by grouping these together */
@@ -1472,13 +1522,15 @@ static bool writeChunk(int fd, u4 type, const void* data, size_t size)
 }
 
 /*
- * Write opt data.
- *
- * We have different pieces, some of which may be optional.  To make the
- * most effective use of space, we use a "chunk" format, with a 4-byte
- * type and a 4-byte length.  We guarantee 64-bit alignment for the data,
- * so it can be used directly when the file is mapped for reading.
- */
+Write opt data.
+
+We have different pieces, some of which may be optional.  To make the
+most effective use of space, we use a "chunk" format, with a 4-byte
+type and a 4-byte length.  We guarantee 64-bit alignment for the data,
+so it can be used directly when the file is mapped for reading.
+
+写opt数据。
+*/
 static bool writeOptData(int fd, const DexClassLookup* pClassLookup,
     const RegisterMapBuilder* pRegMapBuilder)
 {
@@ -1507,12 +1559,16 @@ static bool writeOptData(int fd, const DexClassLookup* pClassLookup,
 }
 
 /*
- * Compute a checksum on a piece of an open file.
- *
- * File will be positioned at end of checksummed area.
- *
- * Returns "true" on success.
- */
+Compute a checksum on a piece of an open file.
+
+File will be positioned at end of checksummed area.
+
+Returns "true" on success.
+
+计算一个checksum值，在一个打开的文件中。
+
+文件将被定位到checksumed区域尾部。
+*/
 static bool computeFileChecksum(int fd, off_t start, size_t length, u4* pSum)
 {
     unsigned char readBuf[8192];
@@ -1546,10 +1602,12 @@ static bool computeFileChecksum(int fd, off_t start, size_t length, u4* pSum)
 }
 
 /*
- * Update the Adler-32 checksum stored in the DEX file.  This covers the
- * swapped and optimized DEX data, but does not include the opt header
- * or optimized data.
- */
+Update the Adler-32 checksum stored in the DEX file.  This covers the
+swapped and optimized DEX data, but does not include the opt header
+or optimized data.
+
+更新存储在DEX文件中的Adler-32 checksum值。它覆盖已交换和已优化的DEX数据，但是不包含opt头或优化数据。
+*/
 static void updateChecksum(u1* addr, int len, DexHeader* pHeader)
 {
     /*
