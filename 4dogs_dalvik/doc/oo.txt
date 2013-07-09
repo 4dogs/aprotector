@@ -1,34 +1,66 @@
-<�������>
+﻿[整体介绍]
 
-����������Բ���,��.����ת��У��,�������ֶη����ܱ���,��򷽷��ļ��غͽ���
+面向对象特性操作,如.类型转换校验,方法或字段访问受保护,类或方法的加载和解析
+
+[专业术语]
+
+实例化: 在面向对象的编程中，通常把用类创建对象的过程称为实例化,其格式如下：类名 *对象名 = new 类名（参数1，参数2...参数n）（这里，“类名”这个类名实例化成了“对象名”这个对象）
+
+判断是否是指定的实例(instanceof): 它的作用是判断其左边对象是否为其右边类的实例;例如：String s = "I AM an Object!";boolean isobject = s instanceof Object;我们声明了一个String对象引用，指向一个String对象，然后用instanceof来测试它所指向的对象是否是Object类的一个实例，显然，这是真的，所以返回true，也就是isobject的值为true
+
+接口: 是面向对象编程语言中接口操作的关键字，功能是把所需成员组合起来，以封装一定功能的集合。它好比一个模板，在其中定义了对象必须实现的成员，通过类或结构来实现它
 
 
 [dalvik\vm\oo\typeCheck.cpp]
 
-ʵ������ת����⣬�ж�ĳ�����Ƿ����ض����ʵ��...
+实现类型转换检测，判断某个类是否是特定类的实例...
 
+[dvmInstanceofStartup]
+
+在使用instanceof操作符来判断一个对象A是否是一个类B的实例时，Davlik虚拟机需要检查类B是否是从对象A的声明类继承下来的。由于这个检查的过程比较耗时，Davlik虚拟机在内部使用一个缓冲，用来记录第一次两个类之间的instanceof操作结果，这样后面再碰到相同的instanceof操作时，就可以快速地得到结果
 
 [dalvik\vm\oo\Object.cpp]
 
-��Զ����һЩ������������,����,�ӿ��в�������ָ�����鷽��,��̬����,....
+针对对象的一些操作，如在类,父类,接口中查找它的指定的虚方法,静态方法,....
+
+[结构体定义-dalvik\vm\oo\object.h]
+
+1.Method结构体 
+
+2.ClassObject结构体 
+
+3.Object结构体
 
 
 [dalvik\vm\oo\AccessCheck.cpp]
 
-������е��ֶκͷ����Ƿ�����������
+检查类中的字段和方法是否允许被访问
+
+
+[dalvik\vm\oo\Class.cpp]
+
+对Class的加载 – Class包含Method，Method 又包含code。通过对Class的加载，我们即可获得所需执行的字节码
+
+[Class的加载过程]
+
+虚拟机负责解释并执行编译后的字节码。在解释执行字节码之前，当然要读取文件，分析文件的内容，得到字节码，然后才能解释执行之。最为重要的就是对Class的加载 – Class包含Method，Method 又包含code。通过对Class的加载，我们即可获得所需执行的字节码。
+
+1.findClassNoInit – 负责加载Class并生成相应ClassObject的函数
+
+在对文件解析完成后就要加载Class的具体内容了！在Dalvik中，由ClassObject 这个数据结构负责存放加载的信息。加载过程会在内存中alloc几个区域，分别存放directMethods, virtualMethods, sfields, ifields。这些信息正是从dex 文件的数据区中读取。首先会读取Class的详细信息，从中获知directMethod, virtualMethod, sfield, ifield等的信息，然后再读取。
+
+2. LoadClassFromDex 函数先会读取Class的具体数据（从ClassDataoff处），然后分别加载 directMethod， virtualMethod，ifield，sfield。
 
 
 [dalvik\vm\oo\Array.cpp]
 
-�����������һЩ��������������ռ��С��������ά����...
+针对数组对象的一些操作，分配数组空间大小，创建多维数组...
 
 
 [dalvik\vm\oo\Resolve.cpp]
 
-������ص��࣬�������ֶ�
+解析相关的类，方法，字段
 
-
-<dalvik\vm\oo\Class.cpp>
 
 
 

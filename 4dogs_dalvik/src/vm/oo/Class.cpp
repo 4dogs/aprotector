@@ -18,7 +18,10 @@
  * Class loading, including bootstrap class loader, linking, and
  * initialization.
  */
-
+/*
+ * 类加载，包括引导类加载器，链接和初始化
+ *
+ */
 #define LOG_CLASS_LOADING 0
 
 #include "Dalvik.h"
@@ -156,6 +159,10 @@ may not be worth the performance hit.
  * Class serial numbers start at this value.  We use a nonzero initial
  * value so they stand out in binary dumps (e.g. hprof output).
  */
+/*
+ * 类序列号以 0x50000000 开始.我们使用一个非零初始值,以便他们使用二进制转储输出
+ *
+ */
 #define INITIAL_CLASS_SERIAL_NUMBER 0x50000000
 
 /*
@@ -165,7 +172,7 @@ may not be worth the performance hit.
  */
 #define ZYGOTE_CLASS_CUTOFF 2304
 
-#define CLASS_SFIELD_SLOTS 1
+#define CLASS_SFIELD_SLOTS 1 
 
 static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap);
 static void freeCpeArray(ClassPathEntry* cpe);
@@ -200,6 +207,9 @@ static void throwEarlierClassFailure(ClassObject* clazz);
  * it would probably be better to use a new type code to indicate the failure.  This change would
  * require a matching change in the parser and analysis code in frameworks/base/tools/preload.
  */
+/*
+ * 特定的时间段内，关于一些类被加载的日志信息
+ */
 static void logClassLoadWithTime(char type, ClassObject* clazz, u8 time) {
     pid_t ppid = getppid();
     pid_t pid = getpid();
@@ -212,6 +222,10 @@ static void logClassLoadWithTime(char type, ClassObject* clazz, u8 time) {
 
 /*
  * Logs information about a class loading.
+ */
+/*
+ * 关于一些类被加载的日志信息
+ *
  */
 static void logClassLoad(char type, ClassObject* clazz) {
     logClassLoadWithTime(type, clazz, dvmGetThreadCpuTimeNsec());
@@ -286,6 +300,9 @@ static void linearAllocTests()
     dvmLinearFree(NULL, (char*)str);
 }
 
+/*
+ * 静态字段所占的空间
+ */
 static size_t classObjectSize(size_t sfieldCount)
 {
     size_t offset = OFFSETOF_MEMBER(ClassObject, sfields);
@@ -299,8 +316,12 @@ size_t dvmClassObjectSize(const ClassObject *clazz)
 }
 
 /* (documented in header) */
+/*
+ * 根据类型查找原生类
+ */
 ClassObject* dvmFindPrimitiveClass(char type)
 {
+   /*根据传入的描述类型获取原生类型 */
     PrimitiveType primitiveType = dexGetPrimitiveTypeFromDescriptorChar(type);
 
     switch (primitiveType) {
@@ -325,6 +346,11 @@ ClassObject* dvmFindPrimitiveClass(char type)
  *
  * Just creates the class and returns it (does not add it to the class list).
  */
+/*
+ * 合成一些原生类;
+ * 
+ * 仅创建类和返回它(不会将它添加到类列表中)
+ */
 static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClass)
 {
     /*
@@ -338,6 +364,7 @@ static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClas
     const char* descriptor = dexGetPrimitiveTypeDescriptor(primitiveType);
     assert(descriptor != NULL);
 
+    //创建了一个新的newClass
     ClassObject* newClass = (ClassObject*) dvmMalloc(sizeof(*newClass), ALLOC_NON_MOVING);
     if (newClass == NULL) {
         return false;
@@ -355,7 +382,7 @@ static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClas
     /* don't need to set newClass->objectSize */
 
     LOGVV("Constructed class for primitive type '%s'", newClass->descriptor);
-
+    // newClass赋值给*pClass
     *pClass = newClass;
     dvmReleaseTrackedAlloc((Object*) newClass, NULL);
 
@@ -365,6 +392,11 @@ static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClas
 /*
  * Create the initial class instances. These consist of the class
  * Class and all of the classes representing primitive types.
+ */
+/*
+ * 实例化类并初始化它.这些是由'Class'类的实例和所有原生类型所代表的类组成.
+ * 
+ * 加载了9大基本类型
  */
 static bool createInitialClasses() {
     /*
@@ -380,13 +412,18 @@ static bool createInitialClasses() {
     SET_CLASS_FLAG(clazz, ACC_PUBLIC | ACC_FINAL | CLASS_ISCLASS);
     clazz->descriptor = "Ljava/lang/Class;";
     gDvm.classJavaLangClass = clazz;
-    LOGVV("Constructed the class Class.");
+   //构造一个'Class'类的实例,'class'是'Class'的一个实例
+    LOGVV("Constructed the class Class."); 
 
     /*
      * Initialize the classes representing primitive types. These are
      * instances of the class Class, but other than that they're fairly
      * different from regular classes.
      */
+    /*
+   * 初始化原生类型所代表的类(eg.PRIM_VOID = typeVoid),这些都是类的实例
+   *
+   */
     bool ok = true;
     ok &= createPrimitiveType(PRIM_VOID,    &gDvm.typeVoid);
     ok &= createPrimitiveType(PRIM_BOOLEAN, &gDvm.typeBoolean);
@@ -406,6 +443,12 @@ static bool createInitialClasses() {
  *
  * Call this after the bootclasspath string has been finalized.
  */
+/*
+ * 建立了bootstrap classloader
+ *
+ * 这个函数用来初始化启动类加载器（Bootstrap Class Loader），同时还会初始化java.lang.Class类。
+ * 启动类加载器是用来加载Java核心类的，用来保证安全性，即保证加载的Java核心类是合法的
+ */
 bool dvmClassStartup()
 {
     /* make this a requirement -- don't currently support dirs in path */
@@ -414,6 +457,7 @@ bool dvmClassStartup()
         return false;
     }
 
+   /* 创建hash表*/
     gDvm.loadedClasses =
         dvmHashTableCreate(256, (HashFreeFunc) dvmFreeClassInnards);
 
@@ -453,6 +497,10 @@ bool dvmClassStartup()
      * Process the bootstrap class path.  This means opening the specified
      * DEX or Jar files and possibly running them through the optimizer.
      */
+    /*
+   * 处理基本类库，这儿的意思是去打开指定的DEX或者Jar文件，并且尽可能通过优化器去运行他们
+   *
+   */
     assert(gDvm.bootClassPath == NULL);
     processClassPath(gDvm.bootClassPathStr, true);
 
@@ -468,6 +516,9 @@ bool dvmClassStartup()
 void dvmClassShutdown()
 {
     /* discard all system-loaded classes */
+	/*
+	 * 释放映射的Hash表
+	 */
     dvmHashTableFree(gDvm.loadedClasses);
     gDvm.loadedClasses = NULL;
 
@@ -501,10 +552,14 @@ void dvmClassShutdown()
 /*
  * Dump the contents of a ClassPathEntry array.
  */
+/*
+ * Dump 'ClassPathEntry'结构体数组的内容
+ *
+ */
 static void dumpClassPath(const ClassPathEntry* cpe)
 {
     int idx = 0;
-
+   /*判断如果不是最后一条，则进入循环进行判断种类*/
     while (cpe->kind != kCpeLastEntry) {
         const char* kindStr;
 
@@ -529,6 +584,9 @@ static void dumpClassPath(const ClassPathEntry* cpe)
 /*
  * Dump the contents of the bootstrap class path.
  */
+/*
+ * Dump'bootstrap'类路径的内容
+ */
 void dvmDumpBootClassPath()
 {
     dumpClassPath(gDvm.bootClassPath);
@@ -537,9 +595,13 @@ void dvmDumpBootClassPath()
 /*
  * Returns "true" if the class path contains the specified path.
  */
+/* 
+ * 判断指定的路径是否被包含;如果'cpe'包含了'path'则返回true,反之为false
+ */
 bool dvmClassPathContains(const ClassPathEntry* cpe, const char* path)
 {
     while (cpe->kind != kCpeLastEntry) {
+		// 函数是比较两个字符串或者变量的大小,返回比较的结果，'>'则为正数,'='则为0,'<'则为负数
         if (strcmp(cpe->fileName, path) == 0)
             return true;
 
@@ -553,6 +615,9 @@ bool dvmClassPathContains(const ClassPathEntry* cpe, const char* path)
  *
  * We release the contents of each entry, then free the array itself.
  */
+/*
+ * 释放ClassPathEntry结构体数组,首先我们先释放每个条目的内容，然后再释放它本身
+ */
 static void freeCpeArray(ClassPathEntry* cpe)
 {
     ClassPathEntry* cpeStart = cpe;
@@ -564,10 +629,12 @@ static void freeCpeArray(ClassPathEntry* cpe)
         switch (cpe->kind) {
         case kCpeJar:
             /* free JarFile */
+			/* 释放JarFile */
             dvmJarFileFree((JarFile*) cpe->ptr);
             break;
         case kCpeDex:
             /* free RawDexFile */
+			/* 释放DexFile */
             dvmRawDexFileFree((RawDexFile*) cpe->ptr);
             break;
         default:
@@ -587,8 +654,12 @@ static void freeCpeArray(ClassPathEntry* cpe)
  * last "." if any, or "<none>" if there's no apparent suffix). The
  * passed-in buffer will always be '\0' terminated.
  */
+/*
+ * 获取文件名称的后缀,如果没有找后缀，则为'<none>',如果能找到的话，则就是最后一个'.'之后的东东.
+ */
 static void getFileNameSuffix(const char* fileName, char* suffixBuf, size_t suffixBufLen)
 {
+	/* strrchr 查找'.'在'fileName' 末次 出现的位置*/
     const char* lastDot = strrchr(fileName, '.');
 
     strlcpy(suffixBuf, (lastDot == NULL) ? "<none>" : (lastDot + 1), suffixBufLen);
@@ -600,25 +671,33 @@ static void getFileNameSuffix(const char* fileName, char* suffixBuf, size_t suff
  * everything other than directories we need to open it up and see
  * what's inside.
  */
+/*
+ * 准备一个ClassPathEntry结构体，在这儿只能有一个有效的文件名，我们需要弄清楚它是什么样的类型文件,
+ * 并且对任何不同类型文件，我们都需要打开它并且看看里到底是什么
+ */
 static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap)
 {
     struct stat sb;
-
+	/* stat 是将文件的一些信息赋值给stat 结构变量*/
     if (stat(cpe->fileName, &sb) < 0) {
         ALOGD("Unable to stat classpath element '%s'", cpe->fileName);
         return false;
     }
+
+    /*判断是否是一个目录*/
     if (S_ISDIR(sb.st_mode)) {
         ALOGE("Directory classpath elements are not supported: %s", cpe->fileName);
         return false;
     }
 
     char suffix[10];
-    getFileNameSuffix(cpe->fileName, suffix, sizeof(suffix));
-
+   /*获取文件的后缀名*/
+    getFileNameSuffix(cpe->fileName, suffix, sizeof(suffix)); 
+  /*比较它的后缀属于那种类型*/
     if ((strcmp(suffix, "jar") == 0) || (strcmp(suffix, "zip") == 0) ||
             (strcmp(suffix, "apk") == 0)) {
         JarFile* pJarFile = NULL;
+	/*打开Jar文件*/
         if (dvmJarFileOpen(cpe->fileName, NULL, &pJarFile, isBootstrap) == 0) {
             cpe->kind = kCpeJar;
             cpe->ptr = pJarFile;
@@ -626,6 +705,7 @@ static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap)
         }
     } else if (strcmp(suffix, "dex") == 0) {
         RawDexFile* pRawDexFile = NULL;
+	/*打开Dex文件*/
         if (dvmRawDexFileOpen(cpe->fileName, NULL, &pRawDexFile, isBootstrap) == 0) {
             cpe->kind = kCpeDex;
             cpe->ptr = pRawDexFile;
@@ -650,6 +730,13 @@ static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap)
  * If entries are added or removed from the bootstrap class path, the
  * dependencies in the DEX files will break, and everything except the
  * very first entry will need to be regenerated.
+ */
+ /*
+ * 转换一个用冒号分隔符的目录列表(Zip,DEX)进入'ClassPathEntry'结构体数组.
+ *
+ * 在正常启动期间，如果这儿没有条目存在，将会启动失败，因为在缺少基本语言支持的类下，我们是没法获取更多的，但是，如果这是个优化的Dex文件，我们是允许它的
+ *
+ * 如果从基本类库路径中添加或移除一些条目,那么在Dex文件中的依赖关系将会被破坏，并且除第一个条目之外的一切都需要要重新生成
  */
 static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
 {
@@ -685,8 +772,11 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
     cpe = (ClassPathEntry*) calloc(count+1, sizeof(ClassPathEntry));
 
     /*
-     * Set the global pointer so the DEX file dependency stuff can find it.
+    * Set the global pointer so the DEX file dependency stuff can find it.
      */
+     /*
+   * 设置一个全局的指针，以便Dex文件所依赖的东西能找到它
+   */
     gDvm.bootClassPath = cpe;
 
     /*
@@ -764,6 +854,9 @@ bail:
  * Returns the matching DEX file and DexClassDef entry if found, otherwise
  * returns NULL.
  */
+/*
+ * 从基本的类库中查找，加载一个与描述符相匹配的类;
+ */
 static DvmDex* searchBootPathForClass(const char* descriptor,
     const DexClassDef** ppClassDef)
 {
@@ -785,6 +878,7 @@ static DvmDex* searchBootPathForClass(const char* descriptor,
                 DvmDex* pDvmDex;
 
                 pDvmDex = dvmGetJarFileDex(pJarFile);
+		//获取Class的索引值
                 pClassDef = dexFindClass(pDvmDex->pDexFile, descriptor);
                 if (pClassDef != NULL) {
                     /* found */
@@ -849,6 +943,9 @@ found:
  * Set the "extra" DEX, which becomes a de facto member of the bootstrap
  * class set.
  */
+/*
+ * 设置额外的DEX,让他成为基本类库的实际成员
+ */
 void dvmSetBootPathExtraDex(DvmDex* pDvmDex)
 {
     gDvm.bootClassPathOptExtra = pDvmDex;
@@ -860,10 +957,14 @@ void dvmSetBootPathExtraDex(DvmDex* pDvmDex)
  *
  * (Used for ClassLoader.getResources().)
  */
+/*
+ * 获取bootClassPath的总数
+ */
 int dvmGetBootPathSize()
 {
     const ClassPathEntry* cpe = gDvm.bootClassPath;
 
+    /*如果没有到最后一条，则指针向下移动*/
     while (cpe->kind != kCpeLastEntry)
         cpe++;
 
@@ -880,6 +981,9 @@ int dvmGetBootPathSize()
  * passed into this method.  "path" needs to be an absolute path (starting
  * with '/'); if it's not we'd need to "absolutify" it as part of forming
  * the URL string.
+ */
+/*
+ * 根据特定的名字查找资源
  */
 StringObject* dvmGetBootPathResource(const char* name, int idx)
 {
@@ -961,6 +1065,10 @@ static InitiatingLoaderList *dvmGetInitiatingLoaderList(ClassObject* clazz)
  * to grab the lock to do a lookup.  Among other things, this would improve
  * the speed of compareDescriptorClasses().
  */
+/*
+ * 判断这个'loader'是否出现在类加载器列表中
+ * 
+ */
 bool dvmLoaderInInitiatingList(const ClassObject* clazz, const Object* loader)
 {
     /*
@@ -999,6 +1107,11 @@ bool dvmLoaderInInitiatingList(const ClassObject* clazz, const Object* loader)
  * This locks gDvm.loadedClasses for synchronization, so don't hold it
  * when calling here.
  */
+ /*
+  * 如果 (loader != clazz->classLoader),那么将填加'loader'到最初的类加载器列表中.
+  * 一般情况下，这是一个短列表，因些在这儿不需要做太多的事情
+  * gDvm.loadedClasses是同步的，因些在这儿调用的时候不会持有它
+  */
 void dvmAddInitiatingLoader(ClassObject* clazz, Object* loader)
 {
     if (loader != clazz->classLoader) {
@@ -1025,6 +1138,10 @@ void dvmAddInitiatingLoader(ClassObject* clazz, Object* loader)
          * The pointer is initially NULL, so we *do* want to call realloc
          * when count==0.
          */
+        /*
+     * 列表的大小不会减小，因些我们仅仅保持元素在它里面的计数，并且当运行结束之后，我们将重新分配大小
+     * 指针最初是空的，因些当个数为0时，我们将去重新分配它
+     */
         InitiatingLoaderList *loaderList = dvmGetInitiatingLoaderList(clazz);
         if ((loaderList->initiatingLoaderCount & (kInitLoaderInc-1)) == 0) {
             Object** newList;
@@ -1118,6 +1235,10 @@ static int hashcmpClassByClass(const void* vclazz, const void* vaddclazz)
  *
  * Returns NULL if not found.
  */
+/*
+ * 首先它会查找hash表，如成功，则直接返回（gDvm.loadedClasses）
+ *
+ */
 ClassObject* dvmLookupClass(const char* descriptor, Object* loader,
     bool unprepOkay)
 {
@@ -1166,6 +1287,9 @@ ClassObject* dvmLookupClass(const char* descriptor, Object* loader,
  * for each ClassLoader object with loaded classes, which we don't
  * have yet.
  */
+/*
+ * 将加载的Class放入hash表(gDvm.loadedClasses)中，加快下次的查找
+ */
 bool dvmAddClassToHash(ClassObject* clazz)
 {
     void* found;
@@ -1212,6 +1336,9 @@ void dvmCheckClassTablePerf()
 /*
  * Remove a class object from the hash table.
  */
+/*
+ * 从hash表(gDvm.loadedClasses)中移除Class
+ */
 static void removeClassFromHash(ClassObject* clazz)
 {
     ALOGV("+++ removeClassFromHash '%s'", clazz->descriptor);
@@ -1237,6 +1364,9 @@ static void removeClassFromHash(ClassObject* clazz)
  * This usually happens *very* early in class creation, so don't expect
  * anything else in the class to be ready.
  */
+/*
+ * 设置一个可用的值给它(clazz->serialNumber)
+ */
 void dvmSetClassSerialNumber(ClassObject* clazz)
 {
     assert(clazz->serialNumber == 0);
@@ -1253,6 +1383,12 @@ void dvmSetClassSerialNumber(ClassObject* clazz)
  *
  * If the class can't be found, returns NULL with an appropriate exception
  * raised.
+ */
+/*
+ * 获取Class索引,如为基本类库则调用searchBootPathForClass函数，否则调用dexFindClass这个函数
+ * 使用指定的启动类加载器和描述符来查找指定名称的class
+ * 如果类没有被加载过，它将被加载和初始化，有必要的话，它的父类也将被加载
+ * 如果类还是没有被找到，则返回NULL
  */
 ClassObject* dvmFindClass(const char* descriptor, Object* loader)
 {
@@ -1281,6 +1417,10 @@ ClassObject* dvmFindClass(const char* descriptor, Object* loader)
  *
  * If the class can't be found, returns NULL with an appropriate exception
  * raised.
+ */
+/*
+ * 使用指定的启动类加载器和描述符来查找指定名称的class
+ * 如果不存在这个类，那么它和它的父类将被加载,它们不会被初始化
  */
 ClassObject* dvmFindClassNoInit(const char* descriptor,
         Object* loader)
@@ -1312,6 +1452,9 @@ ClassObject* dvmFindClassNoInit(const char* descriptor,
  * loader.  This calls out to let the ClassLoader object do its thing.
  *
  * Returns with NULL and an exception raised on error.
+ */
+/*
+ * 从指定的类加载器加载指定名称的class
  */
 static ClassObject* findClassFromLoaderNoInit(const char* descriptor,
     Object* loader)
@@ -1410,6 +1553,9 @@ bail:
  * Used by class loaders to instantiate a class object from a
  * VM-managed DEX.
  */
+ /*
+ * 从指定的DEX文件中加载一个类，使用类加载器去初始化一个类对象
+ */
 ClassObject* dvmDefineClass(DvmDex* pDvmDex, const char* descriptor,
     Object* classLoader)
 {
@@ -1426,6 +1572,9 @@ ClassObject* dvmDefineClass(DvmDex* pDvmDex, const char* descriptor,
  * "descriptor" looks like "Landroid/debug/Stuff;".
  *
  * Uses NULL as the defining class loader.
+ */
+/*
+ * 通过扫描基本类库，如果它尚未被加载,根据'descriptor'查找指定的类
  */
 ClassObject* dvmFindSystemClass(const char* descriptor)
 {
@@ -1451,6 +1600,9 @@ ClassObject* dvmFindSystemClass(const char* descriptor)
  *
  * On failure, this returns NULL with an exception raised.
  */
+/*
+ * 在基本类库中查找
+ */
 ClassObject* dvmFindSystemClassNoInit(const char* descriptor)
 {
     return findClassNoInit(descriptor, NULL, NULL);
@@ -1469,6 +1621,9 @@ ClassObject* dvmFindSystemClassNoInit(const char* descriptor)
  * used an existing definition.  If somebody deliberately tries to load a
  * class twice in the same class loader, they should get a LinkageError,
  * but inadvertent simultaneous class references should "just work".
+ */
+/*
+ * 负责加载Class并生成相应ClassObject的函数
  */
 static ClassObject* findClassNoInit(const char* descriptor, Object* loader,
     DvmDex* pDvmDex)
@@ -1947,6 +2102,9 @@ static ClassObject* loadClassFromDex0(DvmDex* pDvmDex,
  * Returns NULL on failure.  If we locate the class but encounter an error
  * while processing it, an appropriate exception is thrown.
  */
+/*
+ * 实际加载过程在这个地方，它会为ClassObject数据结构分配内存，并且读取Dex文件的相关信息
+ */
 static ClassObject* loadClassFromDex(DvmDex* pDvmDex,
     const DexClassDef* pClassDef, Object* classLoader)
 {
@@ -1992,6 +2150,9 @@ static ClassObject* loadClassFromDex(DvmDex* pDvmDex,
  * NOTE: this may be called with a partially-constructed object.
  * NOTE: there is no particular ordering imposed, so don't go poking at
  * superclasses.
+ */
+/*
+ * 释放系统堆中分配的ClassObject任何资源,ClassObject本身被分配在GC堆中
  */
 void dvmFreeClassInnards(ClassObject* clazz)
 {
@@ -2098,6 +2259,9 @@ void dvmFreeClassInnards(ClassObject* clazz)
  *
  * The containing class is largely torn down by this point.
  */
+/*
+ * 释放系统堆中分配的Method任何资源
+ */
 static void freeMethodInnards(Method* meth)
 {
 #if 0
@@ -2129,6 +2293,9 @@ static void freeMethodInnards(Method* meth)
  * Clone a Method, making new copies of anything that will be freed up
  * by freeMethodInnards().  This is used for "miranda" methods.
  */
+/*
+ * 复制一个Method结构体,确保新拷贝的任何东西能被释放出去
+ */
 static void cloneMethod(Method* dst, const Method* src)
 {
     if (src->registerMap != NULL) {
@@ -2144,6 +2311,9 @@ static void cloneMethod(Method* dst, const Method* src)
  *
  * The DEX file isn't going anywhere, so we don't need to make copies of
  * the code area.
+ */
+/*
+ * 从Dex文件中加载一个Method信息
  */
 static void loadMethodFromDex(ClassObject* clazz, const DexMethod* pDexMethod,
     Method* meth)
@@ -2332,6 +2502,9 @@ static int computeJniArgInfo(const DexProto* proto)
  * This also "prepares" static fields by initializing them
  * to their "standard default values".
  */
+/*
+ * 加载静态字段信息
+ */
 static void loadSFieldFromDex(ClassObject* clazz,
     const DexField* pDexSField, StaticField* sfield)
 {
@@ -2355,6 +2528,9 @@ static void loadSFieldFromDex(ClassObject* clazz,
 
 /*
  * Load information about an instance field.
+ */
+/*
+ * 加载实例字段信息
  */
 static void loadIFieldFromDex(ClassObject* clazz,
     const DexField* pDexIField, InstField* ifield)
@@ -2500,6 +2676,9 @@ static void computeRefOffsets(ClassObject* clazz)
  * pass the indices around.)
  *
  * Returns "false" with an exception pending on failure.
+ */
+/*
+ * 查找自己的父类，如父类没有加载，则会加载父类.如有interface，则加载相应的interface类
  */
 bool dvmLinkClass(ClassObject* clazz)
 {
@@ -2860,6 +3039,9 @@ bail:
  * The top part of the table is a copy of the table from our superclass,
  * with our local methods overriding theirs.  The bottom part of the table
  * has any new methods we defined.
+ */
+/*
+ * 创建虚拟方法表
  */
 static bool createVtable(ClassObject* clazz)
 {
@@ -3777,6 +3959,9 @@ static void throwEarlierClassFailure(ClassObject* clazz)
  * Initialize any static fields whose values are stored in
  * the DEX file.  This must be done during class initialization.
  */
+/*
+ * 初始化一些静态字段，将它们的值保存在DEX文件中，这必须在类初始化之前完成
+ */
 static void initSFields(ClassObject* clazz)
 {
     Thread* self = dvmThreadSelf(); /* for dvmReleaseTrackedAlloc() */
@@ -3990,6 +4175,7 @@ static bool compareDescriptorClasses(const char* descriptor,
  *
  * Returns "true" if the classes match, "false" otherwise.
  */
+
 static bool checkMethodDescriptorClasses(const Method* meth,
     const ClassObject* clazz1, const ClassObject* clazz2)
 {
@@ -4156,6 +4342,9 @@ static bool validateSuperDescriptors(const ClassObject* clazz)
  * possible to have a stale value floating around.  We need to ensure
  * that memory accesses happen in the correct order.
  */
+ /*
+ * 判断当前的类是否已经初始化
+ */
 bool dvmIsClassInitializing(const ClassObject* clazz)
 {
     const int32_t* addr = (const int32_t*)(const void*)&clazz->status;
@@ -4229,6 +4418,9 @@ bool dvmIsClassInitializing(const ClassObject* clazz)
  * deviate from the spec in a meaningful way, we don't allow class init
  * to be interrupted by Thread.interrupt().
  */
+/*
+ * 初始化类
+ */
 bool dvmInitClass(ClassObject* clazz)
 {
     u8 startWhen = 0;
@@ -4246,6 +4438,9 @@ bool dvmInitClass(ClassObject* clazz)
     /*
      * If the class hasn't been verified yet, do so now.
      */
+     /*
+   * 如果当前的类还没有完成校验，则执行下面这段
+   */
     if (clazz->status < CLASS_VERIFIED) {
         /*
          * If we're in an "erroneous" state, throw an exception and bail.
@@ -4551,6 +4746,15 @@ bail_unlock:
  * not allow it to be cleared.  A NULL value for the "insns" argument is
  * treated as "do not change existing value".
  */
+/*
+ * 使用新的值去替换method->nativeFunc和method-insns. 本地方法被成功解析之后，这将正常执行
+ * eg. method->insns=insns; 
+ *     method->nativeFunc=func;
+ *
+ * 参数method表示要注册JNI方法的Java类成员函数，参数func表示JNI方法的Bridge函数，参数insns表示要注册的JNI方法的函数地址。
+ * 当参数insns的值不等于NULL的时候，函数dvmSetNativeFunc就分别将参数insns和func的值分别保存在参数method所指向的一个Method对象的成员变量insns和nativeFunc中
+ * 而当insns的值等于NULL的时候，函数dvmSetNativeFunc就只将参数func的值保存在参数method所指向的一个Method对象成员变量nativeFunc中
+ */
 void dvmSetNativeFunc(Method* method, DalvikBridgeFunc func,
     const u2* insns)
 {
@@ -4582,6 +4786,10 @@ void dvmSetNativeFunc(Method* method, DalvikBridgeFunc func,
  * we don't have a pre-generated map).  This means "pMap" is on the heap
  * and should be freed when the Method is discarded.
  */
+/*
+ * 添加一个'pMap'到Method结构体(method->rigisterMap=pMap)
+ *'pMap'是在堆中存放的，如果Method被销毁，那么它也将被释放
+ */
 void dvmSetRegisterMap(Method* method, const RegisterMap* pMap)
 {
     ClassObject* clazz = method->clazz;
@@ -4598,6 +4806,7 @@ void dvmSetRegisterMap(Method* method, const RegisterMap* pMap)
     dvmLinearReadWrite(clazz->classLoader, clazz->virtualMethods);
     dvmLinearReadWrite(clazz->classLoader, clazz->directMethods);
 
+   
     method->registerMap = pMap;
 
     dvmLinearReadOnly(clazz->classLoader, clazz->virtualMethods);
@@ -4607,6 +4816,9 @@ void dvmSetRegisterMap(Method* method, const RegisterMap* pMap)
 /*
  * dvmHashForeach callback.  A nonzero return value causes foreach to
  * bail out.
+ */
+/*
+ * dvmFindLoadedClass函数的回调函数
  */
 static int findClassCallback(void* vclazz, void* arg)
 {
@@ -4628,6 +4840,10 @@ static int findClassCallback(void* vclazz, void* arg)
  * "[Ljava/lang/Class;", i.e. a descriptor and not an internal-form
  * class name.
  */
+
+/*
+ * 通过描述符查找一个已加载的类
+ */
 ClassObject* dvmFindLoadedClass(const char* descriptor)
 {
     int result;
@@ -4644,6 +4860,9 @@ ClassObject* dvmFindLoadedClass(const char* descriptor)
  * Retrieve the system (a/k/a application) class loader.
  *
  * The caller must call dvmReleaseTrackedAlloc on the result.
+ */
+/*
+ * 获取系统类加载器
  */
 Object* dvmGetSystemClassLoader()
 {
@@ -4664,6 +4883,9 @@ Object* dvmGetSystemClassLoader()
 
 /*
  * This is a dvmHashForeach callback.
+ */
+/*
+ * dump单个类，被dvmDumpClass等函数调用
  */
 static int dumpClass(void* vclazz, void* varg)
 {
@@ -4788,6 +5010,9 @@ static int dumpClass(void* vclazz, void* varg)
  *
  * Pass kDumpClassFullDetail into "flags" to get lots of detail.
  */
+/*
+ * Dump单个类的内容
+ */
 void dvmDumpClass(const ClassObject* clazz, int flags)
 {
     dumpClass((void*) clazz, (void*) flags);
@@ -4795,6 +5020,9 @@ void dvmDumpClass(const ClassObject* clazz, int flags)
 
 /*
  * Dump the contents of all classes.
+ */
+/*
+ * Dump所有类的内容
  */
 void dvmDumpAllClasses(int flags)
 {
@@ -4805,6 +5033,9 @@ void dvmDumpAllClasses(int flags)
 
 /*
  * Get the number of loaded classes
+ */
+/*
+ * 获取已经被加载类的数量
  */
 int dvmGetNumLoadedClasses()
 {
@@ -4817,6 +5048,9 @@ int dvmGetNumLoadedClasses()
 
 /*
  * Write some statistics to the log file.
+ */
+/*
+ * 写一些统计到日志文件中
  */
 void dvmDumpLoaderStats(const char* msg)
 {
@@ -4841,6 +5075,9 @@ void dvmDumpLoaderStats(const char* msg)
  * name is considered the "major" order and the prototype the "minor"
  * order. The prototypes are compared as if by dvmCompareMethodProtos().
  */
+/*
+ * 比较两个方法的名称和原型,名称比较要优先于原型比较;如果要进行原型比较，则通过dvmCompareMethodProtos()函数
+ */
 int dvmCompareMethodNamesAndProtos(const Method* method1,
         const Method* method2)
 {
@@ -4858,6 +5095,9 @@ int dvmCompareMethodNamesAndProtos(const Method* method1,
  * the return value. The name is considered the "major" order and the
  * prototype the "minor" order. The prototypes are compared as if by
  * dvmCompareMethodArgProtos().
+ */
+/*
+ * 比较两个方法名称和原型 ,名称比较要优先于原型比较;如果要进行原型比较,则通过dvmCompareMethodParameterProtos函数
  */
 int dvmCompareMethodNamesAndParameterProtos(const Method* method1,
         const Method* method2)
@@ -4877,6 +5117,10 @@ int dvmCompareMethodNamesAndParameterProtos(const Method* method1,
  * the prototype the "minor" order. The descriptor and prototype are
  * compared as if by dvmCompareDescriptorAndMethodProto().
  */
+/*
+ * 比较('name','method->name')与('proto','method->prototype');
+ * 名称比较要优先于原型比较;如果要进行原型比较,则通过dexProtoCompare函数
+ */
 int dvmCompareNameProtoAndMethod(const char* name,
     const DexProto* proto, const Method* method)
 {
@@ -4894,6 +5138,10 @@ int dvmCompareNameProtoAndMethod(const char* name,
  * a method, a la strcmp(). The name is considered the "major" order and
  * the prototype the "minor" order. The descriptor and prototype are
  * compared as if by dvmCompareDescriptorAndMethodProto().
+ */
+/*
+ * 比较('name','method->name');
+ * 名称比较要优先于原型比较;如果要进行描述符和原型的比较,则通过dvmCompareDescriptorAndMethodProto()函数
  */
 int dvmCompareNameDescriptorAndMethod(const char* name,
     const char* descriptor, const Method* method)

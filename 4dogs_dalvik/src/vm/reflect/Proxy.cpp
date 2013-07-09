@@ -23,6 +23,12 @@
  * we add support for DefineClass with standard classfiles we can
  * eliminate this.
  */
+/*
+ * java.lang.reflect.Proxy的实现
+ *
+ * 传统上来说，这是基本解释性代码的完全实现,通过生成的字节码来定义一个代理类.Dalvik目前是不支持这个方法,因些我们要直接生成类.
+ * 如果我们想要支持这种，那么我们需要添加标准的classfiles
+ */
 #include "Dalvik.h"
 
 #include <stdlib.h>
@@ -62,6 +68,12 @@ static bool mustWrapException(const Method* method, const Object* throwable);
  *
  * On failure we leave a partially-created class object sitting around,
  * but the garbage collector will take care of it.
+ */
+/*
+ * 使用指定的名称，接口，和类加载器生成一个代理类.  'interfaces'是一个对象数组
+ * java.lang.reflect的动态代理方法(Proxy.getProxyClass())
+ * Proxy.getProxyClass()代码完成了如下的工作:校验"interfaces"是否只包涵接口;查找一个已存在合适代理类的实例
+ * 
  */
 ClassObject* dvmGenerateProxyClass(StringObject* str, ArrayObject* interfaces,
     Object* loader)
@@ -236,6 +248,9 @@ bail:
  * method,so we can do some special handling of checked exceptions.  The
  * caller must call ReleaseTrackedAlloc() on *pThrows.
  */
+ /*
+  * 生成方法列表.
+  */
 static bool gatherMethods(ArrayObject* interfaces, Method*** pMethods,
     ArrayObject** pThrows, int* pMethodCount)
 {
@@ -371,6 +386,11 @@ bail:
  *
  * Returns the number of methods copied into "methods", or -1 on failure.
  */
+ /* 
+  * 识别并且删除重复的，这儿的'duplicate'的意思是它有一些相同的名字和参数，但不一定是相同的返回类型
+  *
+  * 如果重复的方法有不同的返回类型,来自其他所有重复的方法的返回类型是可转换成我们想要使用第一个方法的使用类型
+  */
 static int copyWithoutDuplicates(Method** allMethods, int allCount,
     Method** outMethods, ArrayObject* throwLists)
 {
@@ -565,6 +585,9 @@ static int copyWithoutDuplicates(Method** allMethods, int allCount,
  * The "mix" step we do next reduces things toward the most-derived class,
  * so it's important that we start with the least-derived classes.
  */
+/*
+ * 在一个类的层次结构中，能被声明去抛出多个异常 eg. IOException and FileNotFoundException 这两个类是子父关系.
+ */
 static void reduceExceptionClassList(ArrayObject* exceptionArray)
 {
     const ClassObject** classes =
@@ -597,6 +620,9 @@ static void reduceExceptionClassList(ArrayObject* exceptionArray)
  * "method".  If no throws are declared, "*pSet" will be NULL.
  *
  * Returns "false" on allocation failure.
+ */
+/*
+ * 通过'method',创建一个异常类本地的数组;如果异常没有被抛出，那么'pSet'将是NULL
  */
 static bool createExceptionClassList(const Method* method, PointerSet** pThrows)
 {
@@ -732,6 +758,9 @@ static bool returnTypesAreCompatible(Method* subMethod, Method* baseMethod)
  * Create a constructor for our Proxy class.  The constructor takes one
  * argument, a java.lang.reflect.InvocationHandler.
  */
+/*
+ * 创建我们代理类的构造函数.这个构造函数带有一个参数(java.lang.reflect.InvocationHandler)
+ */
 static void createConstructor(ClassObject* clazz, Method* meth)
 {
     /*
@@ -760,6 +789,9 @@ static void createConstructor(ClassObject* clazz, Method* meth)
  * Create a method in our Proxy class with the name and signature of
  * the interface method it implements.
  */
+/*
+ * 在我们的代理类中创建一个方法
+ */
 static void createHandlerMethod(ClassObject* clazz, Method* dstMeth,
     const Method* srcMeth)
 {
@@ -787,6 +819,10 @@ static void createHandlerMethod(ClassObject* clazz, Method* dstMeth,
  * The caller must call dvmReleaseTrackedAlloc() on the return value.
  *
  * On failure, returns with an appropriate exception raised.
+ */
+/*
+ * 返回一个使用'args'作为内容的新的object[]数组.基本方法的签名，我们去确认'args'值的类型和数量,基本数据类型是被装箱过的
+ * 如果方法不带的参数，则返回NULL
  */
 static ArrayObject* boxMethodArgs(const Method* method, const u4* args)
 {
@@ -849,6 +885,9 @@ static ArrayObject* boxMethodArgs(const Method* method, const u4* args)
  * This is the constructor for a generated proxy object.  All we need to
  * do is stuff "handler" into "h".
  */
+/*
+ * 生成代理对象的构造函数.
+ */
 static void proxyConstructor(const u4* args, JValue* pResult,
     const Method* method, Thread* self)
 {
@@ -867,6 +906,12 @@ static void proxyConstructor(const u4* args, JValue* pResult,
  * This means we have to create a Method object, box our arguments into
  * a new Object[] array, make the call, and unbox the return value if
  * necessary.
+ */
+/*
+ * 这是代理方法常用的消息体
+ * 我们将调用这个方法( public Object invoke(Object proxy, Method method, Object[] args));
+ * 
+ * 这意味首我们不得不去创建一个Method对象，封装我们的参数到Object[]数组中
  */
 static void proxyInvoker(const u4* args, JValue* pResult,
     const Method* method, Thread* self)

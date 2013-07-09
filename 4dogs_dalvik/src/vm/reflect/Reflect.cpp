@@ -38,6 +38,9 @@
  *
  * 验证Dalvik虚拟机中存在相应的装箱类，并且这些装箱类有且仅有一个成员变量，这个成员变量是用来描述对应的数字值的。
  * 这些装箱类包括java.lang.Boolean、java.lang.Character、java.lang.Float、java.lang.Double、java.lang.Byte、java.lang.Short、java.lang.Integer和java.lang.Long。
+ *
+ * 所谓装箱，就是可以自动将一个数值转换一个对象，例如，将数字1自动转换为一个java.lang.Integer对象。
+ * 相应地，也要求能将一个装箱类对象转换成一个数字，例如，将一个值等于1的java.lang.Integer对象转换为数字1
  */
 bool dvmValidateBoxClasses()
 {
