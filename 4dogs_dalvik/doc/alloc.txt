@@ -1,0 +1,12 @@
+[整体介绍]
+1.android垃圾回收算法:标记并清除(Mark and Sweep GC),拷贝GC(Copying GC)算法.
+具体使用什么算法是在编译期决定的，无法在运行的时候动态更换.
+2.android内存管理分析
+执行流程:dvmStartup[/dalvik/vm/init.cpp] ====>> dvmGcStartup[/dalvik/vm/alloc/Alloc.cpp] ====>> dvmHeapStartup[/dalvik/vm/alloc/Heap.cpp] ====>> dvmHeapSourceStartup[/dalvik/vm/alloc/HeapSource.cpp]
+垃圾回收流程:dvmCollectGarbageInternal[/dalvik/vm/alloc/Heap.cpp] ====>> dvmSuspendAllThreads[/dalvik/vm/Thread.cpp] ====>> dvmHeapMarkRootSet[/dalvik/vm/alloc/MarkSweep.cpp] ====>> dvmVisitRoot[/dalvik/vm/alloc/Visit.cpp]
+
+[标记清除回收法]
+在这个算法中，程序在运行的过程中不停的创建新的对象并消耗内存，直到内存用光，这时再要创建新对象时，系统暂停其它组件的运行，触发GC线程启动垃圾回收过程。内存回收的原理很简单，就是从所谓的"GC Roots"集合开始，将内存整个遍历一次，保留所有可以被GC Roots直接或间接引用到的对象，而剩下的对象都当作垃圾对待并回收。
+
+[card table]
+"Card Table"是一个位数组，每一个位都表示"老一代对象池"内存中一块4KB的区域 – 之所以取4KB，是因为大部分计算机系统中，内存页大小就是4KB。当用户代码执行一个引用赋值（reference assignment）时，虚拟机（通常是JIT组件）不会直接修改内存，而是先将被赋值的内存地址与"老一代对象池"的地址空间做一次比较，如果要修改的内存地址是"老一代对象池"中的地址，虚拟机会修改"Card Table"对应的位为 1，表示其对应的内存页已经修改过 - 不干净（dirty）了.
