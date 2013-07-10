@@ -592,6 +592,11 @@ void dvmJitStats()
 
 
 /* End current trace now & don't include current instruction */
+/**
+ * @brief 转化JIT选定状态
+ * @param self 线程结构
+ * @param dPC dalvik的PC指针
+ */
 void dvmJitEndTraceSelect(Thread* self, const u2* dPC)
 {
     if (self->jitState == kJitTSelect) {
@@ -1716,6 +1721,9 @@ void dvmJitChangeProfileMode(TraceProfilingModes newState)
     }
 }
 
+/**
+ * @brief trace profiling开启
+ */
 void dvmJitTraceProfilingOn()
 {
     if (gDvmJit.profileMode == kTraceProfilingPeriodicOff)
@@ -1726,6 +1734,9 @@ void dvmJitTraceProfilingOn()
                                     (void*) kTraceProfilingContinuous);
 }
 
+/**
+ * @brief trace profiling关闭
+ */
 void dvmJitTraceProfilingOff()
 {
     if (gDvmJit.profileMode == kTraceProfilingPeriodicOn)
@@ -1739,6 +1750,10 @@ void dvmJitTraceProfilingOff()
 /*
  * Update JIT-specific info in Thread structure for a single thread
  */
+/**
+ * @brief 更新JIT指定信息在一个线程结构
+ * @param thread 线程结构
+ */
 void dvmJitUpdateThreadStateSingle(Thread* thread)
 {
     thread->pJitProfTable = gDvmJit.pProfTable;
@@ -1748,6 +1763,9 @@ void dvmJitUpdateThreadStateSingle(Thread* thread)
 /*
  * Walk through the thread list and refresh all local copies of
  * JIT global state (which was placed there for fast access).
+ */
+/**
+ * @brief 更新线程的所有JIT状态
  */
 void dvmJitUpdateThreadStateAll()
 {

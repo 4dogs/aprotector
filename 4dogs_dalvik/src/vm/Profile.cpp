@@ -82,6 +82,9 @@
 /*
  * Returns true if the thread CPU clock should be used.
  */
+/**
+ * @brief 当thread CPU 时间被使用时返回true
+ */
 static inline bool useThreadCpuClock() {
 #if defined(HAVE_POSIX_CLOCKS)
     return gDvm.profilerClockSource != kProfilerClockSourceWall;
@@ -93,6 +96,9 @@ static inline bool useThreadCpuClock() {
 /*
  * Returns true if the wall clock should be used.
  */
+/**
+ * @brief 使用Wall时钟 
+ */
 static inline bool useWallClock() {
 #if defined(HAVE_POSIX_CLOCKS)
     return gDvm.profilerClockSource != kProfilerClockSourceThreadCpu;
@@ -103,6 +109,9 @@ static inline bool useWallClock() {
 
 /*
  * Get the wall-clock date/time, in usec.
+ */
+/**
+ * @brief 获取wall-clock 日期/时间
  */
 static inline u8 getWallTimeInUsec()
 {
@@ -117,6 +126,9 @@ static inline u8 getWallTimeInUsec()
  * Get the thread-cpu time, in usec.
  * We use this clock when we can because it enables us to track the time that
  * a thread spends running and not blocked.
+ */
+/**
+ * @brief 获取线程在使用过程中的CPU时间
  */
 static inline u8 getThreadCpuTimeInUsec()
 {
@@ -134,6 +146,9 @@ static inline u8 getThreadCpuTimeInUsec()
 /*
  * Get the clock used for stopwatch-like timing measurements on a single thread.
  */
+/**
+ * @brief 获取一个线程当前的时间
+ */
 static inline u8 getStopwatchClock()
 {
 #if defined(HAVE_POSIX_CLOCKS)
@@ -145,6 +160,9 @@ static inline u8 getStopwatchClock()
 
 /*
  * Write little-endian data.
+ */
+/**
+ * @brief 按照little-endian字序写入数据
  */
 static inline void storeShortLE(u1* buf, u2 val)
 {
@@ -173,11 +191,18 @@ static inline void storeLongLE(u1* buf, u8 val)
 /*
  * Boot-time init.
  */
+/**
+ * @brief profiling启动 
+ * @note 其实就是打开"dev/qemu_trace"并映射到一个内存
+ */
 bool dvmProfilingStartup()
 {
     /*
      * Initialize "dmtrace" method profiling.
      */
+	/*
+	 * 初始化 "dmtrace" 函数
+	 */
     memset(&gDvm.methodTrace, 0, sizeof(gDvm.methodTrace));
     dvmInitMutex(&gDvm.methodTrace.startStopLock);
     pthread_cond_init(&gDvm.methodTrace.threadExitCond, NULL);
@@ -187,6 +212,7 @@ bool dvmProfilingStartup()
     /*
      * Allocate storage for instruction counters.
      */
+	/* 分配内存为指令计数器  */
     gDvm.executedInstrCounts = (int*) calloc(kNumPackedOpcodes, sizeof(int));
     if (gDvm.executedInstrCounts == NULL)
         return false;
@@ -224,23 +250,31 @@ bool dvmProfilingStartup()
 /*
  * Free up profiling resources.
  */
+/**
+ * @brief 释放profiling资源
+ */
 void dvmProfilingShutdown()
 {
 #ifdef UPDATE_MAGIC_PAGE
     if (gDvm.emulatorTracePage != NULL)
         munmap(gDvm.emulatorTracePage, SYSTEM_PAGE_SIZE);
 #endif
+	/* 释放指令计数器 */
     free(gDvm.executedInstrCounts);
 }
 
 /*
  * Update the set of active profilers
  */
+/**
+ * @brief 更新活动的profilers集合
+ */
 static void updateActiveProfilers(ExecutionSubModes newMode, bool enable)
 {
     int oldValue, newValue;
 
     // Update global count
+	/* 更新全家计数 */
     do {
         oldValue = gDvm.activeProfilers;
         newValue = oldValue + (enable ? 1 : -1);
@@ -252,6 +286,7 @@ static void updateActiveProfilers(ExecutionSubModes newMode, bool enable)
             &gDvm.activeProfilers) != 0);
 
     // Tell the threads
+	/* 更新线程状态 */
     if (enable) {
         dvmEnableAllSubMode(newMode);
     } else {
@@ -259,6 +294,7 @@ static void updateActiveProfilers(ExecutionSubModes newMode, bool enable)
     }
 
 #if defined(WITH_JIT)
+	/* 更新编译器状态 */
     dvmCompilerUpdateGlobalState();
 #endif
 
@@ -268,6 +304,9 @@ static void updateActiveProfilers(ExecutionSubModes newMode, bool enable)
 
 /*
  * Reset the "cpuClockBase" field in all threads.
+ */
+/**
+ * @brief 重新设置 "cpuClockBase"字段在所有的线程
  */
 static void resetCpuClockBase()
 {
@@ -284,6 +323,9 @@ static void resetCpuClockBase()
 /*
  * Dump the thread list to the specified file.
  */
+/**
+ * @brief 打印线程列表到指定的文件
+ */
 static void dumpThreadList(FILE* fp) {
     dvmLockThreadList(NULL);
     for (Thread* thread = gDvm.threadList; thread != NULL; thread = thread->next) {
@@ -295,6 +337,9 @@ static void dumpThreadList(FILE* fp) {
 
 /*
  * This is a dvmHashForeach callback.
+ */
+/**
+ * @brief 对于 dvmHashForeach的回调函数
  */
 static int dumpMarkedMethods(void* vclazz, void* vfp)
 {
@@ -341,6 +386,9 @@ static int dumpMarkedMethods(void* vclazz, void* vfp)
 /*
  * Dump the list of "marked" methods to the specified file.
  */
+/**
+ * @brief 打印 "标记过"函数到指定文件
+ */
 static void dumpMethodList(FILE* fp)
 {
     dvmHashTableLock(gDvm.loadedClasses);
@@ -358,9 +406,20 @@ static void dumpMethodList(FILE* fp)
  *
  * On failure, we throw an exception and return.
  */
+/**
+ * @brief 函数trace启动
+ * @param traceFileName trace文件的名称
+ * @param traceFd
+ * @param bufferSize 缓存大小
+ * @param flags 标志
+ * @param directToDdms 直接输出到DDMS中
+ * @note 打开一个文件并且分配数据缓冲区。
+ * @return 如果失败，抛出一个异常并且返回
+ */
 void dvmMethodTraceStart(const char* traceFileName, int traceFd, int bufferSize,
     int flags, bool directToDdms)
 {
+	/* 这是一个虚拟机的全局配置 */
     MethodTraceState* state = &gDvm.methodTrace;
 
     assert(bufferSize > 0);
@@ -380,6 +439,7 @@ void dvmMethodTraceStart(const char* traceFileName, int traceFd, int bufferSize,
      * We don't need to initialize the buffer, but doing so might remove
      * some fault overhead if the pages aren't mapped until touched.
      */
+	/* 分配内存并且打开文件 */
     state->buf = (u1*) malloc(bufferSize);
     if (state->buf == NULL) {
         dvmThrowInternalError("buffer alloc failed");
@@ -387,9 +447,9 @@ void dvmMethodTraceStart(const char* traceFileName, int traceFd, int bufferSize,
     }
     if (!directToDdms) {
         if (traceFd < 0) {
-            state->traceFile = fopen(traceFileName, "w");
+            state->traceFile = fopen(traceFileName, "w");		/* 通过文件名打开 */
         } else {
-            state->traceFile = fdopen(traceFd, "w");
+            state->traceFile = fdopen(traceFd, "w");			/* 通过文件句柄打开 */
         }
         if (state->traceFile == NULL) {
             int err = errno;
@@ -411,13 +471,18 @@ void dvmMethodTraceStart(const char* traceFileName, int traceFd, int bufferSize,
     /*
      * Enable alloc counts if we've been requested to do so.
      */
+	/*
+	 * 启动分配计数器，如果需要的话
+	 */
     state->flags = flags;
     if ((flags & TRACE_ALLOC_COUNTS) != 0)
         dvmStartAllocCounting();
 
     /* reset our notion of the start time for all CPU threads */
+	/* 重新设置开始时间为所有的线程 */
     resetCpuClockBase();
 
+	/* 获取线程启动时间 */
     state->startWhen = getWallTimeInUsec();
 
     if (useThreadCpuClock() && useWallClock()) {
@@ -431,20 +496,25 @@ void dvmMethodTraceStart(const char* traceFileName, int traceFd, int bufferSize,
     /*
      * Output the header.
      */
+	/* 输出头结构*/
     memset(state->buf, 0, TRACE_HEADER_LEN);
-    storeIntLE(state->buf + 0, TRACE_MAGIC);
-    storeShortLE(state->buf + 4, state->traceVersion);
-    storeShortLE(state->buf + 6, TRACE_HEADER_LEN);
-    storeLongLE(state->buf + 8, state->startWhen);
+    storeIntLE(state->buf + 0, TRACE_MAGIC);				// 头的标记
+    storeShortLE(state->buf + 4, state->traceVersion);		// trace版本
+    storeShortLE(state->buf + 6, TRACE_HEADER_LEN);			// 头的长度		
+    storeLongLE(state->buf + 8, state->startWhen);			// 开始的时间
     if (state->traceVersion >= 3) {
-        storeShortLE(state->buf + 16, state->recordSize);
+        storeShortLE(state->buf + 16, state->recordSize);	// 保存记录长度
     }
-    state->curOffset = TRACE_HEADER_LEN;
+    state->curOffset = TRACE_HEADER_LEN;					// 记录内容的开始
 
     /*
      * Set the "enabled" flag.  Once we do this, threads will wait to be
      * signaled before exiting, so we have to make sure we wake them up.
      */
+	/*
+	 * 设置 "enabled" 标志。 一旦这样做了，在线程退出前将等待信号，因此
+	 * 我们要确定可以唤醒这些线程。
+	 */
     android_atomic_release_store(true, &state->traceEnabled);
 
     /*
@@ -452,6 +522,9 @@ void dvmMethodTraceStart(const char* traceFileName, int traceFd, int bufferSize,
      * following to take a Thread* argument, and set the appropriate
      * interpBreak flags only on the target thread.
      */
+	/*
+	 * 更新Profilers
+	 */
     updateActiveProfilers(kSubModeMethodTrace, true);
 
     dvmUnlockMutex(&state->startStopLock);
@@ -475,10 +548,16 @@ fail:
  * Run through the data buffer and pull out the methods that were visited.
  * Set a mark so that we know which ones to output.
  */
+/**
+ * @brief 标记在profile文件中的函数的 inProfile 字段为TRUE
+ */
 static void markTouchedMethods(int endOffset)
 {
+	/* 移动到记录区域 */
     u1* ptr = gDvm.methodTrace.buf + TRACE_HEADER_LEN;
+	/* 移动到末尾偏移 */
     u1* end = gDvm.methodTrace.buf + endOffset;
+	/* trace函数记录长度 */
     size_t recordSize = gDvm.methodTrace.recordSize;
     unsigned int methodVal;
     Method* method;
@@ -486,15 +565,18 @@ static void markTouchedMethods(int endOffset)
     while (ptr < end) {
         methodVal = ptr[2] | (ptr[3] << 8) | (ptr[4] << 16)
                     | (ptr[5] << 24);
-        method = (Method*) METHOD_ID(methodVal);
+        method = (Method*) METHOD_ID(methodVal);	/* 记录函数ID */
 
-        method->inProfile = true;
-        ptr += recordSize;
+        method->inProfile = true;					/* 标记此函数在Profiling */
+        ptr += recordSize;							/* 增加到下一个记录 */
     }
 }
 
 /*
  * Exercises the clocks in the same way they will be during profiling.
+ */
+/**
+ * @brief 在profiling时获取线程时间
  */
 static inline void measureClockOverhead()
 {
@@ -513,6 +595,9 @@ static inline void measureClockOverhead()
  *
  * This value is going to vary depending on what else is going on in the
  * system.  When examined across several runs a pattern should emerge.
+ */
+/**
+ * @brief 计算在一个时钟调用。
  */
 static u4 getClockOverhead()
 {
@@ -538,6 +623,9 @@ static u4 getClockOverhead()
 /*
  * Returns "true" if method tracing is currently active.
  */
+/**
+ * @brief 如果函数的trace开启则返回true
+ */
 bool dvmIsMethodTraceActive()
 {
     const MethodTraceState* state = &gDvm.methodTrace;
@@ -548,9 +636,13 @@ bool dvmIsMethodTraceActive()
  * Stop method tracing.  We write the buffer to disk and generate a key
  * file so we can interpret it.
  */
+/**
+ * @brief 停止函数trace.然后将缓冲中的内容写入到硬盘并且产生一个key文件
+ *	因此我们能中断它
+ */
 void dvmMethodTraceStop()
 {
-    MethodTraceState* state = &gDvm.methodTrace;
+    MethodTraceState* state = &gDvm.methodTrace;	/* 获取函数状态 */
     u8 elapsed;
 
     /*
@@ -565,10 +657,12 @@ void dvmMethodTraceStop()
         dvmUnlockMutex(&state->startStopLock);
         return;
     } else {
+		/* 开启则增加profiler计数 */
         updateActiveProfilers(kSubModeMethodTrace, false);
     }
 
     /* compute elapsed time */
+	/* 计算消费的时间 */
     elapsed = getWallTimeInUsec() - state->startWhen;
 
     /*
@@ -583,6 +677,7 @@ void dvmMethodTraceStop()
     sched_yield();
     usleep(250 * 1000);
 
+	/* 停止计数 */
     if ((state->flags & TRACE_ALLOC_COUNTS) != 0)
         dvmStopAllocCounting();
 
@@ -604,15 +699,16 @@ void dvmMethodTraceStop()
      * this actually happening should be at or near zero.  Fixing it
      * completely could be done by writing the thread number last and
      * using a sentinel value to indicate a partially-written record,
-     * but that requires memory barriers.
+     * but that requires memory barriers./
      */
-    int finalCurOffset = state->curOffset;
+    int finalCurOffset = state->curOffset;		/* 最后记录的偏移 */
 
-    size_t recordSize = state->recordSize;
+    size_t recordSize = state->recordSize;		/* 一条记录的大小 */
     if (finalCurOffset > TRACE_HEADER_LEN) {
         u4 fillVal = METHOD_ID(FILL_PATTERN);
         u1* scanPtr = state->buf + TRACE_HEADER_LEN;
 
+		/* 遍历取出每个函数的ID直到到达最后一个函数，然后记录到文件中 */
         while (scanPtr < state->buf + finalCurOffset) {
             u4 methodVal = scanPtr[2] | (scanPtr[3] << 8) | (scanPtr[4] << 16)
                         | (scanPtr[5] << 24);
@@ -642,12 +738,15 @@ void dvmMethodTraceStop()
      */
     u4 clockNsec = getClockOverhead();
 
-    markTouchedMethods(finalCurOffset);
+    markTouchedMethods(finalCurOffset);		/* 标记当前函数在Profiling中 */
 
     char* memStreamPtr;
     size_t memStreamSize;
+
+	/* 直接输出到DDMS */
     if (state->directToDdms) {
         assert(state->traceFile == NULL);
+		/* 打开DDMS内存 */
         state->traceFile = open_memstream(&memStreamPtr, &memStreamSize);
         if (state->traceFile == NULL) {
             /* not expected */
@@ -655,9 +754,10 @@ void dvmMethodTraceStop()
             dvmAbort();
         }
     }
-    assert(state->traceFile != NULL);
+    assert(state->traeFile != NULL);
 
-    fprintf(state->traceFile, "%cversion\n", TOKEN_CHAR);
+	/* 输出 */
+	printf(state->traceFile, "%cversion\n", TOKEN_CHAR);
     fprintf(state->traceFile, "%d\n", state->traceVersion);
     fprintf(state->traceFile, "data-file-overflow=%s\n",
         state->overflow ? "true" : "false");
@@ -696,6 +796,7 @@ void dvmMethodTraceStop()
          */
         fflush(state->traceFile);
 
+		/* 输出到DDMS */
         struct iovec iov[2];
         iov[0].iov_base = memStreamPtr;
         iov[0].iov_len = memStreamSize;
@@ -729,6 +830,12 @@ void dvmMethodTraceStop()
  *
  * Multiple threads may be banging on this all at once.  We use atomic ops
  * rather than mutexes for speed.
+ */
+/**
+ * @brief 添加一个要trace的函数记录
+ * @param self 线程指针
+ * @param method 函数
+ * @param action 动作
  */
 void dvmMethodTraceAdd(Thread* self, const Method* method, int action)
 {
@@ -769,11 +876,14 @@ void dvmMethodTraceAdd(Thread* self, const Method* method, int action)
 
     //assert(METHOD_ACTION((u4) method) == 0);
 
-    methodVal = METHOD_COMBINE((u4) method, action);
+    methodVal = METHOD_COMBINE((u4) method, action);	/* 组合 */
 
     /*
      * Write data into "oldOffset".
      */
+	/*
+	 * 将数据写入到"oldOffset"
+	 */
     ptr = state->buf + oldOffset;
     *ptr++ = (u1) self->threadId;
     *ptr++ = (u1) (self->threadId >> 8);
@@ -806,6 +916,9 @@ void dvmMethodTraceAdd(Thread* self, const Method* method, int action)
  * Register the METHOD_TRACE_ENTER action for the fast interpreter and
  * JIT'ed code.
  */
+/**
+ * @brief 注册一个METHOD_TRACE_ENTER动作为解释器与JIT后的代码
+ */
 void dvmFastMethodTraceEnter(const Method* method, Thread* self)
 {
     if (self->interpBreak.ctl.subMode & kSubModeMethodTrace) {
@@ -831,6 +944,10 @@ void dvmFastMethodTraceExit(Thread* self)
  * JIT'ed code for JNI methods. The about-to-return JNI callee method is passed
  * in explicitly.  Also used for inline-execute.
  */
+/**
+ * @brief 注册一个METHOD_TRACE_EXIT动作为一个解释器与JIT后的代码对JNI函数
+ *	的支持。
+ */
 void dvmFastNativeMethodTraceExit(const Method* method, Thread* self)
 {
     if (self->interpBreak.ctl.subMode & kSubModeMethodTrace) {
@@ -841,6 +958,9 @@ void dvmFastNativeMethodTraceExit(const Method* method, Thread* self)
 /*
  * We just did something with a method.  Emit a record by setting a value
  * in a magic memory location.
+ */
+/**
+ * @brief 
  */
 void dvmEmitEmulatorTrace(const Method* method, int action)
 {
@@ -855,12 +975,14 @@ void dvmEmitEmulatorTrace(const Method* method, int action)
      * because we do a "late trap" to a native method to generate the
      * abstract method exception.)
      */
-    if (dvmIsAbstractMethod(method))
+	/* 抽象方法没有任何字节码 */
+    if (dvmIsAbstractMethod(method))	/* 如果是一个抽象方法则直接返回 */
         return;
 
     u4* pMagic = (u4*) gDvm.emulatorTracePage;
     u4 addr;
 
+	/* 是否是JNI方法 */
     if (dvmIsNativeMethod(method)) {
         /*
          * The "action" parameter is one of:
@@ -895,7 +1017,7 @@ void dvmEmitEmulatorTrace(const Method* method, int action)
          */
         assert(method->insns != NULL);
         const DexOptHeader* pOptHdr = method->clazz->pDvmDex->pDexFile->pOptHeader;
-        addr = (u4) method->insns - pOptHdr->dexOffset;
+        addr = (u4) method->insns - pOptHdr->dexOffset;	/* 得到当前函数的偏移 */
     }
 
     *(pMagic+action) = addr;

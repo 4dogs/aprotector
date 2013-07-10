@@ -2,7 +2,124 @@
 Jit即Just In Time的缩写，是JAVA虚拟机优化技术的一种，此模块即实现dalvik虚拟机的Jit实现。据官方称，此技术可提速5倍。
 Jit只能与FAST模式的解释器配置起作用。用于将Dalvik字节码转换成本地平台的代码。有两种方式触发Jit的启用，一种是method模式，一种是track模式，前者用于将热点过多的函数
 整体编译为本地代码，后者用于将某个热点过多的代码块编译为本地代码。
-Jit的启动与卸载由dvmJitStartup和dvmJitShutdown函数完成，它们位于“dalvik/vm/interp/Jit.cpp”中，会由“dalvik/vm/Init.cpp”中的dvmStartup和dvmShutdown调用。在启动时首先调用dvmCompilerStartup(位于"daivik/vm/compiler/Compiler.cpp")来启动Compiler线程；当虚拟机关闭时，需要调用dvmCompilerShutdown函数来卸载。
+Jit的启动与卸载由dvmCompilerStartup(位于"dalvik/vm/compiler/Compiler.cpp"中)与dvmCompilerShutdown函数完成，最初的调用由“dalvik/vm/Init.cpp”中的dvmStartup和dvmShutdown调用。
+
+[JIT相关的流程]
+0.热点的测试
+模块位置："dalvik/vm/Profile.cpp"
+---
+与JIT直接相关的函数：
+updateActiveProfilers -> dvmCompilerUpdateGlobalState
+调用updateActiveProfilers就是外部接口
+---
+外部接口：在它对应的头文件中导出了TRACE_METHOD_ENTER等宏 分配在执行dalvik
+字节码函数的进入时，退出时已经回卷时进行调用。
+***
+
+1.JIT订单的形成
+	
+2.JIT订单的下发
+3.编译器的初始化
+4.编译器对订单的获取
+5.编译器对订单的编译
+6.对编译结果的执行
+
+
+[初始化流程]
+dvmStartup(Init.cpp)
+dvmInitAfterZygote(Init.cpp)
+dvmCompilerStartup(compiler/Compiler.cpp)
+compilerThreadStartup(线程)(compiler/Compiler.cpp) // 一个循环检测订单队列
+
+[编译线程]
+compilerThreadStart
+1.首先改变线程的所有状态为THREAD_VMWAIT(挂起所有线程)
+2.0.如果是系统线程则等待gDvmJit.compilerQueueActivity条件变量被触发
+2.1.如果不是系统线程则等待3秒gDvmJit.compilerQueueActivity条件变量被触发
+3.调用compilerThreadStartup初始化内存
+4.循环检测编译器线程是否停止
+	4.1检查订单队列是否为空
+	4.2不为空通知gDvmJit.compilerQueueEmpty表示订单队列为空，并且等待
+		gDvmJit.compilerQueueActivity变量被激活（也就是有任务）
+		如果有任务则继续循环
+	4.3如果队列不为空，通过workDequeue取一个编译订单。
+		4.3.1检测gDvmJit.blockingMode变量，如果为false则调用
+			dvmCheckSuspendPending挂起阻塞
+		4.3.2如果JIT表已经满了则重新分配空间
+		4.3.3调用dvmCompilerDoWork进行编译
+		4.3.4到这里已经完成了编译，并调用dvmJitSetCodeAddr来运行编译
+			好的代码
+	4.4订单为空设置条件gDvmJit.compilerQueueEmpty
+	4.5重新启动所有线程
+		
+[编译线程内存数据初始化]
+此线程函数存在于compiler/Compiler.cpp中
+compilerThreadStartup
+1.调用dvmCompilerArchInit(针对不同平台都有实现)初始化当前硬件体系
+2.调用dvmCompilerSetupCodeCache设置编译代码缓冲区
+3.dvmCompilerHeapInit初始化堆空间
+4.调用dvmHashTableCreate创建gDvmJit.methodStatsTable中的函数统计表
+5.分配一块JitTable表的内存
+6.分配一块JitProfTable表的内存
+7.分配一块JitTraceProfCounters的内存
+8.调用dvmJitUpdateThreadStateAll更新所有线程的JIT状态
+9.重新开启所有线程
+
+[编译流程]
+在编译线程中调用这里来完成编译
+dvmCompilerDoWork(codegen/arm|mips|x86) -> dvmCompileTrace
+
+[编译结果的流程]
+dvmJitSetCodeAddr
+
+[profiling流程分析]
+updateActiveProfilers(Profile.cpp)
+dvmCompilerUpdateGlobalState(compiler/Compiler.cpp)
+
+[关于命令行选项]
+-Xint (extended to accept ':portable', ':fast' and ':jit')
+使用-Xint:jit 接受jit的方式，这里应该是选择解释器的方式
+如果使用-Xint:jit则将gDvm.executionMode = kExecutionModeJit
+
+-Xincludeselectedop
+gDvmJit.includeSelectedOp = true
+
+-Xjitop:hexopvalue[-endvalue][,hexopvalue[-endvalue]]
+
+-Xincludeselectedmethod
+gDvmJit.includeSelectedMethod = true
+
+-Xjitthreshold:decimalvalue(10进制值)
+gDvmJit.threshold = 10进制数
+
+-Xjitblocking
+gDvmJit.blockingMode = true
+
+-Xjitmethod:signature[,signature]*  // Ljava/lang/String;replace
+
+-Xjitclass:classname[,classname]*
+
+-Xjitoffset:offset[,offset]
+
+-Xjitconfig:filename
+
+-Xjitcheckcg
+gDvmJit.checkCallGraph = true
+
+-Xjitdumpbin
+gDvmJit.printBinary = true
+
+-Xjitverbose
+gDvmJit.printMe = true
+
+-Xjitprofile
+gDvmJit.profileMode = kTraceProfilingContinuous
+
+-Xjitdisableopt
+gDvmJit.disableOpt = 16进制的值
+
+-Xjitsuspendpoll
+gDvmJit.genSuspendPoll = true
 
 [相关宏介绍]
 WITH_JIT 只有在编译时打开此宏，JIT模块才能编译进虚拟机中
@@ -17,59 +134,25 @@ SHOW_TRACE 打印trace信息
 无论是虚拟机运行期间还是在JIT编译期间。指令都需要运行到一条线程之上。
 这条线程记录了当前要执行函数的基本信息。
 struct Thread {
-    /*
-     * Interpreter state which must be preserved across nested
-     * interpreter invocations (via JNI callbacks).  Must be the first
-     * element in Thread.
-     */
 	/* 解释器状态，保存此状态下对JNI接口进行访问 */
     InterpSaveState interpSave;
 
-    /* small unique integer; useful for "thin" locks and debug messages */
 	/* 线程唯一ID号 */
     u4          threadId;
 
-    /*
-     * Begin interpreter state which does not need to be preserved, but should
-     * be located towards the beginning of the Thread structure for
-     * efficiency.
-     */
-
-    /*
-     * interpBreak contains info about the interpreter mode, as well as
-     * a count of the number of times the thread has been suspended.  When
-     * the count drops to zero, the thread resumes.
-     */
 	/* 解释器断点，包含解释器的模式，也有一些线程被挂起的次数。当计数为0,线程挂起 */
     InterpBreak interpBreak;
-
-    /*
-     * "dbgSuspendCount" is the portion of the suspend count that the
-     * debugger is responsible for.  This has to be tracked separately so
-     * that we can recover correctly if the debugger abruptly disconnects
-     * (suspendCount -= dbgSuspendCount).  The debugger should not be able
-     * to resume GC-suspended threads, because we ignore the debugger while
-     * a GC is in progress.
-     *
-     * Both of these are guarded by gDvm.threadSuspendCountLock.
-     *
-     * Note the non-debug component will rarely be other than 1 or 0 -- (not
-     * sure it's even possible with the way mutexes are currently used.)
-     */
 
     int suspendCount;
     int dbgSuspendCount;
 
     u1*         cardTable;
 
-    /* current limit of stack; flexes for StackOverflowError */
 	/* dalvik栈底 */
     const u1*   interpStackEnd;
 
-    /* FP of bottom-most (currently executing) stack frame on interp stack */
 	/* 解释器的栈底 */
     void*       XcurFrame;
-    /* current exception, or NULL if nothing pending */
 	/* 当前的异常状态 */
     Object*     exception;
 
@@ -218,9 +301,10 @@ struct Thread {
     /* JDWP invoke-during-breakpoint support */
     DebugInvokeReq  invokeReq;
 
-    /* base time for per-thread CPU timing (used by method profiling) */
-    bool        cpuClockBaseSet;
-    u8          cpuClockBase;
+	/* 基础时间为每条线程，这个是为了函数的profiling使用 */
+	/* 可以参见代码"vm/Profile.cpp */
+    bool        cpuClockBaseSet;	/* CPU时间基础是否被设置 */
+    u8          cpuClockBase;		/* CPU时间的基础 */
 
     /* memory allocation profiling state */
     AllocProfState allocProf;
@@ -244,7 +328,60 @@ struct Thread {
 #endif
 };
 
+[JIT订单的完成]
+JIT任务的提交主要是依靠位于"interp/Jit.cpp"文件中实现的代码
+当解释器使用FINISH宏时。此宏调用Jit.cpp中的dvmCheckJit函数进行关于当前指令
+的检查。解释器通过解释每条指令，并且将每条指令解码后放置到一个trace块中。
+直到遇到以下几种状况则作为一个订单的结束：
+1.当前的OPCODE不被JIT编译支持
+2.当前的OPCODE是OP_PACKED_SWITCH,OP_SPARSE_SWITCH两条指令
+3.如果不是GOTO指令但是此指令又有kInstrCanBranch,kInstrCanSwitch,
+kInstrCanReturn,kInstrInvoke属性
+4.当前OPCODE是OP_THROW
+5.trace块的块数量大于等于JIT_MAX_TRACE_LEN
+
+所以此函数即是订单的入口,流程如下:
+dvmCheckJit---
+1.获取当前运行代码所在的类对象以及函数的结构体
+2.判断当时线程的jitState值
+	2.1kJitTSelect,解码第一条指令，并查看此OPCODE是否被JIT编译支持
+		如果不支持则将JIT状态设置为kJitTSelectEnd表明JIT的选择块完成
+		如果OPCODE指令是OP_PACKED_SWITCH或者OP_SPARSE_SWITCH则也设置
+		kJitTSelectEnd表明选择块完成
+	2.2如果当前分析的地址不是到了运行的末尾，这里lastPC与trace块末尾指针应该
+		是同步的，如果不同步了则是一个新的块开始。新的trace块增加
+	2.3如果不是GOTO指令并且当前指令属于kInstrCanBranch,kInstrCanSwitch,
+		kInstrCanReturn,kInstrInvoke属性，则也设置kJitTSelectEnd
+	2.4如果是kInstrInvoke属性则调用insertClassMethodInfo与insertMoveResult两条个trace基本块
+	2.5如果指令是OP_THROW或者lastPC与当前的pc相等则也设定kJitTSelectEnd属性
+	2.6如果trace块长度大于等于JIT_MAX_TRACE_LEN则设定kJitTSelectEnd
+###这里2.1-2.6都是trace块选定方面
+	2.7 kJitTSelectEnd这里完成了trace的选择，判断如果trace的总长度为0则设定要编译的地址
+		dvmJitSetCodeAddr，并且完成kJitDone属性的设定
+	2.8得到最后一个trace块的索引并添加一个拥有代码属性的空块作为结尾标记
+	2.9分配一个订单描述结构JitTraceDescription的内存，并且将trace块设置到描述结构
+	3.0似乎用dvmCompilerWorkEnqueue函数进行入列，设置订单为kWorkOrderTrace类型，如果JIT属于
+		阻塞模式则调用dvmCompilerDrainQueue放弃编译队列
+	3.1还有一些其他属性不是那么重要，只是标记了一下完成而已。
+3.通过以上订单已经完成了。则清除线程结构的kSubModeJitTraceBuild属性。
+4.这里有一个stayOneMoreInst的变量表明是否要多检查一些指令。。。这里不知道是做什么的？
+
+[订单的入列]
+dvmCompilerWorkEnqueue(compiler\Compiler.cpp)
+1.gDvmJit.compilerQueueLength表明了编译订单的最大数量
+2.查看trace块开始的地址是否已经在订单中了
+3.设置一个订单
+4.设置gDvmJit.compilerQueueActivity条件变量来通知compilterThreadStart线程函数
+订单不为空，取出订单进行编译。
+
+[订单的另外一种加入方式]
+dvmCompilerWorkEnqueue也被
+位于"compiler/Compier.cpp"中的dvmCompilerForceWorkEnqueue函数所调用
+而dvmCompilerForceWorkEnqueue会被位于"interp/Jit.cpp"中的dvmJitTraceProfilingOn
+dvmJitTraceProfilingOff调用。这个就有trace profiling有关系了。
+
 [JitTraceRun结构]
+此结构就是订单的基本信息
 一个完整的trace run列表传递给编译器要像以下结构一样：
 frag1
 frag2
@@ -300,20 +437,44 @@ struct JitCodeDesc {
     u2 startOffset;          // Starting offset for trace run
 };
 
-[编译流程图]
-以trace模式为例
-dvmCompilerStartup -> compilerThreadStart(线程) -> dvmCompilerDoWork(codegen/arm|mips|x86) -> dvmCompileTrace
 
-<dalvik/vm/interp/Jit.cpp>
+[IC patch工作队列]
+gDvmJit.compilerICPatchLock
+gDvmJit.compilerICPatchIndex
+
+[代码缓存区]
+在gDvmJit中有一个非常重要的字段codeCache
+这个字段通过位于"compiler/Compiler.cpp"中的dvmCompilerSetupCodeCache
+完成对内存的分配,并且完成对代码模板的设置。
+
+[代码模板]
+
+
+[dalvik/vm/interp/Jit.cpp]
 有解释器调用JIT的接口模块，也用于对于指令进行trace时的profiling操作。并且用于订单任务的结构的建立
 
-<dalvik/vm/compiler/Compiler.cpp>
+[dalvik/vm/compiler/Compiler.cpp]
 JIT编译器主要实现的场所
 入口函数为dvmCompilerStartup,此函数被主目录下的Init.cpp文件调用产生编译初始化。这个函数会开辟一条compilerThreadStart
 的线程用于等待编译订单。取得订单后，会对编译代码缓冲区进行检查，在检查通过后
 会调用dvmCompilerDoWork进行编译工作，这个函数在vm/compiler/codegen目录下的
 mips,arm两个目录的CodegenDriver.cpp以及x86目录的CodegenInterface.cpp中都各有
 实现，可以看出这个函数是针对平台而言的。
+----------
+workQueueLength
+workDequeue
+dvmCompilerForceWorkEnqueue
+dvmCompilerWorkEnqueue
+dvmCompilerDrainQueue
+dvmCompilerSetupCodeCache
+crawlDalvikStack
+resetCodeCache
+dvmCompilerPerformSafePointChecks
+compilerThreadStartup
+compilerThreadStart
+dvmCompilerStartup
+dvmCompilerShutdown
+dvmCompilerUpdateGlobalState
 
 <dalvik/vm/compiler/codegen/arm/CodegenDriver.cpp>
 这个模块的主要功能是编译在arm平台下的代码

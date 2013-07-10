@@ -27,6 +27,13 @@
 #include "codegen/x86/Lower.h"
 #endif
 
+/*
+ * 以下这两个函数从template引出来
+ * 一个获取代码模板的开始一个获取代码模板的末尾
+ * 不同硬件平台有不同模板代码
+ * 因为JIT编译好后的本地代码需要有一段本平台下的
+ * 引导代码初始化环境并且执行JIT指令
+ */
 extern "C" void dvmCompilerTemplateStart(void);
 extern "C" void dmvCompilerTemplateEnd(void);
 
@@ -73,7 +80,7 @@ static CompilerWorkOrder workDequeue(void)
  * is repeatedly unsuccessful, assume the JIT is in a bad state and force a
  * code cache reset.
  */
-#define ENQUEUE_MAX_RETRIES 20
+#define ENQUEUE_MAX_RETRIES 20	/** @brief 重新尝试入列次数 */
 void dvmCompilerForceWorkEnqueue(const u2 *pc, WorkOrderKind kind, void* info)
 {
     bool success;
@@ -88,6 +95,7 @@ void dvmCompilerForceWorkEnqueue(const u2 *pc, WorkOrderKind kind, void* info)
                 success = true;  // Because we'll drop the order now anyway
             } else {
                 dvmLockMutex(&gDvmJit.compilerLock);
+				/* 通知compilerThreadStart线程队列激活了 */
                 pthread_cond_wait(&gDvmJit.compilerQueueActivity,
                                   &gDvmJit.compilerLock);
                 dvmUnlockMutex(&gDvmJit.compilerLock);
@@ -305,7 +313,7 @@ static void crawlDalvikStack(Thread *thread, bool print)
     /* Crawl the Dalvik stack frames to clear the returnAddr field */
 	/* 遍历清除返回地址字段 */
     while (fp != NULL) {
-        saveArea = SAVEAREA_FROM_FP(fp);
+        saveArea = SAVEAREA_FROM_FP(fp);	/* 取出一个单元 */
 
         if (print) {
             if (dvmIsBreakFrame((u4*)fp)) {
@@ -323,7 +331,7 @@ static void crawlDalvikStack(Thread *thread, bool print)
             }
         }
         stackLevel++;
-        saveArea->returnAddr = NULL;
+        saveArea->returnAddr = NULL;			/* 设置返回值为NULL */
         assert(fp != saveArea->prevFrame);
         fp = saveArea->prevFrame;
     }
@@ -375,12 +383,14 @@ static void resetCodeCache(void)
     gDvmJit.cacheVersion++;
 
     /* Drain the work queue to free the work orders */
+	/* 循环丢弃所有编译的队列 */
     while (workQueueLength()) {
         CompilerWorkOrder work = workDequeue();
         free(work.info);
     }
 
     /* Reset the JitEntry table contents to the initial unpopulated state */
+	/* 重新设置JitTable */
     dvmJitResetTable();
 
     UNPROTECT_CODE_CACHE(gDvmJit.codeCache, gDvmJit.codeCacheByteUsed);
@@ -388,6 +398,7 @@ static void resetCodeCache(void)
      * Wipe out the code cache content to force immediate crashes if
      * stale JIT'ed code is invoked.
      */
+	/* 清除JIT代码 */
     dvmCompilerCacheClear((char *) gDvmJit.codeCache + gDvmJit.templateSize,
                           gDvmJit.codeCacheByteUsed - gDvmJit.templateSize);
 
@@ -402,12 +413,14 @@ static void resetCodeCache(void)
     gDvmJit.numCompilations = 0;
 
     /* Reset the work queue */
+	/* 重设订单队列 */
     memset(gDvmJit.compilerWorkQueue, 0,
            sizeof(CompilerWorkOrder) * COMPILER_WORK_QUEUE_SIZE);
     gDvmJit.compilerWorkEnqueueIndex = gDvmJit.compilerWorkDequeueIndex = 0;
     gDvmJit.compilerQueueLength = 0;
 
     /* Reset the IC patch work queue */
+	/* 重设IC patch工作队列 */
     dvmLockMutex(&gDvmJit.compilerICPatchLock);
     gDvmJit.compilerICPatchIndex = 0;
     dvmUnlockMutex(&gDvmJit.compilerICPatchLock);
@@ -441,6 +454,7 @@ static void resetCodeCache(void)
  */
 void dvmCompilerPerformSafePointChecks(void)
 {
+	/*  */
     if (gDvmJit.codeCacheFull) {
         resetCodeCache();
     }
@@ -942,10 +956,15 @@ void dvmCompilerShutdown(void)
      * thread to be restarted after it exits here.  We aren't freeing
      * the JitTable or the ProfTable because threads which still may be
      * running or in the process of shutting down may hold references to
+	 * 
      * them.
      */
 }
 
+/**
+ * @brief 更新编译器全局状态
+ * @note 在"vm/Profile.cpp"中的updateActiveProfilers中被调用
+ */
 void dvmCompilerUpdateGlobalState()
 {
     bool jitActive;
@@ -958,6 +977,10 @@ void dvmCompilerUpdateGlobalState()
      * pProfTableCopy is NULL, the lock is not initialized yet and we don't
      * need to refresh anything either.
      */
+	/*
+	 * 如果在调试器附加到虚拟机启动器的非常早之前，编译器线程对tableLock
+	 * 并没有初始化完成。这是我们不能更新任何状态。
+	 */
     if (gDvmJit.pProfTableCopy == NULL) {
         return;
     }
@@ -970,6 +993,13 @@ void dvmCompilerUpdateGlobalState()
      * may be executed before the compiler thread has finished
      * initialization.
      */
+
+	/*
+	 * 第一次启用函数tracing，转化编译器到保护支持invokes与returns
+	 * 指令的trace格式。如果已经存在了一些编译代码则直接刷入他们到缓存中。
+	 * NOTE：我们不能在编译器线程未初始化完成之前刷入代码
+	 */
+	/* activeProfilers 表明 开启profiler */
     if ((gDvm.activeProfilers != 0) &&
         !gDvmJit.methodTraceSupport) {
         bool resetRequired;
@@ -978,23 +1008,25 @@ void dvmCompilerUpdateGlobalState()
          * installed while we are working.
          */
         dvmLockMutex(&gDvmJit.compilerLock);
+		/* 增加缓冲版本 */
         gDvmJit.cacheVersion++; // invalidate compilations in flight
         gDvmJit.methodTraceSupport = true;
         resetRequired = (gDvmJit.numCompilations != 0);
         dvmUnlockMutex(&gDvmJit.compilerLock);
         if (resetRequired) {
             dvmSuspendAllThreads(SUSPEND_FOR_CC_RESET);
-            resetCodeCache();
+            resetCodeCache();		/* 重新更新代码缓冲区 */
             dvmResumeAllThreads(SUSPEND_FOR_CC_RESET);
         }
     }
 
     dvmLockMutex(&gDvmJit.tableLock);
+	/* 通过判断pProfTable表判断JIT是否被激活 */
     jitActive = gDvmJit.pProfTable != NULL;
-    jitActivate = !dvmDebuggerOrProfilerActive();
+    jitActivate = !dvmDebuggerOrProfilerActive();	/* 处于调试阶段或者profile开启 */
 
     if (jitActivate && !jitActive) {
-        gDvmJit.pProfTable = gDvmJit.pProfTableCopy;
+        gDvmJit.pProfTable = gDvmJit.pProfTableCopy;	/* 处于调试获取副本 */
     } else if (!jitActivate && jitActive) {
         gDvmJit.pProfTable = NULL;
         needUnchain = true;
@@ -1003,5 +1035,6 @@ void dvmCompilerUpdateGlobalState()
     if (needUnchain)
         dvmJitUnchainAll();
     // Make sure all threads have current values
+	/* 对所有线程设置JitTable表 */
     dvmJitUpdateThreadStateAll();
 }

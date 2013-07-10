@@ -80,6 +80,9 @@ enum ProfilerClockSource {
  *
  * Storage allocated here must be freed by a subsystem shutdown function.
  */
+/**
+ * @brief dalvikè™šæ‹Ÿæœºçš„å…¨å±€è®¾å®š
+ * @note 
 struct DvmGlobals {
     /*
      * Some options from the command line or environment.
@@ -443,11 +446,11 @@ struct DvmGlobals {
      *    perusing it)
      */
      /*
-     * Ïß³ÌÁĞ±í(´æ·ÅÁËĞéÄâ»úµÄ¸÷¸öÏß³ÌĞÅÏ¢)£¬ÆäÖĞÖÁÉÙÓĞÒ»¸ömainÏß³Ì¡£
-     * ÒÔÏÂÈıÖÖÇé¿ö»áÓÃµ½threadListLock
-     * - ´ÓÁ´±íÖĞÌí¼Ó»òÕßÉ¾³ıÌõÄ¿
-     * - µÈ´ı»òÕßÏìÓ¦threadStartCond
-     * - ÁíÍâÒ»¸öÏß³Ì¼ì²éÁĞ±íÖĞÄ³¸öÏß³Ì½á¹¹ÌåµÄÊ±ºò
+     * ?ß³??Ğ±?(?????????????Ä¸????ß³???Ï¢)????????????Ò»??main?ß³Ì¡?
+     * ???????????????Ãµ?threadListLock
+     * - ??Á´???????Ó»???É¾????Ä¿
+     * - ?È´???????Ó¦threadStartCond
+     * - ????Ò»???ß³Ì¼????Ğ±???Ä³???ß³Ì½á¹¹????Ê±??
      */
     Thread*     threadList;
     pthread_mutex_t threadListLock;
@@ -922,6 +925,7 @@ struct DvmJitGlobals {
 
     /* true/false: compile/reject methods specified in the -Xjitmethod list */
 	/* true/false: ç¼–è¯‘/ä¸¢å¼ƒ æ–¹æ³•é€šè¿‡æŒ‡å®šçš„å‚æ•° -Xjitmethodåˆ—è¡¨ */
+	/* true:ç¼–è¯‘,false:ä¸¢å¼ƒ */
     bool includeSelectedMethod;
 
     /* true/false: compile/reject traces with offset specified in the -Xjitoffset list */
