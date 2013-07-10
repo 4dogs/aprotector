@@ -85,6 +85,7 @@ bool dvmValidateBoxClasses()
  *
  * "pSig" will be advanced to the start of the next token.
  */
+ 
 static ClassObject* convertSignaturePartToClass(char** pSignature,
     const ClassObject* defClass)
 {
@@ -196,6 +197,9 @@ static ArrayObject* convertSignatureToClassArray(char** pSignature,
  * We use positive values starting from 0 for instance fields, negative
  * values starting from -1 for static fields.
  */
+/*
+ * ◊™ªª“ª∏ˆfield÷∏’ÎµΩ“ª∏ˆ ˝÷µ
+ */
 static int fieldToSlot(const Field* field, const ClassObject* clazz)
 {
     int slot;
@@ -214,6 +218,9 @@ static int fieldToSlot(const Field* field, const ClassObject* clazz)
 
 /*
  * Convert a slot number to a field pointer.
+ */
+/*
+ * ◊™»ˆÕ¯“ª∏ˆ ˝÷µµΩField÷∏’Î
  */
 Field* dvmSlotToField(ClassObject* clazz, int slot)
 {
@@ -234,6 +241,9 @@ Field* dvmSlotToField(ClassObject* clazz, int slot)
  * one from our existing class libs:
  *
  *  private Field(Class declaringClass, Class type, String name, int slot)
+ */
+/*
+ * ¥”'field' ¥¥Ω®“ª∏ˆ–¬µƒ java.lang.reflect.Field∂‘œÛ
  */
 static Object* createFieldObject(Field* field, const ClassObject* clazz)
 {
@@ -286,6 +296,9 @@ bail:
  * Get an array with all fields declared by a class.
  *
  * This includes both static and instance fields.
+ */
+/*
+ * Õ®π˝“ª∏ˆ¿‡ªÒ»°À¸»´≤ø◊÷∂Œ…˘√˜£¨’‚∞¸¿®æ≤Ã¨∫Õ µ¿˝◊÷∂Œ
  */
 ArrayObject* dvmGetDeclaredFields(ClassObject* clazz, bool publicOnly)
 {
@@ -360,6 +373,9 @@ fail:
  * We use positive values starting from 0 for virtual methods, negative
  * values starting from -1 for static methods.
  */
+/*
+ * ◊™ªª“ª∏ˆ∑Ω∑®÷∏’ÎµΩ ˝÷µ
+ */
 static int methodToSlot(const Method* meth)
 {
     ClassObject* clazz = meth->clazz;
@@ -379,6 +395,9 @@ static int methodToSlot(const Method* meth)
 
 /*
  * Convert a slot number to a method pointer.
+ */
+ /*
+ * ◊™ªª“ª∏ˆ ˝÷µµΩ“ª∏ˆ∑Ω∑®÷∏’Î
  */
 Method* dvmSlotToMethod(ClassObject* clazz, int slot)
 {
@@ -401,6 +420,9 @@ Method* dvmSlotToMethod(ClassObject* clazz, int slot)
  *
  *  private Constructor (Class declaringClass, Class[] ptypes, Class[] extypes,
  *      int slot)
+ */
+/*
+ *  π”√'meth'ƒ⁄»›»•¥¥Ω®“ª∏ˆ–¬µƒ java/lang/reflect/Constructor∂‘œÛ£¨
  */
 static Object* createConstructorObject(Method* meth)
 {
@@ -467,6 +489,9 @@ bail:
 
 /*
  * Get an array with all constructors declared by a class.
+ */
+ /*
+ * Õ®π˝“ª∏ˆ¿‡ªÒ»°À˘”–…˘√˜µƒππ‘Ï∫Ø ˝
  */
 ArrayObject* dvmGetDeclaredConstructors(ClassObject* clazz, bool publicOnly)
 {
@@ -538,6 +563,10 @@ ArrayObject* dvmGetDeclaredConstructors(ClassObject* clazz, bool publicOnly)
  *      Class returnType, String name, int slot)
  *
  * The caller must call dvmReleaseTrackedAlloc() on the result.
+ */
+/*
+ * ¥¥Ω®“ª∏ˆ–¬µƒ java/lang/reflect/Method∂‘œÛ, π”√'meth'ƒ⁄»›»•ππ‘ÏÀ¸.
+ *  
  */
 Object* dvmCreateReflectMethodObject(const Method* meth)
 {
@@ -626,6 +655,9 @@ bail:
  * members if "publicOnly" is false.  It does not include Miranda methods,
  * since those weren't declared in the class, or constructors.
  */
+ /*
+  * ªÒ»°¿‡÷–À˘”–∑Ω∑®µƒ…˘√˜
+  */
 ArrayObject* dvmGetDeclaredMethods(ClassObject* clazz, bool publicOnly)
 {
     if (!dvmIsClassInitialized(gDvm.classJavaLangReflectMethod))
@@ -725,6 +757,9 @@ static void createTargetDescriptor(ArrayObject* args,
     }
 }
 
+/*
+ * ‘⁄ ˝◊È÷–≤È’“ππ‘Ï∑Ω∑®ªÚ’ﬂ∑Ω∑®
+ */
 static Object* findConstructorOrMethodInArray(int methodsCount, Method* methods,
     const char* name, const char* parameterDescriptors)
 {
@@ -764,6 +799,9 @@ static Object* findConstructorOrMethodInArray(int methodsCount, Method* methods,
 /*
  * Get the named method.
  */
+/*
+ * ªÒ»°…˘√˜µƒππ‘Ï∫Ø ˝ªÚ∑Ω∑®
+ */
 Object* dvmGetDeclaredConstructorOrMethod(ClassObject* clazz,
     StringObject* nameObj, ArrayObject* args)
 {
@@ -792,6 +830,9 @@ Object* dvmGetDeclaredConstructorOrMethod(ClassObject* clazz,
 
 /*
  * Get the named field.
+ */
+ /*
+ * ªÒ»°…˘√˜µƒ◊÷∂Œ
  */
 Object* dvmGetDeclaredField(ClassObject* clazz, StringObject* nameObj)
 {
@@ -827,6 +868,9 @@ Object* dvmGetDeclaredField(ClassObject* clazz, StringObject* nameObj)
  * Get all interfaces a class implements. If this is unable to allocate
  * the result array, this raises an OutOfMemoryError and returns NULL.
  */
+/*
+ * ªÒ»°±æ¿‡ µœ÷µƒ»´≤øΩ”ø⁄
+ */
 ArrayObject* dvmGetInterfaces(ClassObject* clazz)
 {
     if (!dvmIsClassInitialized(gDvm.classJavaLangReflectMethod))
@@ -857,6 +901,9 @@ ArrayObject* dvmGetInterfaces(ClassObject* clazz)
  * primitive type index.
  *
  * Returns PRIM_NOT for void, since we never "box" that.
+ */
+/*
+ * ªÒ»°“ª∏ˆ◊∞œ‰ª˘±æ ˝æ›¿‡–Õ £¨¿˝»Á java/lang/Integer
  */
 static PrimitiveType getBoxedType(DataObject* arg)
 {
@@ -909,6 +956,15 @@ static PrimitiveType getBoxedType(DataObject* arg)
  * -1 if the conversion is not allowed.
  *
  * TODO? use JValue rather than u4 pointers
+ */
+/*
+ * ◊™ªªª˘±æ ˝æ›£¨◊∞œ‰ ˝æ›¥”'srcPtr'µΩ'dstPtr' eg.
+ *  byte to short, int, long, float, double
+ *  short to int, long, float double
+ *  char to int, long, float, double
+ *  int to long, float, double
+ *  long to float, double
+ *  float to double
  */
 int dvmConvertPrimitiveValue(PrimitiveType srcType,
     PrimitiveType dstType, const s4* srcPtr, s4* dstPtr)
@@ -1074,6 +1130,9 @@ int dvmConvertArgument(DataObject* arg, ClassObject* type, s4* destPtr)
  *
  * The caller must call dvmReleaseTrackedAlloc on the result.
  */
+°/*
+ * ¥¥Ω®“ª∏ˆª˘±æ ˝æ›¿‡–Õ◊∞œ‰∫Ûµƒ∂‘œÛ£¨»Áπ˚∑µªÿ¿‡–Õ≤ª «ª˘±æ ˝æ›¿‡–Õ£¨ƒ«√¥ΩˆΩˆ◊™ªª'value'µΩ“ª∏ˆ∂‘œÛ≤¢«“∑µªÿÀ¸
+ */
 DataObject* dvmBoxPrimitive(JValue value, ClassObject* returnType)
 {
     ClassObject* wrapperClass;
@@ -1127,6 +1186,9 @@ DataObject* dvmBoxPrimitive(JValue value, ClassObject* returnType)
  *
  * Returns "true" on success, "false" on failure.
  */
+/*
+ * ≤œ‰ª˘±æ ˝æ›¿‡–Õ
+ */
 bool dvmUnboxPrimitive(Object* value, ClassObject* returnType,
     JValue* pResult)
 {
@@ -1170,6 +1232,10 @@ bool dvmUnboxPrimitive(Object* value, ClassObject* returnType,
  *
  * On failure, we return NULL with an exception raised.
  */
+/*
+ * ‘⁄«©√˚÷–’“µΩ∑µªÿ¿‡–Õ£¨≤¢«“◊™ªªÀ¸≥…“ª∏ˆ∂‘œÛ.
+ * ∂‘”⁄ª˘±æ¿‡–Õ£¨Œ“√«»• π”√“ª∏ˆ◊∞œ‰¿‡£¨∂‘”⁄“˝”√¿‡–Õ£¨Œ“√«»•◊ˆ√˚◊÷≤È—Ø
+ */
 ClassObject* dvmGetBoxedReturnType(const Method* meth)
 {
     const char* sig = dexProtoGetReturnType(&meth->prototype);
@@ -1203,6 +1269,9 @@ ClassObject* dvmGetBoxedReturnType(const Method* meth)
 /*
  * JNI reflection support: convert reflection object to Field ptr.
  */
+/*
+ * ¥”∑¥…‰∂‘œÛ÷–ªÒ»°◊÷∂Œ
+ */
 Field* dvmGetFieldFromReflectObj(Object* obj)
 {
     ClassObject* clazz;
@@ -1222,6 +1291,9 @@ Field* dvmGetFieldFromReflectObj(Object* obj)
 
 /*
  * JNI reflection support: convert reflection object to Method ptr.
+ */
+/*
+ * ¥”∑¥…‰∂‘œÛ÷–ªÒ»°Method
  */
 Method* dvmGetMethodFromReflectObj(Object* obj)
 {
@@ -1255,6 +1327,9 @@ Method* dvmGetMethodFromReflectObj(Object* obj)
  *
  * Caller must call dvmReleaseTrackedAlloc().
  */
+/*
+ * ¥¥Ω®“ª∏ˆ java.lang.reflect.Field∂‘œÛ£¨∑µªÿ÷µÕ¨—˘ «“ª∏ˆjava.lang.reflect.Field
+ */
 Object* dvmCreateReflectObjForField(const ClassObject* clazz, Field* field)
 {
     if (!dvmIsClassInitialized(gDvm.classJavaLangReflectField))
@@ -1273,6 +1348,9 @@ Object* dvmCreateReflectObjForField(const ClassObject* clazz, Field* field)
  * This is also used for certain "system" annotations.
  *
  * Caller must call dvmReleaseTrackedAlloc().
+ */
+/*
+ * JNI∑¥…‰÷ß≥÷:◊™ªª∑Ω∑®µΩ∑¥…‰∂‘œÛ
  */
 Object* dvmCreateReflectObjForMethod(const ClassObject* clazz, Method* method)
 {

@@ -57,6 +57,9 @@ static const char* kDescrThrows     = "Ldalvik/annotation/Throws;";
 /*
  * Read an unsigned LEB128 value from a buffer.  Advances "pBuf".
  */
+/*
+ * 从'pBuf'中读取无符号LEB128值
+ */
 static u4 readUleb128(const u1** pBuf)
 {
     u4 result = 0;
@@ -84,6 +87,10 @@ static u4 readUleb128(const u1** pBuf)
 /*
  * Get the annotations directory item.
  */
+/*
+ * 获取注解目录项
+ */
+
 static const DexAnnotationsDirectoryItem* getAnnoDirectory(DexFile* pDexFile,
     const ClassObject* clazz)
 {
@@ -93,6 +100,7 @@ static const DexAnnotationsDirectoryItem* getAnnoDirectory(DexFile* pDexFile,
      * Find the class def in the DEX file.  For better performance we should
      * stash this in the ClassObject.
      */
+    /*在DEX文件中查找class索引,为了有更好的性能，我们应该储存这在ClassObject对象中*/
     pClassDef = dexFindClass(pDexFile, clazz->descriptor);
     assert(pClassDef != NULL);
     return dexGetAnnotationsDirectoryItem(pDexFile, pClassDef);
@@ -106,6 +114,9 @@ static const DexAnnotationsDirectoryItem* getAnnoDirectory(DexFile* pDexFile,
  *
  * Caller must call dvmReleaseTrackedAlloc().
  */
+/*
+ * 返回一个空的注解数组
+ */
 static ArrayObject* emptyAnnoArray()
 {
     return dvmAllocArrayByClass(
@@ -116,6 +127,9 @@ static ArrayObject* emptyAnnoArray()
  * Return an array of empty arrays of Annotation objects.
  *
  * Caller must call dvmReleaseTrackedAlloc().
+ */
+/*
+ * 返回一个注解对象数组的空数组  
  */
 static ArrayObject* emptyAnnoArrayArray(int numElements)
 {
@@ -139,6 +153,9 @@ static ArrayObject* emptyAnnoArrayArray(int numElements)
 /*
  * Read a signed integer.  "zwidth" is the zero-based byte count.
  */
+/*
+ * 读取一个有符号的整形，'zwidth'是从零开始的字节数
+ */
 static s4 readSignedInt(const u1* ptr, int zwidth)
 {
     s4 val = 0;
@@ -154,6 +171,9 @@ static s4 readSignedInt(const u1* ptr, int zwidth)
 /*
  * Read an unsigned integer.  "zwidth" is the zero-based byte count,
  * "fillOnRight" indicates which side we want to zero-fill from.
+ */
+/*
+ * 读取一个无符号的整形,'zwidth'是从零开始的字节数,'fillOnRight'标示右边我们需要零来填充
  */
 static u4 readUnsignedInt(const u1* ptr, int zwidth, bool fillOnRight)
 {
@@ -174,6 +194,9 @@ static u4 readUnsignedInt(const u1* ptr, int zwidth, bool fillOnRight)
 /*
  * Read a signed long.  "zwidth" is the zero-based byte count.
  */
+/*
+ * 读取一个有符号的长整形.'zwidth'是从零开始的字节数
+ */
 static s8 readSignedLong(const u1* ptr, int zwidth)
 {
     s8 val = 0;
@@ -189,6 +212,9 @@ static s8 readSignedLong(const u1* ptr, int zwidth)
 /*
  * Read an unsigned long.  "zwidth" is the zero-based byte count,
  * "fillOnRight" indicates which side we want to zero-fill from.
+ */
+/*
+ * 读取一个无符号的长整形,'zwidth'是从零开始的字节数,'fillOnRight'标示右边需要我们用零来填充
  */
 static u8 readUnsignedLong(const u1* ptr, int zwidth, bool fillOnRight)
 {
@@ -226,6 +252,10 @@ static u8 readUnsignedLong(const u1* ptr, int zwidth, bool fillOnRight)
  * that information here, so we have to do a bit of searching.
  *
  * Returns NULL if the method was not found (exception may be pending).
+ */
+/*
+ * 通过索引关联到一个方法.这仅仅给定我们类的名字和方法名称和方法签名，我们需要去找方法的类，
+ * 然后找类里面的方法.如果之前方法还没有被解析，我们可以使用以前查询的结果
  */
 static Method* resolveAmbiguousMethod(const ClassObject* referrer, u4 methodIdx)
 {
@@ -291,6 +321,7 @@ enum AnnotationResultStyle {
 
 /*
  * Recursively process an annotation value.
+ * 递归的处理注解值
  *
  * "clazz" is the class on which the annotations are defined.  It may be
  * NULL when "resultStyle" is "kAllRaw".
@@ -549,11 +580,13 @@ static bool processAnnotationValue(const ClassObject* clazz,
 /*
  * For most object types, we have nothing to do here, and we just return
  * "valueObj".
- *
+ * 对于大多数的对象类型，我们在这儿没有做太多的事情，只仅仅返回了'valueObj'
+ * 
  * For an array annotation, the type of the extracted object will always
  * be java.lang.Object[], but we want it to match the type that the
  * annotation member is expected to return.  In some cases this may
  * involve un-boxing primitive values.
+ * 对于一个数组注解, 提取的对象的类型总是java.lang.Object[]，但是，我们想要它的注解成员去返回相匹配类型，在某种情况下，这可能牵涉到拆箱的基本数据类型
  *
  * We allocate a second array with the correct type, then copy the data
  * over.  This releases the tracked allocation on "valueObj" and returns
@@ -631,13 +664,16 @@ bail:
 
 /*
  * Create a new AnnotationMember.
+ * 创建一个新的注解成员
  *
  * "clazz" is the class on which the annotations are defined.  "pPtr"
  * points to a pointer into the annotation data.  "annoClass" is the
  * annotation's class.
+ * 注解被定义在'clazz'类中. 'pPtr'指向一个指针的注解数据区.'annoClass'是一个注解类
  *
  * We extract the annotation's value, create a new AnnotationMember object,
  * and construct it.
+ * 我们抽取注解值，创建一个新的注解成员对象并且构造它
  *
  * Returns NULL on failure; an exception may or may not be raised.
  */
@@ -879,6 +915,9 @@ static ArrayObject* processAnnotationSet(const ClassObject* clazz,
  * Return the annotation item of the specified type in the annotation set, or
  * NULL if the set contains no annotation of that type.
  */
+/*
+ * 在注解集合(DexAnnotationSetItem)中返回一个指定类型的注解项; 如果如果注解集合中不包括指定类型的注解，则返回NULL
+ */
 static const DexAnnotationItem* getAnnotationItemFromAnnotationSet(
         const ClassObject* clazz, const DexAnnotationSetItem* pAnnoSet,
         int visibility, const ClassObject* annotationClazz)
@@ -923,6 +962,9 @@ static const DexAnnotationItem* getAnnotationItemFromAnnotationSet(
 /*
  * Return the Annotation object of the specified type in the annotation set, or
  * NULL if the set contains no annotation of that type.
+ */
+/*
+ * 在注解集合中返回一个指定类型的注解对象，如果该集合没有包涵指定类型的注解，则返回NULL
  */
 static Object* getAnnotationObjectFromAnnotationSet(const ClassObject* clazz,
         const DexAnnotationSetItem* pAnnoSet, int visibility,
@@ -1172,6 +1214,9 @@ static Object* getAnnotationValue(const ClassObject* clazz,
  *
  * Returns NULL if not found.  On memory alloc failure, returns NULL with an
  * exception raised.
+ */
+ /*
+ * 查找一个签名属性和抽取它的值.(签名能被找到在注解类，构造函数，方法和字段中)
  */
 static ArrayObject* getSignatureValue(const ClassObject* clazz,
     const DexAnnotationSetItem* pAnnoSet)
@@ -2164,6 +2209,9 @@ static const DexParameterAnnotationsItem* findAnnotationsItemForMethod(
 /*
  * Count up the number of arguments the method takes.  The "this" pointer
  * doesn't count.
+ */
+/*
+ * 统计方法的参数数
  */
 static int countMethodArguments(const Method* method)
 {
