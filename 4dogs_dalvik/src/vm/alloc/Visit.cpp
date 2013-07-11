@@ -22,6 +22,13 @@
 /*
  * Visits all of the reference locations in an object.
  */
+
+/*
+ *breif:访问对象的根堆.
+ *param[visitor]:回调函数.
+ *param[obj]:对象.
+ *param[arg]:visitor 参数.
+*/
 void dvmVisitObject(Visitor *visitor, Object *obj, void *arg)
 {
     assert(visitor != NULL);
@@ -209,6 +216,12 @@ static void visitPrimitiveTypes(RootVisitor *visitor, void *arg)
 /*
  * Visits roots.  TODO: visit cached global references.
  */
+
+/*
+ *breif:遍历所有的跟堆,(包括类，基本数据类型int,char等，jni全局引用对象等类型.).
+ *param[visitor]:是一个回调函数.
+ *param[arg]:实际上是GcMarkContext对象,用于找到GC Roots后，回传给回调函数visitor的参数.
+*/
 void dvmVisitRoots(RootVisitor *visitor, void *arg)
 {
     assert(visitor != NULL);

@@ -27,6 +27,10 @@
  * We're currently using a memory-mapped arena to keep things off of the
  * main heap.  This needs to be replaced with something real.
  */
+
+/*
+ *breif:初始化几个gc线程同步原语，再调用dvmHeapStartup初始化GC内存堆(即java内存堆).
+*/
 bool dvmGcStartup()
 {
     dvmInitMutex(&gDvm.gcHeapLock);
@@ -178,6 +182,13 @@ bool dvmCreateStockExceptions()
  *
  * Returns NULL and throws an exception on failure.
  */
+
+/*
+ *breif:创建指定类的实例对象，内部调用dvmMalloc分配objectSize大小的内存，成功后，调用对象的构造函数初始化实例.
+ *param[clazz]:类对象.
+ *param[flags]:分配内存的标识.
+ *return:返回一个Object类型的指针.
+*/
 Object* dvmAllocObject(ClassObject* clazz, int flags)
 {
     Object* newObj;

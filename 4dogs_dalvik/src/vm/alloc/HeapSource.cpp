@@ -538,6 +538,14 @@ static void freeMarkStack(GcMarkStack *stack)
  * dvmHeapSource*() functions.  Returns a GcHeap structure
  * allocated from the heap source.
  */
+
+/*
+ *breif:通过dvmAllocRegion函数向操作系统申请保留一大块连续的内存地址空间，在底层内存实现上，使用的是dlmalloc又叫msspace，是轻量级的malloc实现，除了创建与初始化用于存储普通java对象的内存堆，还创建了3个内存堆，用来存放内存被占用情况的位图索引"livebits",在gc时用于标注存活对象的位图索引"markbits"和用来在gc中遍历存活对象引用的标注栈"mark stack".
+ *param[startSize]:msp的大小.就是内存堆的初始大小.
+ *param[maximumSize]:堆的最大值.
+ *param[growthLimit]:堆的增长最大值，当为0时，将无限增长到maximumsize.
+ *return:返回gc内存堆.
+*/
 GcHeap* dvmHeapSourceStartup(size_t startSize, size_t maximumSize,
                              size_t growthLimit)
 {
