@@ -435,6 +435,10 @@ static void delayReferenceReferent(Object *obj, GcMarkContext *ctx)
 /*
  * Scans the header and field references of a data object.
  */
+
+/*
+ *breif:先扫描对象的各个成员，并标记其所有引用到的对象，最后调用delayReferenceReferent函数根据对象的类型，将其放入相应的待释放队列中，如对象是fianlizeable对象的话，则放入finalizerReferences队列中；如对象是WeakReference对象的话，则将其放入weakReferences队列中.
+*/
 static void scanDataObject(const Object *obj, GcMarkContext *ctx)
 {
     assert(obj != NULL);
@@ -451,6 +455,10 @@ static void scanDataObject(const Object *obj, GcMarkContext *ctx)
  * Scans an object reference.  Determines the type of the reference
  * and dispatches to a specialized scanning routine.
  */
+
+/*
+ *breif:首先判断对象是保存java类型信息的类型对象，还是数组对象，还是普通的java对象，针对这三种对象进行不同的处理。由于finalize对象是普通的java对象，所以用scanDataObject函数处理.
+*/
 static void scanObject(const Object *obj, GcMarkContext *ctx)
 {
     assert(obj != NULL);
@@ -468,6 +476,10 @@ static void scanObject(const Object *obj, GcMarkContext *ctx)
  * Scan anything that's on the mark stack.  We can't use the bitmaps
  * anymore, so use a finger that points past the end of them.
  */
+
+/*
+ *breif:调用scanObject函数处理"mark stackk"中的每个对象.
+*/
 static void processMarkStack(GcMarkContext *ctx)
 {
     assert(ctx != NULL);
@@ -592,6 +604,10 @@ static void scanBitmapCallback(Object *obj, void *finger, void *arg)
  * reachable objects.  When this returns, the entire set of
  * live objects will be marked and the mark stack will be empty.
  */
+
+/*
+ *breif:将所有可以被gc root引用的对象识别出来存放到"mark stack"的堆栈中，再调用processMarkStack处理特殊的对象.
+*/
 void dvmHeapScanMarkedObjects(void)
 {
     GcMarkContext *ctx = &gDvm.gcHeap->markContext;
@@ -773,6 +789,10 @@ void dvmSetFinalizable(Object *obj)
 /*
  * Process reference class instances and schedule finalizations.
  */
+
+/*
+ *breif:在垃圾对象收集完毕后，负责将finalize队列从虚拟机的native端传递到Java端。其调用enqueueFinalizerReferences函数通过JNI方式将finalize对象的引用传递到Java端的一个java.lang.ref.ReferenceQueue当中，详细的调用方式请参见enqueueFinalizerReferences函数和enqueueReference函数.
+*/
 void dvmHeapProcessReferences(Object **softReferences, bool clearSoftRefs,
                               Object **weakReferences,
                               Object **finalizerReferences,

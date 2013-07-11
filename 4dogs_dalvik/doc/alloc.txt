@@ -16,3 +16,5 @@
 
 [备注]
 如果在编译dalvik虚拟机的命令中指明了"WITH_COPYING_GC"选项，则编译"/dalvik/vm/alloc/Copying.cpp"源码 – 此是Android中拷贝GC算法的实现，否则编译"/dalvik/vm/alloc/HeapSource.cpp" – 其实现了标注与清理GC算法.
+
+在JVM虚拟机启动时，dvmStartup函数会在准备好Java程序运行所需的所有环境之后，调用dvmGcStartupClasses函数启动几个与GC相关的后台Java线程 ，这些线程在java.lang.Daemons中定义，其中一个线程就是执行java对象finalize函数的HeapWorker线程，之所以要将收集到的java finalize对象引用从虚拟机（native）一端传递到Java端，是因为finalize函数是由java语言编写的，函数里可能会用到很多java对象。这也是为什么如果对象实现了finalize函数，不仅会使其生命周期至少延长一个GC过程，而且也会延长其所引用到的对象的生命周期，从而给内存造成了不必要的压力.
