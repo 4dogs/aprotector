@@ -350,6 +350,7 @@ ClassObject* dvmFindPrimitiveClass(char type)
  * ºÏ³ÉÒ»Ğ©Ô­ÉúÀà;
  * 
  * ½ö´´½¨ÀàºÍ·µ»ØËü(²»»á½«ËüÌí¼Óµ½ÀàÁĞ±íÖĞ)
+ * PrimitiveType (PRIM_VOID=0 ,PRIM_BOOLEAN=2.....)
  */
 static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClass)
 {
@@ -360,7 +361,7 @@ static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClas
      * This matters for "instanceof" checks. Also, we assume that the
      * primitive class does not override finalize().
      */
-
+   /* descriptor ·µ»ØÖµÎª 'V','B',... */
     const char* descriptor = dexGetPrimitiveTypeDescriptor(primitiveType);
     assert(descriptor != NULL);
 
@@ -394,15 +395,18 @@ static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClas
  * Class and all of the classes representing primitive types.
  */
 /*
- * ÊµÀı»¯Àà²¢³õÊ¼»¯Ëü.ÕâĞ©ÊÇÓÉ'Class'ÀàµÄÊµÀıºÍËùÓĞÔ­ÉúÀàĞÍËù´ú±íµÄÀà×é³É.
+ * ÊµÀı»¯Àà²¢³õÊ¼»¯Ëü.ÕâĞ©ÊÇÓÉClassÀàµÄÊµÀıºÍËùÓĞÔ­ÉúÀàĞÍËù´ú±íµÄÀà×é³É.
  * 
  * ¼ÓÔØÁË9´ó»ù±¾ÀàĞÍ
  */
 static bool createInitialClasses() {
     /*
-     * Initialize the class Class. This has to be done specially, particularly
-     * because it is an instance of itself.
-     */
+   * Initialize the class Class. This has to be done specially, particularly
+   * because it is an instance of itself.
+   */
+    ¡/*
+   * ³õÊ¼»¯ÁËClassÀà£¬Õâ¶ù²»µÃ²»È¥Íê³ÉÌØ±ğµÄ£¬ÒòÎªËüµÄÊµÀıÊÇËû±¾Éí
+   */
     ClassObject* clazz = (ClassObject*)
         dvmMalloc(classObjectSize(CLASS_SFIELD_SLOTS), ALLOC_NON_MOVING);
     if (clazz == NULL) {
@@ -410,19 +414,19 @@ static bool createInitialClasses() {
     }
     DVM_OBJECT_INIT(clazz, clazz);
     SET_CLASS_FLAG(clazz, ACC_PUBLIC | ACC_FINAL | CLASS_ISCLASS);
+   /* ¹¹ÔìÁËjava.lang.ClassµÄÒ»¸öÊµÀı */
     clazz->descriptor = "Ljava/lang/Class;";
     gDvm.classJavaLangClass = clazz;
-   //¹¹ÔìÒ»¸ö'Class'ÀàµÄÊµÀı,'class'ÊÇ'Class'µÄÒ»¸öÊµÀı
+ 
     LOGVV("Constructed the class Class."); 
 
     /*
-     * Initialize the classes representing primitive types. These are
-     * instances of the class Class, but other than that they're fairly
-     * different from regular classes.
-     */
+   * Initialize the classes representing primitive types. These are
+   * instances of the class Class, but other than that they're fairly
+   * different from regular classes.
+   */
     /*
-   * ³õÊ¼»¯Ô­ÉúÀàĞÍËù´ú±íµÄÀà(eg.PRIM_VOID = typeVoid),ÕâĞ©¶¼ÊÇÀàµÄÊµÀı
-   *
+   * ³õÊ¼»¯Ô­ÉúÀàĞÍËù´ú±íµÄÀà(eg.PRIM_VOID = typeVoid),ÕâĞ©¶¼ÊÇClassµÄÊµÀı
    */
     bool ok = true;
     ok &= createPrimitiveType(PRIM_VOID,    &gDvm.typeVoid);
@@ -502,6 +506,12 @@ bool dvmClassStartup()
    *
    */
     assert(gDvm.bootClassPath == NULL);
+   /* 
+  * bootClassÂ·¾¶,true ´ú±íÊÇbootClassPath
+  *
+  * gDvm.bootClassPathStr(BOOTCLASSPATH /system/framework/core.jar:/system/framework/bouncycastle.jar:/system/framework/ext.jar
+  * :/system/framework/framework.jar:/system/framework/android.policy.jar:/system/framework/services.jar:/system/framework/core-junit.jar  
+  */
     processClassPath(gDvm.bootClassPathStr, true);
 
     if (gDvm.bootClassPath == NULL)
@@ -678,7 +688,7 @@ static void getFileNameSuffix(const char* fileName, char* suffixBuf, size_t suff
 static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap)
 {
     struct stat sb;
-	/* stat ÊÇ½«ÎÄ¼şµÄÒ»Ğ©ĞÅÏ¢¸³Öµ¸østat ½á¹¹±äÁ¿*/
+	/* stat ÊÇ½«ÎÄ¼şµÄÒ»Ğ©ĞÅÏ¢¸³Öµ¸øsb½á¹¹±äÁ¿*/
     if (stat(cpe->fileName, &sb) < 0) {
         ALOGD("Unable to stat classpath element '%s'", cpe->fileName);
         return false;
@@ -740,6 +750,9 @@ static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap)
  */
 static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
 {
+    /*
+   *½¨Á¢½á¹¹Ìå ClassPathEntry À´´æ´¢Ò»¸öÂ·¾¶ĞÅÏ¢
+  */
     ClassPathEntry* cpe = NULL;
     char* mangle;
     char* cp;
@@ -748,6 +761,7 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
 
     assert(pathStr != NULL);
 
+   /* ½«´®¿½±´µ½ĞÂ½¨µÄmangle´¦ */
     mangle = strdup(pathStr);
 
     /*
@@ -801,14 +815,15 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
             tmp.fileName = strdup(cp);
             tmp.ptr = NULL;
 
-            /*
-             * Drop an end marker here so DEX loader can walk unfinished
-             * list.
-             */
+          /*
+     * Drop an end marker here so DEX loader can walk unfinished
+     * list.
+     */
             cpe[idx].kind = kCpeLastEntry;
             cpe[idx].fileName = NULL;
             cpe[idx].ptr = NULL;
 
+	   /* ×¼±¸ÀàÂ·¾¶½Úµã,prepareCpe ÖĞµ÷ÓÃÁËdvmJarFileOpen ´ò¿ªÒ»¸ö jar °ü*/
             if (!prepareCpe(&tmp, isBootstrap)) {
                 /* drop from list and continue on */
                 free(tmp.fileName);
@@ -843,6 +858,11 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
 
 bail:
     free(mangle);
+    /*
+   * ËùÓĞ±»¼ÓÔØµÄ Jar °üÀà¶¼·Åµ½È«¾Ö¶ÔÏñ gDvm.bootClassPath ÖĞ´æ´¢¡£
+   * ¶ÔÏñµÄ½áÎ²¶¼ÊÇÓÃÒ»¸öÌØÊâµÄ½á¹¹ÌåÀ´±íÊ¾µÄ£¬ÕâÀïÊÇ kind = kCpeLastEntry ±íÊ¾ÊÇ×îºóÒ»¸öÀàÂ·¾¶½Úµã£¬ÒòĞ©²»ÓÃÁíÍâÒ»¸ö±äÁ¿±íÊ¾´óĞ¡
+   */
+
     gDvm.bootClassPath = cpe;
     return cpe;
 }
