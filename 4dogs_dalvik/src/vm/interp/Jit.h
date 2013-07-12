@@ -202,16 +202,12 @@ struct JitEntry {
     void*               codeAddress;    /* Code address of native translation */
 };
 
-/*
- * !!! 是在VM里没有任何引用的
- * !!!! 是只有声明，没有实现的
- */
 extern "C" {
 void dvmCheckJit(const u2* pc, Thread* self);					/* 检查Jit */
 void* dvmJitGetTraceAddr(const u2* dPC);						/* 获取Trace的地址 */
 void* dvmJitGetMethodAddr(const u2* dPC);						/* 获取函数地址 */
-/* !!! */void* dvmJitGetTraceAddrThread(const u2* dPC, Thread* self);	/* 获取trace地址的线程 */
-/* !!! */void* dvmJitGetMethodAddrThread(const u2* dPC, Thread* self);	/* 获取函数地址的线程 */
+void* dvmJitGetTraceAddrThread(const u2* dPC, Thread* self);	/* 获取trace地址的线程 */
+void* dvmJitGetMethodAddrThread(const u2* dPC, Thread* self);	/* 获取函数地址的线程 */
 void dvmJitCheckTraceRequest(Thread* self);						/* 检查trace请求 */
 void dvmJitStopTranslationRequests(void);						/* 停止编译请求 */
 

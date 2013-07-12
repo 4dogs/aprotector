@@ -326,9 +326,22 @@ struct Thread {
 #endif
 };
 
-[JIT接口说明]
+[JIT订单整体流程]
+JIT对于代码是否需要编译以及提交订单主要靠三个函数完成，有四种JIT状态来控制一段代码是否要被编译
+1.选定中，2.选定结束，3.完成状态 
+1.dvmJitCheckRequest，此函数在解释器中被调用，当一个函数或者代码段进行profile到达阀值时调用
+将此代码地址放入到JIT表中，并且设定当前线程的状态为选定中。并且初始化trace块的0索引。
+2.dvmCheckJit，这个函数被封装在宏FINISH中，用于解释器在解释每条指令时被调用。它检测当前状态是否
+在选定状态中，如果在选定状态则将当前指针增加到trace块中。如果当前状态为选定结束状态，此状态的转换
+目前通过在dvmCheckJit自行对指令OPCODE类型做出判别然后自行确定。在结束状态时将当前选定的trace块压入
+编译队列等待编译器线程获取并且编译。
+3.dvmJitEndTraceSelect用于将选定状态转换到选定结束状态(见[TRACE自动结束标志])，这个函数可能是在解释器中，
+如果当期这段函数没有遇到一些trace结尾标志，那么dvmCheckJit自身就不能转换状态，最终由解释器负责把
+这个状态切换到结束状态。
 
-[JIT订单的完成]
+当编译完成，或者出现错误等，那么会将当前JIT状态设定为完成状态
+
+[TRACE自动结束标志]
 JIT任务的提交主要是依靠位于"interp/Jit.cpp"文件中实现的代码
 当解释器使用FINISH宏时。此宏调用Jit.cpp中的dvmCheckJit函数进行关于当前指令
 的检查。解释器通过解释每条指令，并且将每条指令解码后放置到一个trace块中。
@@ -364,7 +377,7 @@ dvmCheckJit---
 		阻塞模式则调用dvmCompilerDrainQueue放弃编译队列
 	3.1还有一些其他属性不是那么重要，只是标记了一下完成而已。
 3.通过以上订单已经完成了。则清除线程结构的kSubModeJitTraceBuild属性。
-4.这里有一个stayOneMoreInst的变量表明是否要多检查一些指令。。。这里不知道是做什么的？
+4.这里有一个stayOneMoreInst的变量表明是否要多检查一个指令。。。有再向前探测一个指令的意思
 
 [订单的入列]
 dvmCompilerWorkEnqueue(compiler\Compiler.cpp)
@@ -462,6 +475,10 @@ dvmJitGetTraceAddr <- 内部使用
 
 dvmJitGetMethodAddr <- 内部使用
 此函数用于返回已经编译过的代码，函数级别的。
+
+
+dvmJitGetTraceAddrThread <- 内部使用
+dvmJitGetMethodAddrThread <-
 
 dvmJitStats <- 内部使用
 将Jit表中表项的内容打印出来，仅在"compiler/Utility.cpp"
