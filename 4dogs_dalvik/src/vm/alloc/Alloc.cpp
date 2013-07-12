@@ -42,6 +42,11 @@ bool dvmGcStartup()
  * Post-zygote heap initialization, including starting
  * the HeapWorker thread.
  */
+
+/*
+ *breif:虚拟机初始化的时候会调用，最终调用的是dvmHeapSourceStartupAfterZygote.
+ *
+*/
 bool dvmGcStartupAfterZygote()
 {
     return dvmHeapStartupAfterZygote();
@@ -50,6 +55,10 @@ bool dvmGcStartupAfterZygote()
 /*
  * Shutdown the threads internal to the garbage collector.
  */
+
+/*
+ *breif:关闭垃圾回收线程.内部调用是dvmHeapSourceThreadShutdown->gcDaemonShutdown.
+*/
 void dvmGcThreadShutdown()
 {
     dvmHeapThreadShutdown();
@@ -58,6 +67,10 @@ void dvmGcThreadShutdown()
 /*
  * Shut the GC down.
  */
+
+/*
+ *breif:关闭释放垃圾回收堆.
+*/
 void dvmGcShutdown()
 {
     //TODO: grab and destroy the lock
@@ -67,11 +80,18 @@ void dvmGcShutdown()
 /*
  * Do any last-minute preparation before we call fork() for the first time.
  */
+
+/*
+ *breif:在第一次掉用fork之前，在主堆上创建一块新的 zygote heap.
+*/
 bool dvmGcPreZygoteFork()
 {
     return dvmHeapSourceStartupBeforeFork();
 }
 
+/*
+ *breif:通过调用java的函数，启动Daemons类内存回收.
+*/
 bool dvmGcStartupClasses()
 {
     ClassObject *klass = dvmFindSystemClass("Ljava/lang/Daemons;");
@@ -92,6 +112,13 @@ bool dvmGcStartupClasses()
 /*
  * Create a "stock instance" of an exception class.
  */
+
+/*
+ *breif:创建一个异常类的存储实例，先通过descriptor搜索到类，然后分配一个Object内存，初始化异常类并与object关联.
+ *param[descriptor]:类描述.
+ *param[msg]:输出信息.
+ *return:异常类的实例object.
+*/
 static Object* createStockException(const char* descriptor, const char* msg)
 {
     Thread* self = dvmThreadSelf();
@@ -149,6 +176,10 @@ static Object* createStockException(const char* descriptor, const char* msg)
  * We can't do this during the initial startup because we need to execute
  * the constructors.
  */
+
+/*
+ *breif:当系统分配内存或初始化失败时，需要抛出异常.这里创建了一些处理异常的object.
+*/
 bool dvmCreateStockExceptions()
 {
     /*
@@ -212,6 +243,12 @@ Object* dvmAllocObject(ClassObject* clazz, int flags)
  * We use the size actually allocated, rather than obj->clazz->objectSize,
  * because the latter doesn't work for array objects.
  */
+
+/*
+ *breif:创建object的一份拷贝.包括array object.
+ *param[obj]:对象.
+ *param[flags]:dvmMalloc的参数.
+*/
 Object* dvmCloneObject(Object* obj, int flags)
 {
     assert(dvmIsValidObject(obj));
@@ -262,6 +299,12 @@ Object* dvmCloneObject(Object* obj, int flags)
  * NOTE: "obj" is not a fully-formed object; in particular, obj->clazz will
  * usually be NULL since we're being called from dvmMalloc().
  */
+
+/*
+ *breif:跟踪不是vm根集的对象分配.
+ *param[obj]:对象.
+ *param[self]:线程对象.
+*/
 void dvmAddTrackedAlloc(Object* obj, Thread* self)
 {
     if (self == NULL)
@@ -283,6 +326,12 @@ void dvmAddTrackedAlloc(Object* obj, Thread* self)
  * We allow attempts to delete NULL "obj" so that callers don't have to wrap
  * calls with "if != NULL".
  */
+
+/*
+ *breif:停止跟踪对象内存分配.
+ *param[obj]:对象.
+ *param[self]:线程对象.
+*/
 void dvmReleaseTrackedAlloc(Object* obj, Thread* self)
 {
     if (obj == NULL)
@@ -305,6 +354,10 @@ void dvmReleaseTrackedAlloc(Object* obj, Thread* self)
 /*
  * Explicitly initiate garbage collection.
  */
+
+/*
+ *breif:启动垃圾回收.
+*/
 void dvmCollectGarbage()
 {
     if (gDvm.disableExplicitGc) {
@@ -321,6 +374,9 @@ struct CountContext {
     size_t count;
 };
 
+/*
+ *breif:计算class的实例的回调函数，若obj->clazz == arg->clazz 则 arg->count++.
+*/
 static void countInstancesOfClassCallback(Object *obj, void *arg)
 {
     CountContext *ctx = (CountContext *)arg;
@@ -330,6 +386,11 @@ static void countInstancesOfClassCallback(Object *obj, void *arg)
     }
 }
 
+/*
+ *breif:计算class实例.
+ *param[clazz]:要计算的类对象.
+ *return:返回class实例的计数.
+*/
 size_t dvmCountInstancesOfClass(const ClassObject *clazz)
 {
     CountContext ctx = { clazz, 0 };
@@ -340,6 +401,11 @@ size_t dvmCountInstancesOfClass(const ClassObject *clazz)
     return ctx.count;
 }
 
+/*
+ *breif:计算可分配类实例的回调函数.
+ *param[obj]:类对象.
+ *param[arg]:CountContext类型的值.
+*/
 static void countAssignableInstancesOfClassCallback(Object *obj, void *arg)
 {
     CountContext *ctx = (CountContext *)arg;
@@ -349,6 +415,11 @@ static void countAssignableInstancesOfClassCallback(Object *obj, void *arg)
     }
 }
 
+/*
+ *breif:计算可调整类实例计数.
+ *param[clazz]:类对象.
+ *return:返回计数.
+*/
 size_t dvmCountAssignableInstancesOfClass(const ClassObject *clazz)
 {
     CountContext ctx = { clazz, 0 };
@@ -359,11 +430,19 @@ size_t dvmCountAssignableInstancesOfClass(const ClassObject *clazz)
     return ctx.count;
 }
 
+
+/*
+ *breif:判断是否是堆内的地址.
+ *param[address]:堆地址.
+*/
 bool dvmIsHeapAddress(void *address)
 {
     return address != NULL && (((uintptr_t) address & (8-1)) == 0);
 }
 
+/*
+ *breif:无具体实现.
+*/
 bool dvmIsNonMovingObject(const Object* object)
 {
     return true;
