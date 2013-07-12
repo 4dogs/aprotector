@@ -115,6 +115,9 @@ file doesn't exist or is out of date, this will remove the old entry,
 create a new one (writing only the file header), and return with the
 "new file" flag set.
 
+返回在DEX文件缓存区域打开问价的fd。如果缓存文件不存在或超出日期，它将移除
+旧的实体，创建一个新的实体(仅写文件头)，并且返回新文件标识设置。
+
 It's possible to execute from an unoptimized DEX file directly,
 assuming the byte ordering and structure alignment is correct, but
 disadvantageous because some significant optimizations are not possible.
@@ -127,6 +130,8 @@ and "crc32" come from the Zip directory entry.  For a stand-alone DEX
 file, it's the modification date of the file and the Adler32 from the
 DEX header (which immediately follows the magic).  If these don't
 match what's stored in the opt header, we reject the file immediately.
+
+“modeWhen”和“crc32”如果校验不匹配，立即拒绝文件。
 
 On success, the file descriptor will be positioned just past the "opt"
 file header, and will be locked with flock.  "*pCachedName" will point
@@ -336,12 +341,16 @@ bool dvmUnlockCachedDexFile(int fd)
 Given a descriptor for a file with DEX data in it, produce an
 optimized version.
 
+给定一个DEX数据的文件描述符，生成一个优化的版本。
+
 The file pointed to by "fd" is expected to be a locked shared resource
 (or private); we make no efforts to enforce multi-process correctness
 here.
 
 "fileName" is only used for debug output.  "modWhen" and "crc" are stored
 in the dependency set.
+
+“fileName”仅用于调试输出。“modeWhen”和“crc”被存储在依赖设置中。
 
 The "isBootstrap" flag determines how the optimizer and verifier handle
 package-scope access checks.  When optimizing, we only load the bootstrap
@@ -354,9 +363,13 @@ The optimizer will need to load every class in the target DEX file.
 This is generally undesirable, so we start a subprocess to do the
 work and wait for it to complete.
 
+优化器需要加载所有目标DEX中的类。这种方式较为不方便，所以启动一个子进程等待它完成。
+
 Returns "true" on success.  All data will have been written to "fd".
 
-打开优化的DEX文件。
+成功返回“true”。所有数据将被写入到“fd”。
+
+优化DEX文件。
 */
 bool dvmOptimizeDexFile(int fd, off_t dexOffset, long dexLength,
     const char* fileName, u4 modWhen, u4 crc, bool isBootstrap)
@@ -372,9 +385,9 @@ bool dvmOptimizeDexFile(int fd, off_t dexOffset, long dexLength,
     pid_t pid;
 
     /*
-     * This could happen if something in our bootclasspath, which we thought
-     * was all optimized, got rejected.
-     */
+    This could happen if something in our bootclasspath, which we thought
+    was all optimized, got rejected.
+    */
     if (gDvm.optimizing) {
         ALOGW("Rejecting recursive optimization attempt on '%s'", fileName);
         return false;
@@ -383,7 +396,9 @@ bool dvmOptimizeDexFile(int fd, off_t dexOffset, long dexLength,
     pid = fork();
     if (pid == 0) {
         static const int kUseValgrind = 0;
-        static const char* kDexOptBin = "/bin/dexopt";
+        /* dexopt优化工具/命令 */
+        static const char* kDexOptBin = "/bin/dexopt"; 
+        /* 内存分析/泄露等检查工具 */
         static const char* kValgrinder = "/usr/bin/valgrind";
         static const int kFixedArgCount = 10;
         static const int kValgrindArgCount = 5;
@@ -397,7 +412,11 @@ bool dvmOptimizeDexFile(int fd, off_t dexOffset, long dexLength,
         const char* androidRoot;
         int flags;
 
-        /* change process groups, so we don't clash with ProcessManager */
+        /* 
+        change process groups, so we don't clash with ProcessManager 
+        
+        改变进程组，因此避免与ProcessManager的冲突。
+        */
         setpgid(0, 0);
 
         /* full path to optimizer */
@@ -411,8 +430,10 @@ bool dvmOptimizeDexFile(int fd, off_t dexOffset, long dexLength,
         strcat(execFile, kDexOptBin);
 
         /*
-         * Create arg vector.
-         */
+        Create arg vector.
+        
+        创建参数数组vector。
+        */
         int curArg = 0;
 
         if (kUseValgrind) {
@@ -766,6 +787,9 @@ We want to do the same basic set of operations, but we can just leave
 them in memory instead of writing them out to a cached optimized DEX file.
 
 准备内存DEX文件。
+
+
+
 */
 bool dvmPrepareDexInMemory(u1* addr, size_t len, DvmDex** ppDvmDex)
 {
@@ -816,14 +840,22 @@ static bool rewriteDex(u1* addr, int len, bool doVerify, bool doOpt,
     bool result = false;
     const char* msgStr = "???";
 
-    /* if the DEX is in the wrong byte order, swap it now */
+    /* 
+    if the DEX is in the wrong byte order, swap it now
+    
+    如果DEX存在错误的字节排序，做交换处理。
+    
+    修复DEX所有域的字节排序，并且校验结构。
+    */
     if (dexSwapAndVerify(addr, len) != 0)
         goto bail;
 
     /*
-     * Now that the DEX file can be read directly, create a DexFile struct
-     * for it.
-     */
+    Now that the DEX file can be read directly, create a DexFile struct
+    for it.
+    
+    现在DEX文件可以直接读取，为它创建一个DexFile结构体。
+    */
     if (dvmDexFileOpenPartial(addr, len, &pDvmDex) != 0) {
         ALOGE("Unable to create DexFile");
         goto bail;
@@ -853,9 +885,11 @@ static bool rewriteDex(u1* addr, int len, bool doVerify, bool doOpt,
     prepWhen = dvmGetRelativeTimeUsec();
 
     /*
-     * Load all classes found in this DEX file.  If they fail to load for
-     * some reason, they won't get verified (which is as it should be).
-     */
+    Load all classes found in this DEX file.  If they fail to load for
+    some reason, they won't get verified (which is as it should be).
+    
+    加载所有在DEX文件中的类。如果由于一些原因加载失败，则不会再去校验。
+    */
     if (!loadAllClasses(pDvmDex))
         goto bail;
     loadWhen = dvmGetRelativeTimeUsec();
@@ -950,27 +984,32 @@ static bool loadAllClasses(DvmDex* pDvmDex)
     dvmSetBootPathExtraDex(pDvmDex);
 
     /*
-     * At this point, it is safe -- and necessary! -- to look up the
-     * VM's required classes and members, even when what we are in the
-     * process of processing is the core library that defines these
-     * classes itself. (The reason it is necessary is that in the act
-     * of initializing the class Class, below, the system will end up
-     * referring to many of the class references that got set up by
-     * this call.)
-     */
+    At this point, it is safe -- and necessary! -- to look up the
+    VM's required classes and members, even when what we are in the
+    process of processing is the core library that defines these
+    classes itself. (The reason it is necessary is that in the act
+    of initializing the class Class, below, the system will end up
+    referring to many of the class references that got set up by
+    this call.)
+    
+    这一步，是安全的 -- 并且是必须的！-- 检索VM需要的类和成员；
+    因为要初始化类的Class，所以是必须的。
+    */
     if (!dvmFindRequiredClassesAndMembers()) {
         return false;
     }
 
     /*
-     * We have some circularity issues with Class and Object that are
-     * most easily avoided by ensuring that Object is never the first
-     * thing we try to find-and-initialize. The call to
-     * dvmFindSystemClass() here takes care of that situation. (We
-     * only need to do this when loading classes from the DEX file
-     * that contains Object, and only when Object comes first in the
-     * list, but it costs very little to do it in all cases.)
-     */
+    We have some circularity issues with Class and Object that are
+    most easily avoided by ensuring that Object is never the first
+    thing we try to find-and-initialize. The call to
+    dvmFindSystemClass() here takes care of that situation. (We
+    only need to do this when loading classes from the DEX file
+    that contains Object, and only when Object comes first in the
+    list, but it costs very little to do it in all cases.)
+    
+    为了避免递归问题，初始化类的原型classJavaLangClass。
+    */
     if (!dvmInitClass(gDvm.classJavaLangClass)) {
         ALOGE("ERROR: failed to initialize the class Class!");
         return false;

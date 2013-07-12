@@ -19,6 +19,16 @@ Perform some simple bytecode optimizations, chiefly "quickening" of
 opcodes.
 
 执行一些简单字节码的优化处理，主要是加快操作码。
+
+dalvik代码优化有以下几点：
+1.对于虚方法的调用，把方法索引修改成vtable索引。
+2.把field的get/put修改成字节偏移量。把boolean/byte/char/short等类型的变量合并到一个32-bit的形式，更少的代码可以更有效地利用CPU的I-cache。
+3.把一些大量使用的简单方法进行inline，比如String.length()。这样能减少方法调用的开销。
+4.删除空方法。
+5.加入一些计算好的数据。比如，VM需要一个hash table来查找类名字，我们就可以在Optimization阶段进行计算，不用放到DEX加载的时候了。所有的指令修改都是使用一个Dalvik标准没有定义的指令去替换原有指令。这样，我们就可以让优化和没有优化的指令自由搭配。具体的操作与VM版本有关。
+Optimization过程有两个地方需要我们注意：
+1.VM如果更新的话，vtable索引和字节偏移量可能会更新。
+2.如果两个DEX互相信赖，而其中一个DEX更新的话，确保优化后的索引和偏移量有效。
 */
 #include "Dalvik.h"
 #include "libdex/InstrUtils.h"
@@ -185,19 +195,21 @@ static void optimizeMethod(Method* method, bool essentialOnly)
         volatileOpc = OP_NOP;
 
         /*
-         * Each instruction may have:
-         * - "volatile" replacement
-         *   - may be essential or essential-on-SMP
-         * - correctness replacement
-         *   - may be essential or essential-on-SMP
-         * - performance replacement
-         *   - always non-essential
-         *
-         * Replacements are considered in the order shown, and the first
-         * match is applied.  For example, iget-wide will convert to
-         * iget-wide-volatile rather than iget-wide-quick if the target
-         * field is volatile.
-         */
+        Each instruction may have:
+        - "volatile" replacement
+          - may be essential or essential-on-SMP
+        - correctness replacement
+          - may be essential or essential-on-SMP
+        - performance replacement
+          - always non-essential
+        
+        Replacements are considered in the order shown, and the first
+        match is applied.  For example, iget-wide will convert to
+        iget-wide-volatile rather than iget-wide-quick if the target
+        field is volatile.
+        
+        
+        */
 
         /*
          * essential substitutions:
