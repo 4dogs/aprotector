@@ -1584,6 +1584,7 @@ void dvmJitCheckTraceRequest(Thread* self)
                 self->trace[0].isCode = true;
                 self->lastPC = 0;
                 /* Turn on trace selection mode */
+				/* 开启trace编译状态 */
                 dvmEnableSubMode(self, kSubModeJitTraceBuild);
 #if defined(SHOW_TRACE)
                 ALOGD("Starting trace for %s at %#x",
