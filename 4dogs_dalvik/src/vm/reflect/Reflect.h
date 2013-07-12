@@ -212,8 +212,13 @@ ArrayObject* dvmGetDeclaredClasses(const ClassObject* clazz);
  * Used to pass values out of annotation (and encoded array) processing
  * functions.
  */
+/*
+ * 被用于传递注解值来处理一些功能
+ */
 struct AnnotationValue {
+   // 注解值
     JValue  value;
+   // 注解类型
     u1      type;
 };
 
@@ -221,6 +226,10 @@ struct AnnotationValue {
 /**
  * Iterator structure for iterating over DexEncodedArray instances. The
  * structure should be treated as opaque.
+ */
+/*
+ * 迭代结构遍历DexEncodedArray实例,这个结构已经被处理过了 
+ * EncodedArray
  */
 struct EncodedArrayIterator {
     const u1* cursor;                    /* current cursor */

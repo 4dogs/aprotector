@@ -677,6 +677,8 @@ bool dvmPrepMainForJni(JNIEnv* pEnv)
  * Finish preparing the main thread, allocating some objects to represent
  * it.  As part of doing so, we finish initializing Thread and ThreadGroup.
  * This will execute some interpreted code (e.g. class initializers).
+ * 完成主线程的初始化，分配线程对象及初始化，同时在这个时候会调用
+ * 解释器来执行一部分代码。
  */
 bool dvmPrepMainThread()
 {
@@ -697,6 +699,7 @@ bool dvmPrepMainThread()
     /*
      * Make sure the classes are initialized.  We have to do this before
      * we create an instance of them.
+     * 初始化一些线程相关的类
      */
     if (!dvmInitClass(gDvm.classJavaLangClass)) {
         ALOGE("'Class' class failed to initialize");
