@@ -6,6 +6,14 @@ Jit的启动与卸载由dvmCompilerStartup(位于"dalvik/vm/compiler/Compiler.cp
 
 [JIT相关的流程]
 0.热点的测试
+1.JIT订单的形成
+2.JIT订单的下发
+3.编译器的初始化
+4.编译器对订单的获取
+5.编译器对订单的编译
+6.对编译结果的执行
+
+[热点的测试]
 模块位置："dalvik/vm/Profile.cpp"
 ---
 与JIT直接相关的函数：
@@ -14,16 +22,6 @@ updateActiveProfilers -> dvmCompilerUpdateGlobalState
 ---
 外部接口：在它对应的头文件中导出了TRACE_METHOD_ENTER等宏 分配在执行dalvik
 字节码函数的进入时，退出时已经回卷时进行调用。
-***
-
-1.JIT订单的形成
-	
-2.JIT订单的下发
-3.编译器的初始化
-4.编译器对订单的获取
-5.编译器对订单的编译
-6.对编译结果的执行
-
 
 [初始化流程]
 dvmStartup(Init.cpp)
@@ -328,6 +326,8 @@ struct Thread {
 #endif
 };
 
+[JIT接口说明]
+
 [JIT订单的完成]
 JIT任务的提交主要是依靠位于"interp/Jit.cpp"文件中实现的代码
 当解释器使用FINISH宏时。此宏调用Jit.cpp中的dvmCheckJit函数进行关于当前指令
@@ -374,7 +374,7 @@ dvmCompilerWorkEnqueue(compiler\Compiler.cpp)
 4.设置gDvmJit.compilerQueueActivity条件变量来通知compilterThreadStart线程函数
 订单不为空，取出订单进行编译。
 
-[订单的另外一种加入方式]
+[订单的另外一种加入方式,这种模式貌似已经被删除]
 dvmCompilerWorkEnqueue也被
 位于"compiler/Compier.cpp"中的dvmCompilerForceWorkEnqueue函数所调用
 而dvmCompilerForceWorkEnqueue会被位于"interp/Jit.cpp"中的dvmJitTraceProfilingOn
@@ -452,6 +452,49 @@ gDvmJit.compilerICPatchIndex
 
 [dalvik/vm/interp/Jit.cpp]
 有解释器调用JIT的接口模块，也用于对于指令进行trace时的profiling操作。并且用于订单任务的结构的建立
+----------
+dvmCheckJit <- 外部使用
+被封装在FINISH宏中，再解释器解释一条指令时，负责将判断是否将它移入到
+Jit Trace的订单中。是此版本的外部接口。
+
+dvmJitGetTraceAddr <- 内部使用
+此函数用于返回已经编译过的代码。
+
+dvmJitGetMethodAddr <- 内部使用
+此函数用于返回已经编译过的代码，函数级别的。
+
+dvmJitStats <- 内部使用
+将Jit表中表项的内容打印出来，仅在"compiler/Utility.cpp"
+的dvmCompilerDumpStats中进行调用。
+
+dvmJitResizeJitTable <- 内部使用
+仅在"compiler/Compiler.cpp"的compilerThreadStart线程函数中使用
+用于重设置JitTable
+
+dvmJitResetTable <- 内部使用
+仅在"compiler/Compiler.cpp"的resetCodeCache函数中使用，用于重新设置
+JitTable内存
+
+dvmJitd2l <- 内部使用
+用于将double转化成整形
+dvmJitf2l <- 内部使用
+用于将float转化成整形
+
+dvmJitSetCodeAddr <- 内部使用
+设置要进行编译的代码，以及编译到哪种硬件平台，以及编译后存放的地址
+目前在
+
+dvmJitEndTraceSelect <- 外部使用
+目前仅发现在解释器的portable解释器中使用
+
+dvmJitCheckTraceRequest <- 外部使用
+用于发起一个JitTrace请求，这个函数接收一个地址，此地址 + 此地址所在函数
+作为一个过滤值，当此地址被请求两次时，将它放置到JitTable中，请求编译器对其
+进行编译。
+
+dvmJitNextTraceCounter <- 内部使用
+dvmJitChangeProfileMode <- 内部使用
+dvmJitUpdateThreadStateAll <- 内部使用
 
 [dalvik/vm/compiler/Compiler.cpp]
 JIT编译器主要实现的场所
@@ -495,5 +538,6 @@ dvmCompileMethod函数与之类似。
 在编译过程中，有一个被称作为BasicBlock的数据结构来保存以上的信息，来辅助
 完成编译，这个模块就是针对BasicBlock链表进行操作的。
 
-<dalvik/vm/compiler/Utility.cpp>
-用于一些辅助编译模块的工具函数，例如动态数组等
+[dalvik/vm/compiler/Utility.cpp]
+用于一些辅助编译模块的工具函数，例如动态数组，位向量操作，打印基本块以及
+编译单元信息等。编译器异常处理函数也在此文件中定义。

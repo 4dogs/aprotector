@@ -518,16 +518,19 @@ void dvmBumpPunt(int from)
 void dvmJitStats()
 {
     int i;
-    int hit;
-    int not_hit;
-    int chains;
-    int stubs;
+    int hit;			/* 表中不为0的项 */
+    int not_hit;		/* 表中没有为0的项 */
+    int chains;			/* 表项数量 */
+    int stubs;			/* 与dvmCompilerGetInterpretTemplate返回值相等的数量 */
+	/* JIT表 */
     if (gDvmJit.pJitEntryTable) {
+		/* 遍历JIT表 */
         for (i=0, stubs=chains=hit=not_hit=0;
              i < (int) gDvmJit.jitTableSize;
              i++) {
             if (gDvmJit.pJitEntryTable[i].dPC != 0) {
                 hit++;
+				/* 如果表 */
                 if (gDvmJit.pJitEntryTable[i].codeAddress ==
                       dvmCompilerGetInterpretTemplate())
                     stubs++;
@@ -584,6 +587,7 @@ void dvmJitStats()
 
         ALOGD("JIT: %d Translation chains, %d interp stubs",
              gDvmJit.translationChains, stubs);
+		/* 如果profile模式等于profiling继续模式 */
         if (gDvmJit.profileMode == kTraceProfilingContinuous) {
             dvmCompilerSortAndPrintTraceProfiles();
         }
@@ -604,6 +608,7 @@ void dvmJitEndTraceSelect(Thread* self, const u2* dPC)
     }
     if (self->jitState == kJitTSelectEnd) {
         // Clean up and finish now.
+		/* 增加最后一个空的代码trace块 */
         dvmCheckJit(dPC, self);
     }
 }
@@ -906,7 +911,11 @@ void dvmCheckJit(const u2* pc, Thread* self)
 
     self->lastPC = pc;
 
-	/* Jit的状态 */
+	/* 
+	 * Jit的状态
+	 * kJitSelect : 继续选定下一个指令
+	 * kJitSelectEnd : 选择指令完毕
+	 */
     switch (self->jitState) {
         int offset;
         DecodedInstruction decInsn;
@@ -1025,7 +1034,7 @@ void dvmCheckJit(const u2* pc, Thread* self)
 					/* 插入move-result指令 */
                     insertMoveResult(lastPC, len, offset, self);
                 }
-            }
+            }/* end if */
             /* Break on throw or self-loop */
 			/* 中断在一个trhow指令或者自循环指令 */
             if ((decInsn.opcode == OP_THROW) || (lastPC == pc)){
@@ -1165,7 +1174,7 @@ void dvmCheckJit(const u2* pc, Thread* self)
 	 * 完成trace设置，关闭控制标志
 	 */
      if (allDone) {
-		 /* 清除kSubModeJitTraceBuild标志 */
+		 /* 清除当前线程的kSubModeJitTraceBuild标志 */
          dvmDisableSubMode(self, kSubModeJitTraceBuild);
 		 /* 如果还是等待下一条指令 */
          if (stayOneMoreInst) {
@@ -1251,6 +1260,7 @@ void* getCodeAddrCommon(const u2* dPC, bool methodEntry)
 #if defined(WITH_JIT_TUNING)
             gDvmJit.addrLookupsFound++;
 #endif
+			/* 如果有隐藏或者代码地址为NULL则返回NULL否则返回以编译代码 + 偏移 */
             return hideTranslation || !codeAddress ?  NULL :
                   (void *)(codeAddress + offset);
         } else {
@@ -1400,6 +1410,17 @@ void dvmJitSetCodeAddr(const u2* dPC, void *nPC, JitInstructionSetType set,
  * the proper flags in interpBreak and return.  Trace selection will
  * then begin normally via dvmCheckBefore.
  */
+/**
+ * @brief 检查trace请求
+ * @param self 线程结构指针
+ * @note 关于热点过滤：
+ *	第一个级别的触发条件是故意放宽的 - 我们不需要这个条件很容易标识
+ *	潜在的traces然后编译它，但是也允许重新进入到代码缓冲中。
+ *
+ *	第二个级别的过滤器存在的目的是选定我们已经编译的trace块代码。
+ *	它需要一个过滤器值(filterKey)在一段时间出现两次。
+ *	
+ */
 void dvmJitCheckTraceRequest(Thread* self)
 {
     int i;
@@ -1451,34 +1472,53 @@ void dvmJitCheckTraceRequest(Thread* self)
      * alignment for method pointers, and half-word alignment of the Dalvik pc.
      * for method pointers and half-word alignment for dalvik pc.
      */
+	
+	/*
+	 * 将函数指针 | PC寄存器指针 的值合成一个 过滤关键值
+	 */
+
+	/* method的值向右移动30位，取末尾两位到32位数的高地址 */
     u4 methodKey = (u4)self->interpSave.method <<
                    (JIT_TRACE_THRESH_FILTER_PC_BITS - 2);
+	/* 当前的PC指针向左移动1位，取PC指针的31位 然后取这31位的低6位 */
     u4 pcKey = ((u4)self->interpSave.pc >> 1) &
                ((1 << JIT_TRACE_THRESH_FILTER_PC_BITS) - 1);
-    intptr_t filterKey = (intptr_t)(methodKey | pcKey);
+    intptr_t filterKey = (intptr_t)(methodKey | pcKey);				/* 过滤关键值 */
 
     // Shouldn't be here if already building a trace.
+	/* 如果已经编译一个trace应该断言不会失败  */
     assert((self->interpBreak.ctl.subMode & kSubModeJitTraceBuild)==0);
 
     /* Check if the JIT request can be handled now */
+	/* 检查JIT请求现在能被处理 */
+
+	/*
+	 * 这里至少保证了一个地址的请求要出现两次。第一次没有在过滤器表中则随机设置到一个槽中
+	 * 然后直接设置kJitDone返回，如果第二次出现则清空当前的槽，然后将这个地址放入到JIT表中
+	 */
     if ((gDvmJit.pJitEntryTable != NULL) &&
-        ((self->interpBreak.ctl.breakFlags & kInterpSingleStep) == 0)){
+        ((self->interpBreak.ctl.breakFlags & kInterpSingleStep) == 0)){				/* 从这里可以看出当为单步运行时不能进行运行 */
         /* Bypass the filter for hot trace requests or during stress mode */
+		/* 存在请求 */
         if (self->jitState == kJitTSelectRequest &&
-            gDvmJit.threshold > 6) {
+            gDvmJit.threshold > 6) {		/* 阀值大于6 */
             /* Two-level filtering scheme */
+			/* 第二个级别的过滤语法 */
             for (i=0; i< JIT_TRACE_THRESH_FILTER_SIZE; i++) {
+				/* 如果找到了则清0 */
                 if (filterKey == self->threshFilter[i]) {
                     self->threshFilter[i] = 0; // Reset filter entry
                     break;
                 }
             }
+			/* 达到末尾，表示没有找到过滤器，则添加 */
             if (i == JIT_TRACE_THRESH_FILTER_SIZE) {
                 /*
                  * Use random replacement policy - otherwise we could miss a
                  * large loop that contains more traces than the size of our
                  * filter array.
                  */
+				/* 采用随机规则 - 设置过滤关键值 */
                 i = rand() % JIT_TRACE_THRESH_FILTER_SIZE;
                 self->threshFilter[i] = filterKey;
                 self->jitState = kJitDone;
@@ -1486,6 +1526,7 @@ void dvmJitCheckTraceRequest(Thread* self)
         }
 
         /* If the compiler is backlogged, cancel any JIT actions */
+		/* 如果编译队列的数量过大则放弃编译动作 */
         if (gDvmJit.compilerQueueLength >= gDvmJit.compilerHighWater) {
             self->jitState = kJitDone;
         }
@@ -1494,6 +1535,13 @@ void dvmJitCheckTraceRequest(Thread* self)
          * Check for additional reasons that might force the trace select
          * request to be dropped
          */
+		/*
+		 * 检查附加条件强行放弃掉一个trace选择请求
+		 *
+		 * 当前状态是“选择请求”
+		 * 检查当前解释器运行的指针是否已经JIT编译，如果经过编译则什么也不做
+		 * 如果没有找到则添加如果添加失败则结束请求
+		 */
         if (self->jitState == kJitTSelectRequest ||
             self->jitState == kJitTSelectRequestHot) {
             if (dvmJitFindEntry(self->interpSave.pc, false)) {
@@ -1517,6 +1565,7 @@ void dvmJitCheckTraceRequest(Thread* self)
             }
         }
 
+		/* 检查请求，如果是选定请求则准备编译数据 */
         switch (self->jitState) {
             case kJitTSelectRequest:
             case kJitTSelectRequestHot:
@@ -1558,6 +1607,12 @@ void dvmJitCheckTraceRequest(Thread* self)
  * Stops all threads, and thus is a heavyweight operation. May only be called
  * by the compiler thread.
  */
+/**
+ * @brief 重新设置JTI表的大小
+ * @param size 表的大小，必须是2的次方
+ * @retval 1 表示失败
+ * @retval 0 表示成功
+ */
 bool dvmJitResizeJitTable( unsigned int size )
 {
     JitEntry *pNewTable;
@@ -1582,6 +1637,7 @@ bool dvmJitResizeJitTable( unsigned int size )
         return true;
     }
 
+	/* 分配一块内存 */
     pNewTable = (JitEntry*)calloc(size, sizeof(*pNewTable));
     if (pNewTable == NULL) {
         return true;
@@ -1591,6 +1647,7 @@ bool dvmJitResizeJitTable( unsigned int size )
     }
 
     /* Stop all other interpreting/jit'ng threads */
+	/* 挂起所有线程 */
     dvmSuspendAllThreads(SUSPEND_FOR_TBL_RESIZE);
 
     pOldTable = gDvmJit.pJitEntryTable;
@@ -1602,6 +1659,7 @@ bool dvmJitResizeJitTable( unsigned int size )
     gDvmJit.jitTableMask = size - 1;
     gDvmJit.jitTableEntriesUsed = 0;
 
+	/* 将旧的值复制到新的表中 */
     for (i=0; i < oldSize; i++) {
         if (pOldTable[i].dPC) {
             JitEntry *p;
@@ -1629,6 +1687,10 @@ bool dvmJitResizeJitTable( unsigned int size )
 /*
  * Reset the JitTable to the initial clean state.
  */
+/**
+ * @brief 重新JIT表
+ * @note 被"vm/compiler/Compiler.cpp"resetCodeCache函数调用
+ */
 void dvmJitResetTable()
 {
     JitEntry *jitEntry = gDvmJit.pJitEntryTable;
@@ -1638,6 +1700,7 @@ void dvmJitResetTable()
     dvmLockMutex(&gDvmJit.tableLock);
 
     /* Note: If need to preserve any existing counts. Do so here. */
+	/* 如果需要保存存在的计数器, 这里做的是清0的操作 */
     if (gDvmJit.pJitTraceProfCounters) {
         for (i=0; i < JIT_PROF_BLOCK_BUCKETS; i++) {
             if (gDvmJit.pJitTraceProfCounters->buckets[i])
@@ -1660,12 +1723,17 @@ void dvmJitResetTable()
  * will be embedded in the generated code for the trace, and thus cannot
  * change while the trace exists.
  */
+/**
+ * @brief Jit下一个trace计数器
+ * @return 返回Jit trace的数量
+ */
 JitTraceCounter_t *dvmJitNextTraceCounter()
 {
     int idx = gDvmJit.pJitTraceProfCounters->next / JIT_PROF_BLOCK_ENTRIES;
     int elem = gDvmJit.pJitTraceProfCounters->next % JIT_PROF_BLOCK_ENTRIES;
     JitTraceCounter_t *res;
     /* Lazily allocate blocks of counters */
+	/* 如果当前的idx所在为0 */
     if (!gDvmJit.pJitTraceProfCounters->buckets[idx]) {
         JitTraceCounter_t *p =
               (JitTraceCounter_t*) calloc(JIT_PROF_BLOCK_ENTRIES, sizeof(*p));
@@ -1683,6 +1751,13 @@ JitTraceCounter_t *dvmJitNextTraceCounter()
 /*
  * Float/double conversion requires clamping to min and max of integer form.  If
  * target doesn't support this normally, use these.
+ */
+/**
+ * @brief 有符号double类型判断
+ * @note d 大于等于 0x7fff... 则返回 0x7fff...
+ *		 d 小于等于 0x8000... 则返回 0x8000...
+ *		 d 不等于 d 貌似不可能发生 返回0
+ *		 如果是其他情况则返回 d 原值
  */
 s8 dvmJitd2l(double d)
 {
@@ -1713,11 +1788,17 @@ s8 dvmJitf2l(float f)
 }
 
 /* Should only be called by the compiler thread */
+/**
+ * @brief 改变Profile模式 
+ * @param newState 新的状态
+ * @note 被编译器线程调用
+ */
 void dvmJitChangeProfileMode(TraceProfilingModes newState)
 {
     if (gDvmJit.profileMode != newState) {
+		/* 设置新的状态 */
         gDvmJit.profileMode = newState;
-        dvmJitUnchainAll();
+        dvmJitUnchainAll();   /* 解除所有链接 */
     }
 }
 
@@ -1739,9 +1820,11 @@ void dvmJitTraceProfilingOn()
  */
 void dvmJitTraceProfilingOff()
 {
+	/* kTraceProfilingPeriodicOn == kTraceProfilingPeriodicOff */
     if (gDvmJit.profileMode == kTraceProfilingPeriodicOn)
         dvmCompilerForceWorkEnqueue(NULL, kWorkOrderProfileMode,
                                     (void*) kTraceProfilingPeriodicOff);
+	/* kTraceProfilingContinuous == kTraceProfilingDisabled */
     else if (gDvmJit.profileMode == kTraceProfilingContinuous)
         dvmCompilerForceWorkEnqueue(NULL, kWorkOrderProfileMode,
                                     (void*) kTraceProfilingDisabled);

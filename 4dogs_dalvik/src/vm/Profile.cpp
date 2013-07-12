@@ -276,7 +276,7 @@ static void updateActiveProfilers(ExecutionSubModes newMode, bool enable)
     // Update global count
 	/* 更新全家计数 */
     do {
-        oldValue = gDvm.activeProfilers;
+        oldValue = gDvm.activeProfilers;						/* 当前的Profiler的数量 */
         newValue = oldValue + (enable ? 1 : -1);
         if (newValue < 0) {
             ALOGE("Can't have %d active profilers", newValue);

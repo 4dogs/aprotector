@@ -121,6 +121,10 @@ void dvmInitGrowableList(GrowableList *gList, size_t initLength)
 }
 
 /* Expand the capacity of a growable list */
+/**
+ * @brief 扩展动态数组列表
+ * @param gList 动态数组指针
+ */
 static void expandGrowableList(GrowableList *gList)
 {
     int newLength = gList->numAllocated;
@@ -153,6 +157,11 @@ void dvmInsertGrowableList(GrowableList *gList, intptr_t elem)
     gList->elemList[gList->numUsed++] = elem;
 }
 
+/**
+ * @brief 动态数据项初始化
+ * @param gList 动态数组指针
+ * @param iterator 数组元素指针
+ */
 void dvmGrowableListIteratorInit(GrowableList *gList,
                                  GrowableListIterator *iterator)
 {
@@ -161,6 +170,9 @@ void dvmGrowableListIteratorInit(GrowableList *gList,
     iterator->size = gList->numUsed;
 }
 
+/**
+ * @brief 返回下一个动态数组的元素
+ */
 intptr_t dvmGrowableListIteratorNext(GrowableListIterator *iterator)
 {
     assert(iterator->size == iterator->list->numUsed);
@@ -168,6 +180,11 @@ intptr_t dvmGrowableListIteratorNext(GrowableListIterator *iterator)
     return iterator->list->elemList[iterator->idx++];
 }
 
+/**
+ * @brief 获取数组元素
+ * @param gList 动态数组指针
+ * @param idx 元素索引
+ */
 intptr_t dvmGrowableListGetElement(const GrowableList *gList, size_t idx)
 {
     assert(idx < gList->numUsed);
@@ -175,35 +192,41 @@ intptr_t dvmGrowableListGetElement(const GrowableList *gList, size_t idx)
 }
 
 /* Debug Utility - dump a compilation unit */
+/**
+ * @brief 打印一个编译单元
+ * @param cUnit 编译单元指针
+ */
 void dvmCompilerDumpCompilationUnit(CompilationUnit *cUnit)
 {
     BasicBlock *bb;
     const char *blockTypeNames[] = {
-        "Normal Chaining Cell",
-        "Hot Chaining Cell",
-        "Singleton Chaining Cell",
-        "Predicted Chaining Cell",
-        "Backward Branch",
-        "Chaining Cell Gap",
-        "N/A",
-        "Entry Block",
-        "Code Block",
-        "Exit Block",
-        "PC Reconstruction",
-        "Exception Handling",
+        "Normal Chaining Cell",			/* 正常的链接单元 */
+        "Hot Chaining Cell",			/* 热点链接单元 */
+        "Singleton Chaining Cell",		/* Singleton链接单元 */
+        "Predicted Chaining Cell",		/* Predicted链接单元 */
+        "Backward Branch",				/* 向后分支 */
+        "Chaining Cell Gap",			/* 链接单元Gap */
+        "N/A",							/* 无效 */
+        "Entry Block",					/* 入口块 */
+        "Code Block",					/* 代码块 */
+        "Exit Block",					/* 退出块 */
+        "PC Reconstruction",			/* PC 重构区域 */
+        "Exception Handling",			/* 异常处理 */
     };
 
     ALOGD("Compiling %s %s", cUnit->method->clazz->descriptor,
-         cUnit->method->name);
-    ALOGD("%d insns", dvmGetMethodInsnsSize(cUnit->method));
-    ALOGD("%d blocks in total", cUnit->numBlocks);
+         cUnit->method->name);			/* 打印类信息 */
+    ALOGD("%d insns", dvmGetMethodInsnsSize(cUnit->method));		/* 打印函数指令数量 */
+    ALOGD("%d blocks in total", cUnit->numBlocks);					/* 打印基本块数量 */
     GrowableListIterator iterator;
 
     dvmGrowableListIteratorInit(&cUnit->blockList, &iterator);
 
+	/* 遍历基本块 */
     while (true) {
-        bb = (BasicBlock *) dvmGrowableListIteratorNext(&iterator);
+        bb = (BasicBlock *) dvmGrowableListIteratorNext(&iterator);		/* 下一个基本块 */
         if (bb == NULL) break;
+		/* 打印基本块信息 */
         ALOGD("Block %d (%s) (insn %04x - %04x%s)",
              bb->id,
              blockTypeNames[bb->blockType],
@@ -223,6 +246,9 @@ void dvmCompilerDumpCompilationUnit(CompilationUnit *cUnit)
 
 /*
  * dvmHashForeach callback.
+ */
+/**
+ * @brief dvmHashForeach回调函数
  */
 static int dumpMethodStats(void *compilerMethodStats, void *totalMethodStats)
 {
@@ -256,6 +282,9 @@ static int dumpMethodStats(void *compilerMethodStats, void *totalMethodStats)
  * Dump the current stats of the compiler, including number of bytes used in
  * the code cache, arena size, and work queue length, and various JIT stats.
  */
+/**
+ * @brief 打印编译器状态
+ */
 void dvmCompilerDumpStats(void)
 {
     CompilerMethodStats totalMethodStats;
@@ -269,6 +298,7 @@ void dvmCompilerDumpStats(void)
          numArenaBlocks, ARENA_DEFAULT_SIZE);
     ALOGD("Compiler work queue length is %d/%d", gDvmJit.compilerQueueLength,
          gDvmJit.compilerMaxQueued);
+	/* 打印JIT状态 */
     dvmJitStats();
     dvmCompilerArchDump();
     if (gDvmJit.methodStatsTable) {
@@ -287,6 +317,12 @@ void dvmCompilerDumpStats(void)
  *
  * NOTE: this is the sister implementation of dvmAllocBitVector. In this version
  * memory is allocated from the compiler arena.
+ */
+/**
+ * @brief 分配一个位向量的内存
+ * @param startBits
+ * @param expandable 可扩展
+ * @return 位向量指针
  */
 BitVector* dvmCompilerAllocBitVector(unsigned int startBits, bool expandable)
 {
@@ -353,6 +389,9 @@ bool dvmCompilerSetBit(BitVector *pBits, unsigned int num)
  * NOTE: this is the sister implementation of dvmClearBit. In this version
  * memory is allocated from the compiler arena.
  */
+/**
+ * @brief 清除位
+ */
 bool dvmCompilerClearBit(BitVector *pBits, unsigned int num)
 {
     if (num >= pBits->storageSize * sizeof(u4) * 8) {
@@ -367,12 +406,18 @@ bool dvmCompilerClearBit(BitVector *pBits, unsigned int num)
 /*
  * If set is true, mark all bits as 1. Otherwise mark all bits as 0.
  */
+/**
+ * @brief 标记所有位
+ */
 void dvmCompilerMarkAllBits(BitVector *pBits, bool set)
 {
     int value = set ? -1 : 0;
     memset(pBits->storage, value, pBits->storageSize * (int)sizeof(u4));
 }
 
+/**
+ * @brief 调试位向量
+ */
 void dvmDebugBitVector(char *msg, const BitVector *bv, int length)
 {
     int i;
@@ -385,6 +430,9 @@ void dvmDebugBitVector(char *msg, const BitVector *bv, int length)
     }
 }
 
+/**
+ * @brief 编译器异常
+ */
 void dvmCompilerAbort(CompilationUnit *cUnit)
 {
     ALOGE("Jit: aborting trace compilation, reverting to interpreter");
@@ -397,6 +445,9 @@ void dvmCompilerAbort(CompilationUnit *cUnit)
     longjmp(*cUnit->bailPtr, 1);
 }
 
+/**
+ * @brief 打印基本块的位向量
+ */
 void dvmDumpBlockBitVector(const GrowableList *blocks, char *msg,
                            const BitVector *bv, int length)
 {
@@ -414,6 +465,11 @@ void dvmDumpBlockBitVector(const GrowableList *blocks, char *msg,
     }
 }
 
+/**
+ * @brief 获取块名称
+ * @param bb 块指针
+ * @param name 名称
+ */ 
 void dvmGetBlockName(BasicBlock *bb, char *name)
 {
     switch (bb->blockType) {

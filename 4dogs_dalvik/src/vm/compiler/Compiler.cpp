@@ -1001,7 +1001,7 @@ void dvmCompilerUpdateGlobalState()
 	 */
 	/* activeProfilers 表明 开启profiler */
     if ((gDvm.activeProfilers != 0) &&
-        !gDvmJit.methodTraceSupport) {
+        !gDvmJit.methodTraceSupport) {	/* 这里表明第一次启动tracing */
         bool resetRequired;
         /*
          * compilerLock will prevent new compilations from being
@@ -1025,6 +1025,7 @@ void dvmCompilerUpdateGlobalState()
     jitActive = gDvmJit.pProfTable != NULL;
     jitActivate = !dvmDebuggerOrProfilerActive();	/* 处于调试阶段或者profile开启 */
 
+	/* jitActivate为TRUE表明处于调试阶段 */
     if (jitActivate && !jitActive) {
         gDvmJit.pProfTable = gDvmJit.pProfTableCopy;	/* 处于调试获取副本 */
     } else if (!jitActivate && jitActive) {
@@ -1032,7 +1033,7 @@ void dvmCompilerUpdateGlobalState()
         needUnchain = true;
     }
     dvmUnlockMutex(&gDvmJit.tableLock);
-    if (needUnchain)
+    if (needUnchain)				/* 不再调试模式下为TRUE */
         dvmJitUnchainAll();
     // Make sure all threads have current values
 	/* 对所有线程设置JitTable表 */

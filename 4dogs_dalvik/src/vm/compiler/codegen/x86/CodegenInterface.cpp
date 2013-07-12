@@ -489,6 +489,10 @@ done:
  * For ARM, it returns the address following the last cell unchained.
  * For IA, it returns NULL since cacheflush is not required for IA.
  */
+/**
+ * @brief 解锁一个trace.
+ * @param codeAddr 编译代码后的地址
+ */
 u4* dvmJitUnchain(void* codeAddr)
 {
     /* codeAddr is 4-byte aligned, so is chain cell count offset */
@@ -579,6 +583,9 @@ u4* dvmJitUnchain(void* codeAddr)
 }
 
 /* Unchain all translation in the cache. */
+/**
+ * @brief 解锁所有编译结构在缓存中
+ */
 void dvmJitUnchainAll()
 {
     ALOGV("Jit Runtime: unchaining all");
@@ -588,6 +595,7 @@ void dvmJitUnchainAll()
 
         UNPROTECT_CODE_CACHE(gDvmJit.codeCache, gDvmJit.codeCacheByteUsed);
 
+		/* 遍历JIT表 */
         for (size_t i = 0; i < gDvmJit.jitTableSize; i++) {
             if (gDvmJit.pJitEntryTable[i].dPC &&
                 !gDvmJit.pJitEntryTable[i].u.info.isMethodEntry &&
