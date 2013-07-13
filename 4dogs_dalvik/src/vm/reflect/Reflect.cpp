@@ -220,7 +220,7 @@ static int fieldToSlot(const Field* field, const ClassObject* clazz)
  * Convert a slot number to a field pointer.
  */
 /*
- * 转撒网一个数值到Field指针
+ * 转换一个数值到Field指针
  */
 Field* dvmSlotToField(ClassObject* clazz, int slot)
 {

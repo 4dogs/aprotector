@@ -771,6 +771,10 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
      * If the path was constructed strangely (e.g. ":foo::bar:") this will
      * over-allocate, which isn't ideal but is mostly harmless.
      */
+    /*
+   *gDvm.bootClassPathStr(BOOTCLASSPATH /system/framework/core.jar:/system/framework/bouncycastle.jar:/system/framework/ext.jar
+  * :/system/framework/framework.jar:/system/framework/android.policy.jar:/system/framework/services.jar:/system/framework/core-junit.jar  
+  */
     count = 1;
     for (cp = mangle; *cp != '\0'; cp++) {
         if (*cp == ':') {   /* separates two entries */
@@ -786,8 +790,8 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
     cpe = (ClassPathEntry*) calloc(count+1, sizeof(ClassPathEntry));
 
     /*
-    * Set the global pointer so the DEX file dependency stuff can find it.
-     */
+   * Set the global pointer so the DEX file dependency stuff can find it.
+   */
      /*
    * 设置一个全局的指针，以便Dex文件所依赖的东西能找到它
    */
@@ -812,6 +816,7 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
 
             ClassPathEntry tmp;
             tmp.kind = kCpeUnknown;
+	   //eg./system/framework/core.jar
             tmp.fileName = strdup(cp);
             tmp.ptr = NULL;
 
@@ -823,7 +828,7 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
             cpe[idx].fileName = NULL;
             cpe[idx].ptr = NULL;
 
-	   /* 准备类路径节点,prepareCpe 中调用了dvmJarFileOpen 打开一个 jar 包*/
+	   /* 准备类路径节点,prepareCpe 中调用了(dvmJarFileOpen/...) 打开一个 jar 包*/
             if (!prepareCpe(&tmp, isBootstrap)) {
                 /* drop from list and continue on */
                 free(tmp.fileName);
@@ -4377,12 +4382,14 @@ bool dvmIsClassInitializing(const ClassObject* clazz)
 /*
  * If a class has not been initialized, do so by executing the code in
  * <clinit>.  The sequence is described in the VM spec v2 2.17.5.
+ * 如果一个类没有被初始化，去执行<clinit>代码.它被描述在虚拟机规范v2.2.17.5
  *
  * It is possible for multiple threads to arrive here simultaneously, so
  * we need to lock the class while we check stuff.  We know that no
  * interpreted code has access to the class yet, so we can use the class's
  * monitor lock.
- *
+ * 多个线程可能同时到达这儿,因此当我们去检查的时候,我们需要去锁定类
+ * 
  * We will often be called recursively, e.g. when the <clinit> code resolves
  * one of its fields, the field resolution will try to initialize the class.
  * In that case we will return "true" even though the class isn't actually
@@ -4438,9 +4445,6 @@ bool dvmIsClassInitializing(const ClassObject* clazz)
  * deviate from the spec in a meaningful way, we don't allow class init
  * to be interrupted by Thread.interrupt().
  */
-/*
- * 初始化类
- */
 bool dvmInitClass(ClassObject* clazz)
 {
     u8 startWhen = 0;
@@ -4456,8 +4460,8 @@ bool dvmInitClass(ClassObject* clazz)
     assert(dvmIsClassLinked(clazz) || clazz->status == CLASS_ERROR);
 
     /*
-     * If the class hasn't been verified yet, do so now.
-     */
+   * If the class hasn't been verified yet, do so now.
+   */
      /*
    * 如果当前的类还没有完成校验，则执行下面这段
    */
@@ -4488,10 +4492,14 @@ bool dvmInitClass(ClassObject* clazz)
             ALOGV("+++ late verify on %s", clazz->descriptor);
 
         /*
-         * We're not supposed to optimize an unverified class, but during
-         * development this mode was useful.  We can't verify an optimized
-         * class because the optimization process discards information.
-         */
+     * We're not supposed to optimize an unverified class, but during
+     * development this mode was useful.  We can't verify an optimized
+     * class because the optimization process discards information.
+     */
+       /*
+    * 我们不支持去优化一个未校验的类，但是在开发期间，这个模式是可能使用的.
+    * 我们不能校验一个已经优化过的类，因为优化过程会丢弃一些信息
+    */
         if (IS_CLASS_FLAG_SET(clazz, CLASS_ISOPTIMIZED)) {
             ALOGW("Class '%s' was optimized without verification; "
                  "not verifying now",
