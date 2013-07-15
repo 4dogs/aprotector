@@ -1,34 +1,299 @@
-<�������>
+﻿[整体介绍]
+面向对象特性操作,如.类型转换校验,方法或字段访问受保护,类或方法的加载和解析
 
-����������Բ���,��.����ת��У��,�������ֶη����ܱ���,��򷽷��ļ��غͽ���
+[专业术语]
+实例化: 在面向对象的编程中，通常把用类创建对象的过程称为实例化,其格式如下：类名 *对象名 = new 类名（参数1，参数2...参数n）（这里，“类名”这个类名实例化成了“对象名”这个对象）
 
+判断是否是指定的实例(instanceof): 它的作用是判断其左边对象是否为其右边类的实例;例如：String s = "I AM an Object!";boolean isobject = s instanceof Object;我们声明了一个String对象引用，指向一个String对象，然后用instanceof来测试它所指向的对象是否是Object类的一个实例，显然，这是真的，所以返回true，也就是isobject的值为true
+
+接口(interface): Interface是面向对象编程语言中接口操作的关键字，功能是把所需成员组合起来，以封装一定功能的集合,最主要的作用是达到统一访问。它好比一个模板，在其中定义了对象必须实现的成员，通过类或结构来实现它
 
 [dalvik\vm\oo\typeCheck.cpp]
+实现类型转换检测，判断某个类是否是特定类的实例...
 
-ʵ������ת����⣬�ж�ĳ�����Ƿ����ض����ʵ��...
-
+[初始化流程]
+1.dvmStartup <init.cpp>
+2.dvmInstanceofStartup <oo\TypeCheck.cpp>
+3.dvmAllocAtomicCache <AtomicCache.cpp>
+  使用instanceof操作符来判断一个对象A是否是一个类B的实例时，Davlik虚拟机需要检查类B是否是从对象A的声明类继承下来的。由于这个检查的过程比较耗时，Davlik虚拟机在内部使用  一个缓冲，用来记录第一次两个类之间的instanceof操作结果，这样后面再碰到相同的instanceof操作时，就可以快速地得到结果
 
 [dalvik\vm\oo\Object.cpp]
+针对面向对象的一些操作，如在类,父类,接口中查找它的指定的虚方法,静态方法,....
 
-��Զ����һЩ������������,����,�ӿ��в�������ָ�����鷽��,��̬����,....
+
+[ClassObject结构体]
+ /* 为实例数据留出4字间的空间*/
+ u4              instanceData[CLASS_FIELD_SLOTS];
+
+ /* UTF-8的描述字符串 */
+ const char*     descriptor;
+
+ /* 另一个描述字符串，貌似在反射机制的代理类用到 */
+ char*           descriptorAlloc;
+
+ /* 访问标志 ,对于外部类而言,可以是ACC_PUBLIC、ACC_FINAL.....*/
+ u4              accessFlags;
+
+ /* VM特有的类序列码,非零的 */
+ u4              serialNumber;
+
+ /*指向对应的DexFile，当从常量池中查询信息时用到，如果虚拟机自己生成的类,比如数组和原始类等则为空*/
+ DvmDex*         pDvmDex;
+
+ /* 类初始化的一些状态 ,比如CLASS_NOTREADY、CLASS_LOADED....*/
+ ClassStatus     status;
+
+ /* 如果类校验失败，我们必须返回相同的错误供后续尝试 */
+ ClassObject*    verifyErrorClass;
+
+ /*初始化时的线程id,用于在嵌套调用时作检查*/
+ u4              initThreadId;
+
+ /*
+  * 这个类型所对应的对象的大小，用于在堆上分配内存时使用.如果是接口或抽象类，这个值是0
+  */
+ size_t          objectSize;
+
+ /*
+  * 数组元素的类型，仅当这个类型为数组类型时有效.用于instanceof操作符或强制类型
+  * 转换时使用，比如:String[][][]类型的这个值就是String类型
+  */
+  ClassObject*    elementClass;
+
+    
+ /*
+  * 数组的维数，仅当这个类型为数组时才有效，比如int[][]的值为2
+  */
+  int             arrayDim;
+
+ /* 原始类型的下标，用于虚拟机生成的原始类型，非原始类型时为PRIM_NOT (-1) */
+  PrimitiveType   primitiveType;
+
+ /* 超类的类型，如果是java.lang.Object的话这个值为NULL  */
+  ClassObject*    super;
+
+ /*这个类的定义加载器，如果类型为“bootstrap”的系统类加载器则为NULL*/
+  Object*         classLoader;
+
+ /*需要初始化这个类的加载器的列表，即这个类的初始化加载器的列表*/
+  InitiatingLoaderList initiatingLoaderList;
+
+ /* 此类所实现的接口数 */
+  int             interfaceCount;
+    
+ /* 此类直接实现的接口列表 */
+  ClassObject**   interfaces;
+
+ /* 所谓的direct方法即static,private和方法条数 */
+  int             directMethodCount;
+ 
+ /* direct方法列表*/
+  Method*         directMethods;
+
+ /* 本类定义的虚方法数 */
+  int             virtualMethodCount;
+
+ /*本类定义的虚方法，所谓虚方法就是通过虚方法表vtable来调用的方法 */
+  Method*         virtualMethods;
+
+ /* 虚方法表中的方法数 */
+  int             vtableCount;
+  
+ /* 
+  * 虚方法表,通过invokevirtual来调用.首先从超类完全复制过来虚表,
+  * 然后我们在部分得替换它或者扩展它
+  */
+  Method**        vtable;
+
+ /*类实现的接口数*/
+  int             iftableCount;
+   
+ /* 
+  * 类的接口表，每个接口代表一项.不管是由类直接实现的接口,还是由超类
+  * 间接实现的接口.如果一个接口都未实现那么这个表就为NULL
+  */
+  InterfaceEntry* iftable;
+
+ /*在vtable中对应方法的位置偏移的索引数组中的元素个数*/
+  int             ifviPoolCount;
+   
+ /* 指向在vtable中对应方法的位置偏移的索引数组*/
+  int*            ifviPool;
+
+ /*实例变量的个数*/
+  int             ifieldCount;
+    
+ /*实例变量中引用的个数*/
+  int             ifieldRefCount; // number of fields that are object refs 相关字段的数量
+    
+ /*实例变量数组 */
+  InstField*      ifields;
+
+ /* bitmap of offsets of ifields */
+  u4 refOffsets;
+
+ /*源文件的文件名*/
+  const char*     sourceFile;
+
+ /*静态变量个数*/
+  int             sfieldCount;
+  StaticField     sfields[0]; /* MUST be last item */
+
+
+[Object结构体]
+
+ /*类型对象*/
+  ClassObject*    clazz;
+
+ /*
+  * 锁对象，只要是实例对象都有对应的锁，某个线程获得对它的锁以后，如果其它线程要获得它的锁，
+  * 只有等这个线程释放了它的锁，才能真正获得锁
+  */
+  u4              lock;
+
+
+[Method结构体]
+
+ /* the class we are a part of  当前的方法隶属于那个类对象*/
+  ClassObject*    clazz;
+
+ /* access flags; low 16 bits are defined by spec (could be u2?) 该方法的访问标记，低16位是空的，实际上可以用u2就满足了 */
+  u4              accessFlags;
+
+ /*
+  * For concrete virtual methods, this is the offset of the method
+  * in "vtable".
+  * 对于实际的虚函数，这个index代表该函数在虚表中的偏移
+  * For abstract methods in an interface class, this is the offset
+  * of the method in "iftable[n]->methodIndexArray".
+  * 对于接口类中的抽象方法，它代表函数在iftable[n]->methodIndexArray中的偏移
+  */
+  u2             methodIndex;
+
+ /*
+  * Method bounds; not needed for an abstract method.
+  * 对于一个函数，下面的三个字段描述边界的大小，但是对于抽象函数不需要这些。
+  * For a native method, we compute the size of the argument list, and
+  * set "insSize" and "registerSize" equal to it.
+  * 对于本地方法的话，设置的时候要注意，计算参数列表的整体大小
+  * 然后把registersSize和insSize都设置成这个整体大小(对于其他函数的话，应该是registersSize = insSize + locals)
+  * 在一个标准的栈帧中一般需要这么几个东西: 参数空间+ 局部变量空间 + 输出结果空间
+  */
+  u2              registersSize;  /* ins + locals */
+  u2              outsSize;
+  u2              insSize;
+
+ /* method name, e.g. "<init>" or "eatLunch"  方法的名字*/
+  const char*     name;
+
+ /*
+  * Method prototype descriptor string (return and argument types).
+  * 一个方法的原型(返回值的类型和参数类型)
+  * 问题是这个值怎么能同时代表返回值和参数的类型呢?
+  * TODO: This currently must specify the DexFile as well as the proto_ids
+  * index, because generated Proxy classes don't have a DexFile.  We can
+  * remove the DexFile* and reduce the size of this struct if we generate
+  * a DEX for proxies.
+  */
+  DexProto        prototype;
+
+ /* short-form method descriptor string  关于一个函数的短描述字符串*/
+  const char*     shorty;
+
+ /*
+  * The remaining items are not used for abstract or native methods.
+  * (JNI is currently hijacking "insns" as a function pointer, set
+  * after the first call.  For internal-native this stays null.)
+  * 从这里开始往下的字段不适用于抽象和本地方法
+  * 对于JNI的相关调用的话，这里做了个技巧，就是在第一次调用后，insns会被设置为方法指针
+  * the actual code 
+  * 存放实际的该函数的指令
+  * 这里是个指针，实际存放的指令是在dex文件映射到的对应内存区域。
+  */
+  const u2*       insns;          /* instructions, in memory-mapped .dex */
+
+ /* JNI: cached argument and return-type hints 
+  * 这个字段主要是工jni调用来使用的，用来表明参数和返回值类型
+  */
+  int             jniArgInfo;
+
+ /*
+  *本地方法指针。可以是真正的函数也可以是JNI桥。
+  *当前我们并不区分DalvikBridgeFunc和DalvikNativeFunc，前者的参数是个超集(有额外的两个参数，它们会被忽略)。
+  *必要的话我们可以使用insns==NULL来判断是JNI桥还是内部本地函数
+  */ 
+  DalvikBridgeFunc nativeFunc;
+
+ /*
+  * JNI: true if this static non-synchronized native method (that has no
+  * reference arguments) needs a JNIEnv* and jclass/jobject. Libcore
+  * uses this.
+  */
+  bool fastJni;
+
+ /*
+  * JNI: true if this method has no reference arguments. This lets the JNI
+  * bridge avoid scanning the shorty for direct pointers that need to be
+  * converted to local references.
+  *
+  * TODO: replace this with a list of indexes of the reference arguments.
+  */
+  bool noRef;
+
+ /*
+  * JNI: true if we should log entry and exit. This is the only way
+  * developers can log the local references that are passed into their code.
+  * Used for debugging JNI problems in third-party code.
+  */
+  bool shouldTrace;
+
+ /*
+  * Register map data, if available.  This will point into the DEX file
+  * if the data was computed during pre-verification, or into the
+  * linear alloc area if not.
+  */
+  const RegisterMap* registerMap;
+
+ /* set if method was called during method profiling */
+  bool            inProfile;
 
 
 [dalvik\vm\oo\AccessCheck.cpp]
+检查类中的字段和方法是否允许被访问
 
-������е��ֶκͷ����Ƿ�����������
+
+[dalvik\vm\oo\Class.cpp]
+针对class的一些相关的操作，首先传入ClassPath,作为去处理class的入口点,再调用外部模块解析，在解析过程会调用Class.cpp相关的方法，Class.cpp中提供了一系列的方法供解析文件时调用.
+
+
+[初始化流程]
+1.dvmStartup() <init.cpp>
+2.dvmClassStartup() <oo\Class.cpp> 首先创建hash表(gDvm.loadedClasses)，存放被加载的class，然后执行下面
+3.processClassPath() <oo\Class.cpp> 处理类路径(类路径类似于/system/framework/core.jar:/system/framework/bouncycastle.jar:/system/framework/ext.jar这种格式)，并将处理后  结果构造成ClassPathEntry结构体，继续执行下面
+4.prepareCpe() <oo\Class.cpp> 传入ClassPathEntry结构体，并且打开相应的文件，如.jar、.dex、...
+
+[Class的加载原理]
+虚拟机负责解释并执行编译后的字节码。在解释执行字节码之前，当然要读取文件，分析文件的内容，得到字节码，然后才能解释执行之。最为重要的就是对Class的加载 – Class包含Method，Method 又包含code。通过对Class的加载，我们即可获得所需执行的字节码。
+
+[Class的加载流程]
+1.findClassNoInit() 加载类方法，会调用以下来完成加载
+2.dvmLookupClass() 首先查找hashge表(gDvm.loadedClasses)，如果成功，则直接返回;否则继续执行 3
+3.searchBootPathForClass() 获取Class索引，如为基本库则调用它，否则调用dexFindClass
+4.loadClassFromDex() 实际加载过程，它会为ClassObject数据结构分配内存，并读取dex文件的相关信息; 函数先会读取Class的具体数据（从ClassDataoff处），然后分别加载   directMethod， virtualMethod，ifield，sfield。
+5.dvmAddClassToHash() 将加载的Class放入hash表(gDvm.loadedClasses)中,加快下次的查找
+6.dvmLinkClass（） 查找自己的父类，如果父类没有加载，则会加载父类.如有interface,则加载相应的interface类
+	6.1 dvmResolveClass() <oo\Resolve.cpp>解析一个类
+        6.2 dvmFindClassNoInit() 使用指定的启动类加载器和描述符来查找指定名称的class
+        6.3 dvmFindSystemClassNoInit() 在bootClassPath基本类库中查找
+        6.4 findClassNoInit() 再次重复调用findClassNoInit()方法
 
 
 [dalvik\vm\oo\Array.cpp]
-
-�����������һЩ��������������ռ��С��������ά����...
-
+针对数组对象的一些操作，比如分配数组空间大小，创建多维数组...
 
 [dalvik\vm\oo\Resolve.cpp]
+解析相关类的方法或字段
 
-������ص��࣬�������ֶ�
-
-
-<dalvik\vm\oo\Class.cpp>
 
 
 

@@ -2102,6 +2102,7 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 					} while (!currRun->isCode);
 
 					/* Dummy end-of-run marker seen */
+					/* 到达最后一个块 */
 					if (currRun->info.frag.numInsts == 0) {
 						break;
 					}

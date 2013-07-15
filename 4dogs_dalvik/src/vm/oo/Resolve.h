@@ -27,6 +27,11 @@
  * (<clinit>, <init>, and methods declared "private" or "static" are stored
  * in the "direct" list.  All others are stored in the "virtual" list.)
  */
+/*
+ * 定义了方法类型枚举，'Direct'和'virtual'这两个方法是被独立存储的
+ *
+ * (<clinit>,<init>,和方法声明为'private'或者'static'都被存储在'direct'列表中，其他的被存储到'virtual'列表中)
+ */
 enum MethodType {
     METHOD_UNKNOWN  = 0,
     METHOD_DIRECT,      // <init>, private

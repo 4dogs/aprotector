@@ -34,6 +34,7 @@
 #include "mterp/Mterp.h"
 #include "Hash.h"
 
+/* 优化器 */
 #if defined(WITH_JIT)
 #include "compiler/codegen/Optimizer.h"
 #endif
@@ -58,6 +59,7 @@ struct DvmGlobals gDvm;
 struct DvmJniGlobals gDvmJni;
 
 /* JIT-specific global state */
+/* JIT指定的全局变量 */
 #if defined(WITH_JIT)
 struct DvmJitGlobals gDvmJit;
 
@@ -105,6 +107,7 @@ static void usage(const char* progName)
         kMinStackSize / 1024, kMaxStackSize / 1024);
     dvmFprintf(stderr, "  -Xverify:{none,remote,all}\n");
     dvmFprintf(stderr, "  -Xrs\n");
+	/* 开启JIT的功能 */
 #if defined(WITH_JIT)
     dvmFprintf(stderr,
                 "  -Xint  (extended to accept ':portable', ':fast' and ':jit')\n");
@@ -557,24 +560,32 @@ static void freeAssertionCtrl()
     free(gDvm.assertionCtrl);
 }
 
+/*
+ * 处理JIT选项
+ */
 #if defined(WITH_JIT)
 /* Parse -Xjitop to selectively turn on/off certain opcodes for JIT */
+/**
+ * @brief 处理 - Xjitop选项的开关
+ * @param opt 选项指针
+ * @note -Xjitop选项 选择某些opcode对于JIT的开关
+ */
 static void processXjitop(const char* opt)
 {
     if (opt[7] == ':') {
-        const char* startPtr = &opt[8];
+        const char* startPtr = &opt[8];		/* 找到opcode的指针 */
         char* endPtr = NULL;
 
         do {
             long startValue, endValue;
 
-            startValue = strtol(startPtr, &endPtr, 16);
+            startValue = strtol(startPtr, &endPtr, 16);								/* 转成16进制 */
             if (startPtr != endPtr) {
                 /* Just in case value is out of range */
                 startValue %= kNumPackedOpcodes;
 
                 if (*endPtr == '-') {
-                    endValue = strtol(endPtr+1, &endPtr, 16);
+                    endValue = strtol(endPtr+1, &endPtr, 16);						/* OPCODE末尾 */
                     endValue %= kNumPackedOpcodes;
                 } else {
                     endValue = startValue;
@@ -584,7 +595,7 @@ static void processXjitop(const char* opt)
                     ALOGW("Dalvik opcode %x is selected for debugging",
                          (unsigned int) startValue);
                     /* Mark the corresponding bit to 1 */
-                    gDvmJit.opList[startValue >> 3] |= 1 << (startValue & 0x7);
+                    gDvmJit.opList[startValue >> 3] |= 1 << (startValue & 0x7);		/* 记录OPCODE */
                 }
 
                 if (*endPtr == 0) {
@@ -690,6 +701,9 @@ static void processXjitmethod(const char* opt, bool isMethod) {
    OFFSET
    index ... //each pair is a range, if pcOff falls into a range, JIT
 */
+/**
+ * @brief 从jit_config.list中间中读取配置
+ */
 static int processXjitconfig(const char* opt) {
    FILE* fp = fopen(opt, "r");
    if (fp == NULL) {
@@ -1084,6 +1098,7 @@ static int processOptions(int argc, const char* const argv[],
         } else if (strcmp(argv[i], "-Xlog-stdio") == 0) {
             gDvm.logStdio = true;
 
+		/* 选择解释器的类型 */
         } else if (strncmp(argv[i], "-Xint", 5) == 0) {
             if (argv[i][5] == ':') {
                 if (strcmp(argv[i] + 6, "portable") == 0)
@@ -1091,6 +1106,7 @@ static int processOptions(int argc, const char* const argv[],
                 else if (strcmp(argv[i] + 6, "fast") == 0)
                     gDvm.executionMode = kExecutionModeInterpFast;
 #ifdef WITH_JIT
+				/* JIT解释器 */
                 else if (strcmp(argv[i] + 6, "jit") == 0)
                     gDvm.executionMode = kExecutionModeJit;
 #endif
@@ -1119,23 +1135,23 @@ static int processOptions(int argc, const char* const argv[],
         } else if (strncmp(argv[i], "-Xjitconfig:", 12) == 0) {
             processXjitconfig(argv[i] + strlen("-Xjitconfig:"));
         } else if (strncmp(argv[i], "-Xjitblocking", 13) == 0) {
-          gDvmJit.blockingMode = true;
+          gDvmJit.blockingMode = true;				/* 阻塞模式 */
         } else if (strncmp(argv[i], "-Xjitthreshold:", 15) == 0) {
-          gDvmJit.threshold = atoi(argv[i] + 15);
+          gDvmJit.threshold = atoi(argv[i] + 15);	/* 权值设定 */
         } else if (strncmp(argv[i], "-Xincludeselectedop", 19) == 0) {
           gDvmJit.includeSelectedOp = true;
         } else if (strncmp(argv[i], "-Xincludeselectedmethod", 23) == 0) {
           gDvmJit.includeSelectedMethod = true;
         } else if (strncmp(argv[i], "-Xjitcheckcg", 12) == 0) {
-          gDvmJit.checkCallGraph = true;
+          gDvmJit.checkCallGraph = true;			/* 检查调用图 */
           /* Need to enable blocking mode due to stack crawling */
           gDvmJit.blockingMode = true;
         } else if (strncmp(argv[i], "-Xjitdumpbin", 12) == 0) {
-          gDvmJit.printBinary = true;
+          gDvmJit.printBinary = true;				/* 打印JITBIN信息 */
         } else if (strncmp(argv[i], "-Xjitverbose", 12) == 0) {
-          gDvmJit.printMe = true;
+          gDvmJit.printMe = true;					/* 打印详细信息 */
         } else if (strncmp(argv[i], "-Xjitprofile", 12) == 0) {
-          gDvmJit.profileMode = kTraceProfilingContinuous;
+          gDvmJit.profileMode = kTraceProfilingContinuous;	/* jit剖析模式 */
         } else if (strncmp(argv[i], "-Xjitdisableopt", 15) == 0) {
           /* Disable selected optimizations */
           if (argv[i][15] == ':') {
@@ -1372,6 +1388,9 @@ private:
  * Do not pass in the class name or the options for the class.
  *
  * Returns 0 on success.
+ */
+/**
+ * @brief 
  */
 std::string dvmStartup(int argc, const char* const argv[],
         bool ignoreUnrecognized, JNIEnv* pEnv)
@@ -1718,6 +1737,7 @@ bool dvmInitAfterZygote()
         (int)(endHeap-startHeap), (int)(endQuit-startQuit),
         (int)(endJdwp-startJdwp), (int)(endJdwp-startHeap));
 
+	/* 这里开启了JIT则初始化JIT */
 #ifdef WITH_JIT
     if (gDvm.executionMode == kExecutionModeJit) {
         if (!dvmCompilerStartup())

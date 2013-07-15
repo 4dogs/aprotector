@@ -192,6 +192,10 @@ struct HeapSource {
 /*
  * Returns true iff a soft limit is in effect for the active heap.
  */
+
+/*
+ *breif:当软限制在活动堆上返回true.
+*/
 static bool isSoftLimited(const HeapSource *hs)
 {
     /* softLimit will be either SIZE_MAX or the limit for the
@@ -207,6 +211,10 @@ static bool isSoftLimited(const HeapSource *hs)
  * Returns approximately the maximum number of bytes allowed to be
  * allocated from the active heap before a GC is forced.
  */
+
+/*
+ *breif:返回允许在gc之前在活动堆上分配的字节
+*/
 static size_t getAllocLimit(const HeapSource *hs)
 {
     if (isSoftLimited(hs)) {
@@ -220,6 +228,10 @@ static size_t getAllocLimit(const HeapSource *hs)
  * Returns the current footprint of all heaps.  If includeActive
  * is false, don't count the heap at index 0.
  */
+
+/*
+ *breif:返回当前所有堆的痕迹.
+*/
 static size_t oldHeapOverhead(const HeapSource *hs, bool includeActive)
 {
     size_t footprint = 0;
@@ -241,6 +253,10 @@ static size_t oldHeapOverhead(const HeapSource *hs, bool includeActive)
  * Returns the heap that <ptr> could have come from, or NULL
  * if it could not have come from any heap.
  */
+
+/*
+ *breif:返回指针指向的堆.
+*/
 static Heap *ptr2heap(const HeapSource *hs, const void *ptr)
 {
     const size_t numHeaps = hs->numHeaps;
@@ -265,6 +281,10 @@ static Heap *ptr2heap(const HeapSource *hs, const void *ptr)
  *
  * These aren't exact, and should not be treated as such.
  */
+
+/*
+ *breif:当对象分配时更新heapSource->bytesAllocated.
+*/
 static void countAllocation(Heap *heap, const void *ptr)
 {
     assert(heap->bytesAllocated < mspace_footprint(heap->msp));
@@ -278,6 +298,9 @@ static void countAllocation(Heap *heap, const void *ptr)
     assert(heap->bytesAllocated < mspace_footprint(heap->msp));
 }
 
+/*
+ *breif:当对象释放时更新heapSource->bytesAllocated. 
+*/
 static void countFree(Heap *heap, const void *ptr, size_t *numBytes)
 {
     size_t delta = mspace_usable_size(ptr) + HEAP_SOURCE_CHUNK_OVERHEAD;
@@ -297,6 +320,10 @@ static void countFree(Heap *heap, const void *ptr, size_t *numBytes)
 
 static HeapSource *gHs = NULL;
 
+
+/*
+ *breif:调用的dlmalloc函数create_mspace_with_base用来做后备存储.
+*/
 static mspace createMspace(void* begin, size_t morecoreStart, size_t startingSize)
 {
     // Clear errno to allow strerror on error.
@@ -319,6 +346,10 @@ static mspace createMspace(void* begin, size_t morecoreStart, size_t startingSiz
 /*
  * Service request from DlMalloc to increase heap size.
  */
+
+/*
+ *breif:搜索mspace对应的堆,设置递增的堆访问权限.
+*/
 void* dvmHeapSourceMorecore(void* mspace, intptr_t increment)
 {
     Heap* heap = NULL;
@@ -359,6 +390,10 @@ const size_t kInitialMorecoreStart = SYSTEM_PAGE_SIZE;
  * Add the initial heap.  Returns false if the initial heap was
  * already added to the heap source.
  */
+
+/*
+ *breif:添加初始堆.
+*/
 static bool addInitialHeap(HeapSource *hs, mspace msp, size_t maximumSize)
 {
     assert(hs != NULL);
@@ -380,6 +415,10 @@ static bool addInitialHeap(HeapSource *hs, mspace msp, size_t maximumSize)
  * Adds an additional heap to the heap source.  Returns false if there
  * are too many heaps or insufficient free space to add another heap.
  */
+
+/*
+ *breif:增加堆到heapsource.如果没有足够空间添加堆则失败.
+*/
 static bool addNewHeap(HeapSource *hs)
 {
     Heap heap;
@@ -440,6 +479,10 @@ static bool addNewHeap(HeapSource *hs)
  * when signaled.  Also periodically trims the heaps when a few seconds
  * have elapsed since the last concurrent GC.
  */
+
+/*
+ *breif:
+*/
 static void *gcDaemonThread(void* arg)
 {
     dvmChangeStatus(NULL, THREAD_VMWAIT);
@@ -538,6 +581,14 @@ static void freeMarkStack(GcMarkStack *stack)
  * dvmHeapSource*() functions.  Returns a GcHeap structure
  * allocated from the heap source.
  */
+
+/*
+ *breif:通过dvmAllocRegion函数向操作系统申请保留一大块连续的内存地址空间，在底层内存实现上，使用的是dlmalloc又叫msspace，是轻量级的malloc实现，除了创建与初始化用于存储普通java对象的内存堆，还创建了3个内存堆，用来存放内存被占用情况的位图索引"livebits",在gc时用于标注存活对象的位图索引"markbits"和用来在gc中遍历存活对象引用的标注栈"mark stack".
+ *param[startSize]:msp的大小.就是内存堆的初始大小.
+ *param[maximumSize]:堆的最大值.
+ *param[growthLimit]:堆的增长最大值，当为0时，将无限增长到maximumsize.
+ *return:返回gc内存堆.
+*/
 GcHeap* dvmHeapSourceStartup(size_t startSize, size_t maximumSize,
                              size_t growthLimit)
 {

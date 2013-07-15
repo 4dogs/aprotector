@@ -72,6 +72,10 @@ const GcSpec *GC_BEFORE_OOM = &kGcBeforeOomSpec;
  *
  * Returns true if successful, false otherwise.
  */
+
+/*
+ *breif:初始化GC内存堆.根据gc参数设置调用dvmHeapSourceStartup函数向操作系统申请一块大的连续的内存空间，最后初始化Card Table.
+*/
 bool dvmHeapStartup()
 {
     GcHeap *gcHeap;
@@ -175,6 +179,12 @@ static void gcForMalloc(bool clearSoftReferences)
 
 /* Try as hard as possible to allocate some memory.
  */
+
+/*
+ *breif:首先尝试用dvmHeapSourceAlloc函数分配内存，如果失败的话，唤醒或创建GC线程执行垃圾回收过程，并等待其完成后重试dvmHeapSourceAlloc；如果dvmHeapSourceAlloc再次失败，说明当前GC堆中大部分对象都是存活的，那么调用dvmHeapSourceAllocAndGrow尝试扩大GC内存堆 – 因为一开始GC堆会根据初始大小向操作系统申请保留一块内存，如果这块内存用完了，GC堆就会再次向操作系统申请一块内存，直到用完限额。
+ *param[size]:需要分配的内存大小.
+ *return:返回分配的内存地址指针.
+*/
 static void *tryMalloc(size_t size)
 {
     void *ptr;
@@ -330,6 +340,13 @@ static void throwOOME()
  *
  * TODO: don't do a GC if the debugger thinks all threads are suspended
  */
+
+/*
+ *breif:直接将分配内存的工作交给tryMalloc函数操作.此过程堆是锁定的.即保证堆的同步操作，分配完成后，将堆信息填充到全局变量gDvm与Thread的allocProf结构体中.如果分配失败，则抛出异常.
+ *param[size]:分配的内存大小.
+ *flags:对内存分配的标记，如：ALLOC_DONT_TRACK标识不跟踪堆.
+ *return:返回分配内存后的指针.
+*/
 void* dvmMalloc(size_t size, int flags)
 {
     void *ptr;
@@ -437,6 +454,12 @@ static void verifyRootsAndHeap()
  * way to enforce this is to refuse to GC on an allocation made by the
  * JDWP thread -- we have to expand the heap or fail.
  */
+
+/*
+ *breif:开始垃圾回收过程.其首先调用dvmSuspendAllThreads暂停系统中除与调试器沟通的其他所有线程
+如果没有启用并行GC的话，虚拟机会提高GC线程的优先级，以防止GC线程被其它线程占用CPU。接下来调用dvmHeapMarkRootSet函数（/dalvik/vm/alloc/Heap.cpp:488）来遍历所有可从GC Root访问到的对象列表.
+ *param[spec]:gc的环境信息.
+*/
 void dvmCollectGarbageInternal(const GcSpec* spec)
 {
     GcHeap *gcHeap = gDvm.gcHeap;

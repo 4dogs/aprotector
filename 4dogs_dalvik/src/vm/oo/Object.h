@@ -54,6 +54,7 @@ typedef void (*DalvikNativeFunc)(const u4* args, JValue* pResult);
 
 
 /* vm-internal access flags and related definitions */
+/* 虚拟机内部访问标志及相关的定义 */
 enum AccessFlags {
     ACC_MIRANDA         = 0x8000,       // method (internal to VM)
     JAVA_FLAGS_MASK     = 0xffff,       // bits set from Java sources (low 16)
@@ -63,22 +64,34 @@ enum AccessFlags {
  * other class flags.  Code should use the *CLASS_FLAG*()
  * macros to set/get these flags.
  */
+/**/
 enum ClassFlags {
+   /* Class或它的超类覆写了finalize()*/
     CLASS_ISFINALIZABLE        = (1<<31), // class/ancestor overrides finalize()
+    /* Class是一个数组*/
     CLASS_ISARRAY              = (1<<30), // class is a "[*"
+    /* Class是一个对象数组*/
     CLASS_ISOBJECTARRAY        = (1<<29), // class is a "[L*" or "[[*"
     CLASS_ISCLASS              = (1<<28), // class is *the* class Class
 
+     /* Class是一个引用*/
     CLASS_ISREFERENCE          = (1<<27), // class is a soft/weak/phantom ref
                                           // only ISREFERENCE is set --> soft
+     /* Class是一个弱引用*/
     CLASS_ISWEAKREFERENCE      = (1<<26), // class is a weak reference
+    /*
+   *(每个类都有一个特殊的方法finalizer，它不能被直接调用，而被JVM在适当的时候调用，通常用来处理一些清理资源的工作，因此称为收尾机制。)
+   */
     CLASS_ISFINALIZERREFERENCE = (1<<25), // class is a finalizer reference
     CLASS_ISPHANTOMREFERENCE   = (1<<24), // class is a phantom reference
 
+    /* Class定义在多个dex文件中 */
     CLASS_MULTIPLE_DEFS        = (1<<23), // DEX verifier: defs in multiple DEXs
 
     /* unlike the others, these can be present in the optimized DEX file */
+    /* Class是被优化过的 */
     CLASS_ISOPTIMIZED          = (1<<17), // class may contain opt instrs
+    /* Class已经预校验 */
     CLASS_ISPREVERIFIED        = (1<<16), // class has been pre-verified
 };
 
@@ -125,17 +138,18 @@ enum MethodFlags {
     ((u4)((method)->accessFlags & (flags)))
 
 /* current state of the class, increasing as we progress */
+/* 类的一些状态，用来表明类的当前执行状态*/
 enum ClassStatus {
     CLASS_ERROR         = -1,
 
     CLASS_NOTREADY      = 0,
     CLASS_IDX           = 1,    /* loaded, DEX idx in super or ifaces */
-    CLASS_LOADED        = 2,    /* DEX idx values resolved */
-    CLASS_RESOLVED      = 3,    /* part of linking */
-    CLASS_VERIFYING     = 4,    /* in the process of being verified */
-    CLASS_VERIFIED      = 5,    /* logically part of linking; done pre-init */
-    CLASS_INITIALIZING  = 6,    /* class init in progress */
-    CLASS_INITIALIZED   = 7,    /* ready to go */
+    CLASS_LOADED        = 2,    /* DEX idx values resolved */ /* 加载 */
+    CLASS_RESOLVED      = 3,    /* part of linking */  /* 解析 */
+    CLASS_VERIFYING     = 4,    /* in the process of being verified */  /*  校验过程中 */
+    CLASS_VERIFIED      = 5,    /* logically part of linking; done pre-init */ /* 校验完成，预初始化 */
+    CLASS_INITIALIZING  = 6,    /* class init in progress */  /* 初始化中 */
+    CLASS_INITIALIZED   = 7,    /* ready to go */ /*初始化完成 */
 };
 
 /*
@@ -180,15 +194,18 @@ enum ClassStatus {
 /*
  * Used for iftable in ClassObject.
  */
+/*
+ * 用于ClassObject的iftable列表中
+ */
 struct InterfaceEntry {
     /* pointer to interface class */
-    ClassObject*    clazz;
+    ClassObject*    clazz;   //表示接口的ClassObject对象
 
     /*
      * Index into array of vtable offsets.  This points into the ifviPool,
      * which holds the vtables for all interfaces declared by this class.
      */
-    int*            methodIndexArray;
+    int*            methodIndexArray; //指向在vtable中对应方法的位置偏移的索引数组ifviPool中的位置偏移的索引数组
 };
 
 
@@ -207,12 +224,16 @@ struct InterfaceEntry {
  */
 struct Object {
     /* ptr to class object */
-    ClassObject*    clazz;
+    ClassObject*    clazz;   //类型对象
 
     /*
      * A word containing either a "thin" lock or a "fat" monitor.  See
      * the comments in Sync.c for a description of its layout.
      */
+    /*
+   * 锁对象，只要是实例对象都有对应的锁，某个线程获得对它的锁以后，如果其它线程要获得它的锁，
+   * 只有等这个线程释放了它的锁，才能真正获得锁
+   */
     u4              lock;
 };
 
@@ -228,6 +249,7 @@ struct Object {
  */
 struct DataObject : Object {
     /* variable #of u4 slots; u8 uses 2 slots */
+   /* u4类型项的变量数;u8使用两项*/
     u4              instanceData[1];
 };
 
@@ -244,6 +266,7 @@ struct DataObject : Object {
  */
 struct StringObject : Object {
     /* variable #of u4 slots; u8 uses 2 slots */
+   /* u4类型项的变量数;u8使用两项*/
     u4              instanceData[1];
 
     /** Returns this string's length in characters. */
@@ -272,6 +295,7 @@ struct StringObject : Object {
  */
 struct ArrayObject : Object {
     /* number of elements; immutable after init */
+   /* 元素个数，初始化后不会改变*/
     u4              length;
 
     /*
@@ -279,6 +303,7 @@ struct ArrayObject : Object {
      * declared as u8 so that the compiler inserts any necessary padding
      * (e.g. for EABI); the actual allocation may be smaller than 8 bytes.
      */
+    /*数组的内容，大小为length*sizeof(type)，总长度必须是8字节对齐的,实际分配的大小可能小于8字节*/
     u8              contents[1];
 };
 
@@ -299,23 +324,31 @@ struct InitiatingLoaderList {
  * pointer (e.g. for reflection stuff).  Testing the accessFlags for
  * ACC_STATIC allows a proper up-cast.
  */
+/*字段结构体*/
 struct Field {
+   /* 字段所属的类*/
     ClassObject*    clazz;          /* class in which the field is declared */
+   /* 变量名称*/
     const char*     name;
+   /* 变量的签名比如"I", "[C", "Landroid/os/Debug;"等 */
     const char*     signature;      /* e.g. "I", "[C", "Landroid/os/Debug;" */
+  /* 访问标志,可以是ACC_PUBLIC、ACC_PRIVATE.... */
     u4              accessFlags;
 };
 
 /*
  * Static field.
  */
+/*静态字段结构体*/
 struct StaticField : Field {
-    JValue          value;          /* initially set from DEX for primitives */
+   /* 对于原始类型直接由DEX设置*/
+    JValue          value;          /* initially set from DEX for primitives */  
 };
 
 /*
  * Instance field.
  */
+/*实例字段结构体*/
 struct InstField : Field {
     /*
      * This field indicates the byte offset from the beginning of the
@@ -323,6 +356,7 @@ struct InstField : Field {
      * the same as the object pointer (bug!), and byteOffset==4 is 4
      * bytes farther.
      */
+    /*从Object*地址处开始的偏移位置*/
     int             byteOffset;
 };
 
@@ -347,72 +381,105 @@ struct InstField : Field {
  * instance) used in Dalvik works out pretty well.  The only time it's
  * annoying is when enumerating or searching for things with reflection.
  */
+/*
+ * ClassObject - 类加载后的表现形式
+ *
+ */
 struct ClassObject : Object {
     /* leave space for instance data; we could access fields directly if we
        freeze the definition of java/lang/Class */
+    /* 为实例数据留出4字间的空间*/
     u4              instanceData[CLASS_FIELD_SLOTS];
 
     /* UTF-8 descriptor for the class; from constant pool, or on heap
        if generated ("[C") */
+    /* UTF-8的描述字符串 */
     const char*     descriptor;
+   /* 另一个描述字符串，貌似在反射机制的代理类用到 */
     char*           descriptorAlloc;
 
     /* access flags; low 16 bits are defined by VM spec */
+    /* 访问标志 ,对于外部类而言,可以是ACC_PUBLIC、ACC_FINAL.....*/
     u4              accessFlags;
 
     /* VM-unique class serial number, nonzero, set very early */
+    /* VM特有的类序列码,非零的 */
     u4              serialNumber;
 
     /* DexFile from which we came; needed to resolve constant pool entries */
     /* (will be NULL for VM-generated, e.g. arrays and primitive classes) */
+   /*指向对应的DexFile，当从常量池中查询信息时用到，如果虚拟机自己生成的类,比如数组和原始类等则为空*/
     DvmDex*         pDvmDex;
 
     /* state of class initialization */
+    /* 类初始化的一些状态 ,比如CLASS_NOTREADY、CLASS_LOADED....*/
     ClassStatus     status;
 
     /* if class verify fails, we must return same error on subsequent tries */
+    /* 如果类校验失败，我们必须返回相同的错误供后续尝试 */
     ClassObject*    verifyErrorClass;
 
     /* threadId, used to check for recursive <clinit> invocation */
-    u4              initThreadId;
+    /*初始化时的线程id,用于在嵌套调用时作检查*/
+      u4              initThreadId;
 
     /*
      * Total object size; used when allocating storage on gc heap.  (For
      * interfaces and abstract classes this will be zero.)
      */
+     /*
+   * 这个类型所对应的对象的大小，用于在堆上分配内存时使用.如果是接口或抽象类，这个值是0
+   */
     size_t          objectSize;
 
     /* arrays only: class object for base element, for instanceof/checkcast
        (for String[][][], this will be String) */
+    /*
+   * 数组元素的类型，仅当这个类型为数组类型时有效.用于instanceof操作符或强制类型
+   * 转换时使用，比如:String[][][]类型的这个值就是String类型
+   */
     ClassObject*    elementClass;
 
     /* arrays only: number of dimensions, e.g. int[][] is 2 */
+   /*
+  * 数组的维数，仅当这个类型为数组时才有效，比如int[][]的值为2
+  */
     int             arrayDim;
 
     /* primitive type index, or PRIM_NOT (-1); set for generated prim classes */
+   /* 原始类型的下标，用于虚拟机生成的原始类型，非原始类型时为PRIM_NOT (-1) */
     PrimitiveType   primitiveType;
 
     /* superclass, or NULL if this is java.lang.Object */
+   /* 超类的类型，如果是java.lang.Object的话这个值为NULL  */
     ClassObject*    super;
 
     /* defining class loader, or NULL for the "bootstrap" system loader */
+   /*这个类的定义加载器，如果类型为“bootstrap”的系统类加载器则为NULL*/
     Object*         classLoader;
 
     /* initiating class loader list */
     /* NOTE: for classes with low serialNumber, these are unused, and the
        values are kept in a table in gDvm. */
+    /*需要初始化这个类的加载器的列表，即这个类的初始化加载器的列表*/
     InitiatingLoaderList initiatingLoaderList;
 
     /* array of interfaces this class implements directly */
+    /* 此类所实现的接口数 */
     int             interfaceCount;
+    /* 此类直接实现的接口列表 */
     ClassObject**   interfaces;
 
     /* static, private, and <init> methods */
+    /* 所谓的direct方法即static,private和方法条数 */
     int             directMethodCount;
+   /* direct方法列表*/
     Method*         directMethods;
 
     /* virtual methods defined in this class; invoked through vtable */
+    /* 本类定义的虚方法数 */
     int             virtualMethodCount;
+   /*本类定义的虚方法，所谓虚方法就是通过虚方法表vtable来调用的方法 */
     Method*         virtualMethods;
 
     /*
@@ -420,7 +487,12 @@ struct ClassObject : Object {
      * vtable from the superclass is copied in, and virtual methods from
      * our class either replace those from the super or are appended.
      */
+     /* 虚方法表中的方法数 */
     int             vtableCount;
+   /* 
+  * 虚方法表,通过invokevirtual来调用.首先从超类完全复制过来虚表,
+  * 然后我们在部分得替换它或者扩展它
+  */
     Method**        vtable;
 
     /*
@@ -437,7 +509,12 @@ struct ClassObject : Object {
      * For every interface a concrete class implements, we create a list of
      * virtualMethod indices for the methods in the interface.
      */
+     /*类实现的接口数*/
     int             iftableCount;
+   /* 
+  * 类的接口表，每个接口一个表项.不管是由类直接实现的接口,还是由超类
+  * 间接实现的接口.如果一个接口都未实现那么这个表就为NULL
+  */
     InterfaceEntry* iftable;
 
     /*
@@ -445,7 +522,9 @@ struct ClassObject : Object {
      * them all in a single pool for each class that implements interfaces,
      * we decrease the number of allocations.
      */
+     /*在vtable中对应方法的位置偏移的索引数组中的元素个数*/
     int             ifviPoolCount;
+   /* 指向在vtable中对应方法的位置偏移的索引数组*/
     int*            ifviPool;
 
     /* instance fields
@@ -459,17 +538,22 @@ struct ClassObject : Object {
      * at the beginning of the field list.  ifieldRefCount specifies
      * the number of reference fields.
      */
+     /*实例变量的个数*/
     int             ifieldCount;
-    int             ifieldRefCount; // number of fields that are object refs
+    /*实例变量中引用的个数*/
+    int             ifieldRefCount; // number of fields that are object refs 相关字段的数量
+    /*实例变量数组 */
     InstField*      ifields;
 
     /* bitmap of offsets of ifields */
     u4 refOffsets;
 
     /* source file name, if known */
+   /*源文件的文件名*/
     const char*     sourceFile;
 
     /* static fields */
+   /*静态变量个数*/
     int             sfieldCount;
     StaticField     sfields[0]; /* MUST be last item */
 };
@@ -561,6 +645,11 @@ struct Method {
      * extra args) which will be ignored.  If necessary we can use
      * insns==NULL to detect JNI bridge vs. internal native.
      */
+    /*本地方法指针。可以是真正的函数也可以是JNI桥。
+   *当前我们并不区分DalvikBridgeFunc和DalvikNativeFunc，前者的参数是个超集(有额外的两个参数，它们会被忽略)。
+   *必要的话我们可以使用insns==NULL来判断是JNI桥还是内部本地函数
+   */ 
+
     DalvikBridgeFunc nativeFunc;
 
     /*
@@ -771,10 +860,12 @@ INLINE bool dvmIsPrimitiveClass(const ClassObject* clazz) {
 }
 
 /* linked, here meaning prepared and resolved */
+/* 类是否已经被解析 */
 INLINE bool dvmIsClassLinked(const ClassObject* clazz) {
     return clazz->status >= CLASS_RESOLVED;
 }
 /* has class been verified? */
+/* 类是否完成校验 */
 INLINE bool dvmIsClassVerified(const ClassObject* clazz) {
     return clazz->status >= CLASS_VERIFIED;
 }

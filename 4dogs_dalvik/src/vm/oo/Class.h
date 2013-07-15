@@ -34,6 +34,11 @@
  * These two may be freely intermixed in a classpath specification.
  * Ordering is significant.
  */
+
+/*
+ * ClassPath的种类; eg. jar、dex格式等
+ * 
+ */
 enum ClassPathEntryKind {
     kCpeUnknown = 0,
     kCpeJar,
@@ -41,8 +46,12 @@ enum ClassPathEntryKind {
     kCpeLastEntry       /* used as sentinel at end of array */
 };
 
+/*
+ * 类似于java工程目录下的.classpath文件,eg:<classpathentry kind="src" path="src"/> 指定了该项表示源文件，并指明了源文件的路径
+ *
+ */
 struct ClassPathEntry {
-    ClassPathEntryKind kind;
+    ClassPathEntryKind kind;  
     char*   fileName;
     void*   ptr;            /* JarFile* or DexFile* */
 };
@@ -60,6 +69,10 @@ void dvmDumpBootClassPath(void);
 
 /*
  * Determine whether "path" is a member of "cpe".
+ */
+/*
+ * 判断'path'是否是'path'的成员
+ *
  */
 bool dvmClassPathContains(const ClassPathEntry* cpe, const char* path);
 

@@ -20,6 +20,9 @@
 #include "Dalvik.h"
 #include "CompilerInternals.h"
 
+/**
+ * @brief 循环分析器
+ */
 typedef struct LoopAnalysis {
     BitVector *isIndVarV;               // length == numSSAReg
     GrowableList *ivList;               // induction variables
@@ -34,6 +37,7 @@ typedef struct LoopAnalysis {
     bool bodyIsClean;                   // loop body cannot throw any exceptions
 } LoopAnalysis;
 
+/* 过滤循环块 */
 bool dvmCompilerFilterLoopBlocks(CompilationUnit *cUnit);
 
 /*

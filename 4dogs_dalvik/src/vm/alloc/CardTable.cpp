@@ -48,6 +48,12 @@
  * Initializes the card table; must be called before any other
  * dvmCardTable*() functions.
  */
+
+/*
+ *breif:初始化gcHeap 的 card table.在gc堆上分配一块256字节内存.
+ *param[heapMaximumSize]:堆的最大值.
+ *param[growthLimit]:增长的最大值.
+*/
 bool dvmCardTableStartup(size_t heapMaximumSize, size_t growthLimit)
 {
     size_t length;
@@ -89,12 +95,19 @@ bool dvmCardTableStartup(size_t heapMaximumSize, size_t growthLimit)
 /*
  * Tears down the entire CardTable.
  */
+
+/*
+ *breif:释放gcHeap上的cardtablebase内存.
+*/
 void dvmCardTableShutdown()
 {
     gDvm.biasedCardTableBase = NULL;
     munmap(gDvm.gcHeap->cardTableBase, gDvm.gcHeap->cardTableLength);
 }
 
+/*
+ *breif:有两种情况 ，一种最终调用gHs->liveBits获取存活的bits.另一种情况调用madvise告诉系统cardtable不需要了.
+*/
 void dvmClearCardTable()
 {
     /*
@@ -156,6 +169,11 @@ void dvmClearCardTable()
 /*
  * Returns true iff the address is within the bounds of the card table.
  */
+
+/*
+ *breif:判断地址是否在card table范围内.
+ *param[cardAddr]:card地址.
+*/
 bool dvmIsValidCard(const u1 *cardAddr)
 {
     GcHeap *h = gDvm.gcHeap;
@@ -168,6 +186,12 @@ bool dvmIsValidCard(const u1 *cardAddr)
  * Returns the address of the relevent byte in the card table, given
  * an address on the heap.
  */
+
+/*
+ *breif:在堆上给定一个地址，返回card table上的一个字节的地址.
+ *param[addr]:堆地址.
+ *return:card table地址.
+*/
 u1 *dvmCardFromAddr(const void *addr)
 {
     u1 *biasedBase = gDvm.biasedCardTableBase;
@@ -179,6 +203,12 @@ u1 *dvmCardFromAddr(const void *addr)
 /*
  * Returns the first address in the heap which maps to this card.
  */
+
+/*
+ *breif:返回堆地址映射到card堆上的基地址.
+ *param[cardAddr]:card地址.
+ *return:card在堆上的基地址.
+*/
 void *dvmAddrFromCard(const u1 *cardAddr)
 {
     assert(dvmIsValidCard(cardAddr));
@@ -189,6 +219,11 @@ void *dvmAddrFromCard(const u1 *cardAddr)
 /*
  * Dirties the card for the given address.
  */
+
+/*
+ *breif:将地址对应的card addr标记为脏数据.
+ *param[addr]:堆地址.
+*/
 void dvmMarkCard(const void *addr)
 {
     u1 *cardAddr = dvmCardFromAddr(addr);
@@ -198,6 +233,11 @@ void dvmMarkCard(const void *addr)
 /*
  * Returns true if the object is on a dirty card.
  */
+
+/*
+ *breif:先查找obj在card table里的地址，然后判断是否在dirty card.
+ *param[obj]:对象.
+*/
 static bool isObjectDirty(const Object *obj)
 {
     assert(obj != NULL);
@@ -217,6 +257,12 @@ struct WhiteReferenceCounter {
 /*
  * Visitor that counts white referents.
  */
+
+/*
+ *breif:判断addr是否在存活对象位图索引中.若在则whiteRefs加1.
+ *param[addr]:地址.
+ *param[arg]:WhiteReferenceCounter类型参数.
+*/
 static void countWhiteReferenceVisitor(void *addr, void *arg)
 {
     WhiteReferenceCounter *ctx;
@@ -239,6 +285,10 @@ static void countWhiteReferenceVisitor(void *addr, void *arg)
 /*
  * Visitor that logs white references.
  */
+
+/*
+ *breif:判断addr是否在存活对象位图索引中并打印日志.
+*/
 static void dumpWhiteReferenceVisitor(void *addr, void *arg)
 {
     WhiteReferenceCounter *ctx;
@@ -261,6 +311,10 @@ static void dumpWhiteReferenceVisitor(void *addr, void *arg)
 /*
  * Visitor that signals the caller when a matching reference is found.
  */
+
+/*
+ *breif:查找arg匹配的pObj，若找到则arg置空.
+*/
 static void dumpReferencesVisitor(void *pObj, void *arg)
 {
     Object *obj = *(Object **)pObj;
@@ -270,6 +324,9 @@ static void dumpReferencesVisitor(void *pObj, void *arg)
     }
 }
 
+/*
+ *breif:搜索对象引用.并dump对象的回调函数.
+*/
 static void dumpReferencesCallback(Object *obj, void *arg)
 {
     if (obj == (Object *)arg) {
@@ -285,6 +342,12 @@ static void dumpReferencesCallback(Object *obj, void *arg)
 /*
  * Root visitor that looks for matching references.
  */
+
+/**/
+
+/*
+ *breif:匹配到引用后输出日志.
+*/
 static void dumpReferencesRootVisitor(void *ptr, u4 threadId,
                                       RootType type, void *arg)
 {
@@ -298,6 +361,11 @@ static void dumpReferencesRootVisitor(void *ptr, u4 threadId,
 /*
  * Invokes visitors to search for references to an object.
  */
+
+/*
+ *breif:搜索对象的引用并dump.
+ *param[obj]:对象.
+*/
 static void dumpReferences(const Object *obj)
 {
     HeapBitmap *bitmap = dvmHeapSourceGetLiveBits();
@@ -310,6 +378,12 @@ static void dumpReferences(const Object *obj)
  * Returns true if the given object is a reference object and the
  * just the referent is unmarked.
  */
+
+/*
+ *breif:判断是否是引用对象并且实际的对象未标记.
+ *param[obj]:引用的对象.
+ *param[ctx]:WhiteReferenceCounter类型参数.
+*/
 static bool isReferentUnmarked(const Object *obj,
                                const WhiteReferenceCounter* ctx)
 {
@@ -331,6 +405,11 @@ static bool isReferentUnmarked(const Object *obj,
  * Returns true if the given object is a string and has been interned
  * by the user.
  */
+
+/*
+ *breif:内部调用dvmIsWeakInternedString.判断是否是用户保留的字符串.
+ *param[obj]:字符串对象.
+*/
 static bool isWeakInternedString(const Object *obj)
 {
     assert(obj != NULL);
@@ -345,6 +424,12 @@ static bool isWeakInternedString(const Object *obj)
  * Returns true if the given object has been pushed on the mark stack
  * by root marking.
  */
+
+/*
+ *breif:判断标记的对象是否在标记栈.
+ *param[obj]:标记的对象.
+ *return: true表示在标记栈. false为不在.
+*/
 static bool isPushedOnMarkStack(const Object *obj)
 {
     GcMarkStack *stack = &gDvm.gcHeap->markContext.stack;
@@ -364,6 +449,12 @@ static bool isPushedOnMarkStack(const Object *obj)
  * references specially as it is permissible for these objects to be
  * gray and on an unmarked card.
  */
+
+/*
+ *breif:验证标记对象的回调函数.
+ *param[obj]:标记的对象.
+ *param[arg]:WhiteReferenceCounter类型的参数.
+*/
 static void verifyCardTableCallback(Object *obj, void *arg)
 {
     WhiteReferenceCounter ctx = { (HeapBitmap *)arg, 0 };
@@ -391,6 +482,10 @@ static void verifyCardTableCallback(Object *obj, void *arg)
 /*
  * Verifies that gray objects are on a dirty card.
  */
+
+/*
+ *breif:验证gray对象在dirty card上.
+*/
 void dvmVerifyCardTable()
 {
     HeapBitmap *markBits = gDvm.gcHeap->markContext.bitmap;

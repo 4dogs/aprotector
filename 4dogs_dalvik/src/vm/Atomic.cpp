@@ -173,6 +173,8 @@ int64_t dvmQuasiAtomicRead64(volatile const int64_t* addr)
 static const size_t kSwapLockCount = 32;
 static pthread_mutex_t* gSwapLocks[kSwapLockCount];
 
+
+/*初始化原子操作的同步锁*/
 void dvmQuasiAtomicsStartup() {
     for (size_t i = 0; i < kSwapLockCount; ++i) {
         pthread_mutex_t* m = new pthread_mutex_t;
@@ -181,6 +183,7 @@ void dvmQuasiAtomicsStartup() {
     }
 }
 
+/*销毁同步锁*/
 void dvmQuasiAtomicsShutdown() {
     for (size_t i = 0; i < kSwapLockCount; ++i) {
         pthread_mutex_t* m = gSwapLocks[i];
@@ -192,10 +195,12 @@ void dvmQuasiAtomicsShutdown() {
     }
 }
 
+/*根据指定的偏移取出同步锁*/
 static inline pthread_mutex_t* GetSwapLock(const volatile int64_t* addr) {
     return gSwapLocks[((unsigned)(void*)(addr) >> 3U) % kSwapLockCount];
 }
 
+/*原子级别的交换值操作，为指定地址赋予指定的值*/
 int64_t dvmQuasiAtomicSwap64(int64_t value, volatile int64_t* addr)
 {
     int64_t oldValue;
@@ -210,12 +215,15 @@ int64_t dvmQuasiAtomicSwap64(int64_t value, volatile int64_t* addr)
     return oldValue;
 }
 
-/* Same as dvmQuasiAtomicSwap64 - mutex handles barrier */
+/* Same as dvmQuasiAtomicSwap64 - mutex handles barrier 
+* 同上
+*/
 int64_t dvmQuasiAtomicSwap64Sync(int64_t value, volatile int64_t* addr)
 {
     return dvmQuasiAtomicSwap64(value, addr);
 }
 
+/*基本原理同dvmQuasiAtomicSwap64 ，增加一个比较操作，为指定地址处的指定值进行赋值操作*/
 int dvmQuasiAtomicCas64(int64_t oldvalue, int64_t newvalue,
     volatile int64_t* addr)
 {
@@ -234,6 +242,7 @@ int dvmQuasiAtomicCas64(int64_t oldvalue, int64_t newvalue,
     return result;
 }
 
+/*原子级别的取值操作*/
 int64_t dvmQuasiAtomicRead64(volatile const int64_t* addr)
 {
     int64_t result;
@@ -248,6 +257,7 @@ int64_t dvmQuasiAtomicRead64(volatile const int64_t* addr)
 #else
 
 // The other implementations don't need any special setup.
+//在进行原子操作之前或者之后进行初始化或者收尾操作，如果没有具体的需求的话，可以不实现
 void dvmQuasiAtomicsStartup() {}
 void dvmQuasiAtomicsShutdown() {}
 

@@ -18,7 +18,10 @@
  * Class loading, including bootstrap class loader, linking, and
  * initialization.
  */
-
+/*
+ * Àà¼ÓÔØ£¬°üÀ¨Òıµ¼Àà¼ÓÔØÆ÷£¬Á´½ÓºÍ³õÊ¼»¯
+ *
+ */
 #define LOG_CLASS_LOADING 0
 
 #include "Dalvik.h"
@@ -156,6 +159,10 @@ may not be worth the performance hit.
  * Class serial numbers start at this value.  We use a nonzero initial
  * value so they stand out in binary dumps (e.g. hprof output).
  */
+/*
+ * ÀàĞòÁĞºÅÒÔ 0x50000000 ¿ªÊ¼.ÎÒÃÇÊ¹ÓÃÒ»¸ö·ÇÁã³õÊ¼Öµ,ÒÔ±ãËûÃÇÊ¹ÓÃ¶ş½øÖÆ×ª´¢Êä³ö
+ *
+ */
 #define INITIAL_CLASS_SERIAL_NUMBER 0x50000000
 
 /*
@@ -165,7 +172,7 @@ may not be worth the performance hit.
  */
 #define ZYGOTE_CLASS_CUTOFF 2304
 
-#define CLASS_SFIELD_SLOTS 1
+#define CLASS_SFIELD_SLOTS 1 
 
 static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap);
 static void freeCpeArray(ClassPathEntry* cpe);
@@ -200,6 +207,9 @@ static void throwEarlierClassFailure(ClassObject* clazz);
  * it would probably be better to use a new type code to indicate the failure.  This change would
  * require a matching change in the parser and analysis code in frameworks/base/tools/preload.
  */
+/*
+ * ÌØ¶¨µÄÊ±¼ä¶ÎÄÚ£¬¹ØÓÚÒ»Ğ©Àà±»¼ÓÔØµÄÈÕÖ¾ĞÅÏ¢
+ */
 static void logClassLoadWithTime(char type, ClassObject* clazz, u8 time) {
     pid_t ppid = getppid();
     pid_t pid = getpid();
@@ -212,6 +222,10 @@ static void logClassLoadWithTime(char type, ClassObject* clazz, u8 time) {
 
 /*
  * Logs information about a class loading.
+ */
+/*
+ * ¹ØÓÚÒ»Ğ©Àà±»¼ÓÔØµÄÈÕÖ¾ĞÅÏ¢
+ *
  */
 static void logClassLoad(char type, ClassObject* clazz) {
     logClassLoadWithTime(type, clazz, dvmGetThreadCpuTimeNsec());
@@ -286,6 +300,9 @@ static void linearAllocTests()
     dvmLinearFree(NULL, (char*)str);
 }
 
+/*
+ * ¾²Ì¬×Ö¶ÎËùÕ¼µÄ¿Õ¼ä
+ */
 static size_t classObjectSize(size_t sfieldCount)
 {
     size_t offset = OFFSETOF_MEMBER(ClassObject, sfields);
@@ -299,8 +316,12 @@ size_t dvmClassObjectSize(const ClassObject *clazz)
 }
 
 /* (documented in header) */
+/*
+ * ¸ù¾İÀàĞÍ²éÕÒÔ­ÉúÀà
+ */
 ClassObject* dvmFindPrimitiveClass(char type)
 {
+   /*¸ù¾İ´«ÈëµÄÃèÊöÀàĞÍ»ñÈ¡Ô­ÉúÀàĞÍ */
     PrimitiveType primitiveType = dexGetPrimitiveTypeFromDescriptorChar(type);
 
     switch (primitiveType) {
@@ -325,6 +346,12 @@ ClassObject* dvmFindPrimitiveClass(char type)
  *
  * Just creates the class and returns it (does not add it to the class list).
  */
+/*
+ * ºÏ³ÉÒ»Ğ©Ô­ÉúÀà;
+ * 
+ * ½ö´´½¨ÀàºÍ·µ»ØËü(²»»á½«ËüÌí¼Óµ½ÀàÁĞ±íÖĞ)
+ * PrimitiveType (PRIM_VOID=0 ,PRIM_BOOLEAN=2.....)
+ */
 static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClass)
 {
     /*
@@ -334,10 +361,11 @@ static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClas
      * This matters for "instanceof" checks. Also, we assume that the
      * primitive class does not override finalize().
      */
-
+   /* descriptor ·µ»ØÖµÎª 'V','B',... */
     const char* descriptor = dexGetPrimitiveTypeDescriptor(primitiveType);
     assert(descriptor != NULL);
 
+    //´´½¨ÁËÒ»¸öĞÂµÄnewClass
     ClassObject* newClass = (ClassObject*) dvmMalloc(sizeof(*newClass), ALLOC_NON_MOVING);
     if (newClass == NULL) {
         return false;
@@ -355,7 +383,7 @@ static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClas
     /* don't need to set newClass->objectSize */
 
     LOGVV("Constructed class for primitive type '%s'", newClass->descriptor);
-
+    // newClass¸³Öµ¸ø*pClass
     *pClass = newClass;
     dvmReleaseTrackedAlloc((Object*) newClass, NULL);
 
@@ -366,11 +394,19 @@ static bool createPrimitiveType(PrimitiveType primitiveType, ClassObject** pClas
  * Create the initial class instances. These consist of the class
  * Class and all of the classes representing primitive types.
  */
+/*
+ * ÊµÀı»¯Àà²¢³õÊ¼»¯Ëü.ÕâĞ©ÊÇÓÉClassÀàµÄÊµÀıºÍËùÓĞÔ­ÉúÀàĞÍËù´ú±íµÄÀà×é³É.
+ * 
+ * ¼ÓÔØÁË9´ó»ù±¾ÀàĞÍ
+ */
 static bool createInitialClasses() {
     /*
-     * Initialize the class Class. This has to be done specially, particularly
-     * because it is an instance of itself.
-     */
+   * Initialize the class Class. This has to be done specially, particularly
+   * because it is an instance of itself.
+   */
+    ¡/*
+   * ³õÊ¼»¯ÁËClassÀà£¬Õâ¶ù²»µÃ²»È¥Íê³ÉÌØ±ğµÄ£¬ÒòÎªËüµÄÊµÀıÊÇËû±¾Éí
+   */
     ClassObject* clazz = (ClassObject*)
         dvmMalloc(classObjectSize(CLASS_SFIELD_SLOTS), ALLOC_NON_MOVING);
     if (clazz == NULL) {
@@ -378,15 +414,20 @@ static bool createInitialClasses() {
     }
     DVM_OBJECT_INIT(clazz, clazz);
     SET_CLASS_FLAG(clazz, ACC_PUBLIC | ACC_FINAL | CLASS_ISCLASS);
+   /* ¹¹ÔìÁËjava.lang.ClassµÄÒ»¸öÊµÀı */
     clazz->descriptor = "Ljava/lang/Class;";
     gDvm.classJavaLangClass = clazz;
-    LOGVV("Constructed the class Class.");
+ 
+    LOGVV("Constructed the class Class."); 
 
     /*
-     * Initialize the classes representing primitive types. These are
-     * instances of the class Class, but other than that they're fairly
-     * different from regular classes.
-     */
+   * Initialize the classes representing primitive types. These are
+   * instances of the class Class, but other than that they're fairly
+   * different from regular classes.
+   */
+    /*
+   * ³õÊ¼»¯Ô­ÉúÀàĞÍËù´ú±íµÄÀà(eg.PRIM_VOID = typeVoid),ÕâĞ©¶¼ÊÇClassµÄÊµÀı
+   */
     bool ok = true;
     ok &= createPrimitiveType(PRIM_VOID,    &gDvm.typeVoid);
     ok &= createPrimitiveType(PRIM_BOOLEAN, &gDvm.typeBoolean);
@@ -406,6 +447,12 @@ static bool createInitialClasses() {
  *
  * Call this after the bootclasspath string has been finalized.
  */
+/*
+ * ½¨Á¢ÁËbootstrap classloader
+ *
+ * Õâ¸öº¯ÊıÓÃÀ´³õÊ¼»¯Æô¶¯Àà¼ÓÔØÆ÷£¨Bootstrap Class Loader£©£¬Í¬Ê±»¹»á³õÊ¼»¯java.lang.ClassÀà¡£
+ * Æô¶¯Àà¼ÓÔØÆ÷ÊÇÓÃÀ´¼ÓÔØJavaºËĞÄÀàµÄ£¬ÓÃÀ´±£Ö¤°²È«ĞÔ£¬¼´±£Ö¤¼ÓÔØµÄJavaºËĞÄÀàÊÇºÏ·¨µÄ
+ */
 bool dvmClassStartup()
 {
     /* make this a requirement -- don't currently support dirs in path */
@@ -414,6 +461,7 @@ bool dvmClassStartup()
         return false;
     }
 
+   /* ´´½¨hash±í*/
     gDvm.loadedClasses =
         dvmHashTableCreate(256, (HashFreeFunc) dvmFreeClassInnards);
 
@@ -453,7 +501,17 @@ bool dvmClassStartup()
      * Process the bootstrap class path.  This means opening the specified
      * DEX or Jar files and possibly running them through the optimizer.
      */
+    /*
+   * ´¦Àí»ù±¾Àà¿â£¬Õâ¶ùµÄÒâË¼ÊÇÈ¥´ò¿ªÖ¸¶¨µÄDEX»òÕßJarÎÄ¼ş£¬²¢ÇÒ¾¡¿ÉÄÜÍ¨¹ıÓÅ»¯Æ÷È¥ÔËĞĞËûÃÇ
+   *
+   */
     assert(gDvm.bootClassPath == NULL);
+   /* 
+  * bootClassÂ·¾¶,true ´ú±íÊÇbootClassPath
+  *
+  * gDvm.bootClassPathStr(BOOTCLASSPATH /system/framework/core.jar:/system/framework/bouncycastle.jar:/system/framework/ext.jar
+  * :/system/framework/framework.jar:/system/framework/android.policy.jar:/system/framework/services.jar:/system/framework/core-junit.jar  
+  */
     processClassPath(gDvm.bootClassPathStr, true);
 
     if (gDvm.bootClassPath == NULL)
@@ -468,6 +526,9 @@ bool dvmClassStartup()
 void dvmClassShutdown()
 {
     /* discard all system-loaded classes */
+	/*
+	 * ÊÍ·ÅÓ³ÉäµÄHash±í
+	 */
     dvmHashTableFree(gDvm.loadedClasses);
     gDvm.loadedClasses = NULL;
 
@@ -501,10 +562,14 @@ void dvmClassShutdown()
 /*
  * Dump the contents of a ClassPathEntry array.
  */
+/*
+ * Dump 'ClassPathEntry'½á¹¹ÌåÊı×éµÄÄÚÈİ
+ *
+ */
 static void dumpClassPath(const ClassPathEntry* cpe)
 {
     int idx = 0;
-
+   /*ÅĞ¶ÏÈç¹û²»ÊÇ×îºóÒ»Ìõ£¬Ôò½øÈëÑ­»·½øĞĞÅĞ¶ÏÖÖÀà*/
     while (cpe->kind != kCpeLastEntry) {
         const char* kindStr;
 
@@ -529,6 +594,9 @@ static void dumpClassPath(const ClassPathEntry* cpe)
 /*
  * Dump the contents of the bootstrap class path.
  */
+/*
+ * Dump'bootstrap'ÀàÂ·¾¶µÄÄÚÈİ
+ */
 void dvmDumpBootClassPath()
 {
     dumpClassPath(gDvm.bootClassPath);
@@ -537,9 +605,13 @@ void dvmDumpBootClassPath()
 /*
  * Returns "true" if the class path contains the specified path.
  */
+/* 
+ * ÅĞ¶ÏÖ¸¶¨µÄÂ·¾¶ÊÇ·ñ±»°üº¬;Èç¹û'cpe'°üº¬ÁË'path'Ôò·µ»Øtrue,·´Ö®Îªfalse
+ */
 bool dvmClassPathContains(const ClassPathEntry* cpe, const char* path)
 {
     while (cpe->kind != kCpeLastEntry) {
+		// º¯ÊıÊÇ±È½ÏÁ½¸ö×Ö·û´®»òÕß±äÁ¿µÄ´óĞ¡,·µ»Ø±È½ÏµÄ½á¹û£¬'>'ÔòÎªÕıÊı,'='ÔòÎª0,'<'ÔòÎª¸ºÊı
         if (strcmp(cpe->fileName, path) == 0)
             return true;
 
@@ -553,6 +625,9 @@ bool dvmClassPathContains(const ClassPathEntry* cpe, const char* path)
  *
  * We release the contents of each entry, then free the array itself.
  */
+/*
+ * ÊÍ·ÅClassPathEntry½á¹¹ÌåÊı×é,Ê×ÏÈÎÒÃÇÏÈÊÍ·ÅÃ¿¸öÌõÄ¿µÄÄÚÈİ£¬È»ºóÔÙÊÍ·ÅËü±¾Éí
+ */
 static void freeCpeArray(ClassPathEntry* cpe)
 {
     ClassPathEntry* cpeStart = cpe;
@@ -564,10 +639,12 @@ static void freeCpeArray(ClassPathEntry* cpe)
         switch (cpe->kind) {
         case kCpeJar:
             /* free JarFile */
+			/* ÊÍ·ÅJarFile */
             dvmJarFileFree((JarFile*) cpe->ptr);
             break;
         case kCpeDex:
             /* free RawDexFile */
+			/* ÊÍ·ÅDexFile */
             dvmRawDexFileFree((RawDexFile*) cpe->ptr);
             break;
         default:
@@ -587,8 +664,12 @@ static void freeCpeArray(ClassPathEntry* cpe)
  * last "." if any, or "<none>" if there's no apparent suffix). The
  * passed-in buffer will always be '\0' terminated.
  */
+/*
+ * »ñÈ¡ÎÄ¼şÃû³ÆµÄºó×º,Èç¹ûÃ»ÓĞÕÒºó×º£¬ÔòÎª'<none>',Èç¹ûÄÜÕÒµ½µÄ»°£¬Ôò¾ÍÊÇ×îºóÒ»¸ö'.'Ö®ºóµÄ¶«¶«.
+ */
 static void getFileNameSuffix(const char* fileName, char* suffixBuf, size_t suffixBufLen)
 {
+	/* strrchr ²éÕÒ'.'ÔÚ'fileName' Ä©´Î ³öÏÖµÄÎ»ÖÃ*/
     const char* lastDot = strrchr(fileName, '.');
 
     strlcpy(suffixBuf, (lastDot == NULL) ? "<none>" : (lastDot + 1), suffixBufLen);
@@ -600,25 +681,33 @@ static void getFileNameSuffix(const char* fileName, char* suffixBuf, size_t suff
  * everything other than directories we need to open it up and see
  * what's inside.
  */
+/*
+ * ×¼±¸Ò»¸öClassPathEntry½á¹¹Ìå£¬ÔÚÕâ¶ùÖ»ÄÜÓĞÒ»¸öÓĞĞ§µÄÎÄ¼şÃû£¬ÎÒÃÇĞèÒªÅªÇå³şËüÊÇÊ²Ã´ÑùµÄÀàĞÍÎÄ¼ş,
+ * ²¢ÇÒ¶ÔÈÎºÎ²»Í¬ÀàĞÍÎÄ¼ş£¬ÎÒÃÇ¶¼ĞèÒª´ò¿ªËü²¢ÇÒ¿´¿´Àïµ½µ×ÊÇÊ²Ã´
+ */
 static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap)
 {
     struct stat sb;
-
+	/* stat ÊÇ½«ÎÄ¼şµÄÒ»Ğ©ĞÅÏ¢¸³Öµ¸øsb½á¹¹±äÁ¿*/
     if (stat(cpe->fileName, &sb) < 0) {
         ALOGD("Unable to stat classpath element '%s'", cpe->fileName);
         return false;
     }
+
+    /*ÅĞ¶ÏÊÇ·ñÊÇÒ»¸öÄ¿Â¼*/
     if (S_ISDIR(sb.st_mode)) {
         ALOGE("Directory classpath elements are not supported: %s", cpe->fileName);
         return false;
     }
 
     char suffix[10];
-    getFileNameSuffix(cpe->fileName, suffix, sizeof(suffix));
-
+   /*»ñÈ¡ÎÄ¼şµÄºó×ºÃû*/
+    getFileNameSuffix(cpe->fileName, suffix, sizeof(suffix)); 
+  /*±È½ÏËüµÄºó×ºÊôÓÚÄÇÖÖÀàĞÍ*/
     if ((strcmp(suffix, "jar") == 0) || (strcmp(suffix, "zip") == 0) ||
             (strcmp(suffix, "apk") == 0)) {
         JarFile* pJarFile = NULL;
+	/*´ò¿ªJarÎÄ¼ş*/
         if (dvmJarFileOpen(cpe->fileName, NULL, &pJarFile, isBootstrap) == 0) {
             cpe->kind = kCpeJar;
             cpe->ptr = pJarFile;
@@ -626,6 +715,7 @@ static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap)
         }
     } else if (strcmp(suffix, "dex") == 0) {
         RawDexFile* pRawDexFile = NULL;
+	/*´ò¿ªDexÎÄ¼ş*/
         if (dvmRawDexFileOpen(cpe->fileName, NULL, &pRawDexFile, isBootstrap) == 0) {
             cpe->kind = kCpeDex;
             cpe->ptr = pRawDexFile;
@@ -651,8 +741,18 @@ static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap)
  * dependencies in the DEX files will break, and everything except the
  * very first entry will need to be regenerated.
  */
+ /*
+ * ×ª»»Ò»¸öÓÃÃ°ºÅ·Ö¸ô·ûµÄÄ¿Â¼ÁĞ±í(Zip,DEX)½øÈë'ClassPathEntry'½á¹¹ÌåÊı×é.
+ *
+ * ÔÚÕı³£Æô¶¯ÆÚ¼ä£¬Èç¹ûÕâ¶ùÃ»ÓĞÌõÄ¿´æÔÚ£¬½«»áÆô¶¯Ê§°Ü£¬ÒòÎªÔÚÈ±ÉÙ»ù±¾ÓïÑÔÖ§³ÖµÄÀàÏÂ£¬ÎÒÃÇÊÇÃ»·¨»ñÈ¡¸ü¶àµÄ£¬µ«ÊÇ£¬Èç¹ûÕâÊÇ¸öÓÅ»¯µÄDexÎÄ¼ş£¬ÎÒÃÇÊÇÔÊĞíËüµÄ
+ *
+ * Èç¹û´Ó»ù±¾Àà¿âÂ·¾¶ÖĞÌí¼Ó»òÒÆ³ıÒ»Ğ©ÌõÄ¿,ÄÇÃ´ÔÚDexÎÄ¼şÖĞµÄÒÀÀµ¹ØÏµ½«»á±»ÆÆ»µ£¬²¢ÇÒ³ıµÚÒ»¸öÌõÄ¿Ö®ÍâµÄÒ»ÇĞ¶¼ĞèÒªÒªÖØĞÂÉú³É
+ */
 static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
 {
+    /*
+   *½¨Á¢½á¹¹Ìå ClassPathEntry À´´æ´¢Ò»¸öÂ·¾¶ĞÅÏ¢
+  */
     ClassPathEntry* cpe = NULL;
     char* mangle;
     char* cp;
@@ -661,6 +761,7 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
 
     assert(pathStr != NULL);
 
+   /* ½«´®¿½±´µ½ĞÂ½¨µÄmangle´¦ */
     mangle = strdup(pathStr);
 
     /*
@@ -670,6 +771,10 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
      * If the path was constructed strangely (e.g. ":foo::bar:") this will
      * over-allocate, which isn't ideal but is mostly harmless.
      */
+    /*
+   *gDvm.bootClassPathStr(BOOTCLASSPATH /system/framework/core.jar:/system/framework/bouncycastle.jar:/system/framework/ext.jar
+  * :/system/framework/framework.jar:/system/framework/android.policy.jar:/system/framework/services.jar:/system/framework/core-junit.jar  
+  */
     count = 1;
     for (cp = mangle; *cp != '\0'; cp++) {
         if (*cp == ':') {   /* separates two entries */
@@ -685,8 +790,11 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
     cpe = (ClassPathEntry*) calloc(count+1, sizeof(ClassPathEntry));
 
     /*
-     * Set the global pointer so the DEX file dependency stuff can find it.
-     */
+   * Set the global pointer so the DEX file dependency stuff can find it.
+   */
+     /*
+   * ÉèÖÃÒ»¸öÈ«¾ÖµÄÖ¸Õë£¬ÒÔ±ãDexÎÄ¼şËùÒÀÀµµÄ¶«Î÷ÄÜÕÒµ½Ëü
+   */
     gDvm.bootClassPath = cpe;
 
     /*
@@ -708,17 +816,19 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
 
             ClassPathEntry tmp;
             tmp.kind = kCpeUnknown;
+	   //eg./system/framework/core.jar
             tmp.fileName = strdup(cp);
             tmp.ptr = NULL;
 
-            /*
-             * Drop an end marker here so DEX loader can walk unfinished
-             * list.
-             */
+          /*
+     * Drop an end marker here so DEX loader can walk unfinished
+     * list.
+     */
             cpe[idx].kind = kCpeLastEntry;
             cpe[idx].fileName = NULL;
             cpe[idx].ptr = NULL;
 
+	   /* ×¼±¸ÀàÂ·¾¶½Úµã,prepareCpe ÖĞµ÷ÓÃÁË(dvmJarFileOpen/...) ´ò¿ªÒ»¸ö jar °ü*/
             if (!prepareCpe(&tmp, isBootstrap)) {
                 /* drop from list and continue on */
                 free(tmp.fileName);
@@ -753,6 +863,11 @@ static ClassPathEntry* processClassPath(const char* pathStr, bool isBootstrap)
 
 bail:
     free(mangle);
+    /*
+   * ËùÓĞ±»¼ÓÔØµÄ Jar °üÀà¶¼·Åµ½È«¾Ö¶ÔÏñ gDvm.bootClassPath ÖĞ´æ´¢¡£
+   * ¶ÔÏñµÄ½áÎ²¶¼ÊÇÓÃÒ»¸öÌØÊâµÄ½á¹¹ÌåÀ´±íÊ¾µÄ£¬ÕâÀïÊÇ kind = kCpeLastEntry ±íÊ¾ÊÇ×îºóÒ»¸öÀàÂ·¾¶½Úµã£¬ÒòĞ©²»ÓÃÁíÍâÒ»¸ö±äÁ¿±íÊ¾´óĞ¡
+   */
+
     gDvm.bootClassPath = cpe;
     return cpe;
 }
@@ -763,6 +878,9 @@ bail:
  *
  * Returns the matching DEX file and DexClassDef entry if found, otherwise
  * returns NULL.
+ */
+/*
+ * ´Ó»ù±¾µÄÀà¿âÖĞ²éÕÒ£¬¼ÓÔØÒ»¸öÓëÃèÊö·ûÏàÆ¥ÅäµÄÀà;
  */
 static DvmDex* searchBootPathForClass(const char* descriptor,
     const DexClassDef** ppClassDef)
@@ -785,6 +903,7 @@ static DvmDex* searchBootPathForClass(const char* descriptor,
                 DvmDex* pDvmDex;
 
                 pDvmDex = dvmGetJarFileDex(pJarFile);
+		//»ñÈ¡ClassµÄË÷ÒıÖµ
                 pClassDef = dexFindClass(pDvmDex->pDexFile, descriptor);
                 if (pClassDef != NULL) {
                     /* found */
@@ -849,6 +968,9 @@ found:
  * Set the "extra" DEX, which becomes a de facto member of the bootstrap
  * class set.
  */
+/*
+ * ÉèÖÃ¶îÍâµÄDEX,ÈÃËû³ÉÎª»ù±¾Àà¿âµÄÊµ¼Ê³ÉÔ±
+ */
 void dvmSetBootPathExtraDex(DvmDex* pDvmDex)
 {
     gDvm.bootClassPathOptExtra = pDvmDex;
@@ -860,10 +982,14 @@ void dvmSetBootPathExtraDex(DvmDex* pDvmDex)
  *
  * (Used for ClassLoader.getResources().)
  */
+/*
+ * »ñÈ¡bootClassPathµÄ×ÜÊı
+ */
 int dvmGetBootPathSize()
 {
     const ClassPathEntry* cpe = gDvm.bootClassPath;
 
+    /*Èç¹ûÃ»ÓĞµ½×îºóÒ»Ìõ£¬ÔòÖ¸ÕëÏòÏÂÒÆ¶¯*/
     while (cpe->kind != kCpeLastEntry)
         cpe++;
 
@@ -880,6 +1006,9 @@ int dvmGetBootPathSize()
  * passed into this method.  "path" needs to be an absolute path (starting
  * with '/'); if it's not we'd need to "absolutify" it as part of forming
  * the URL string.
+ */
+/*
+ * ¸ù¾İÌØ¶¨µÄÃû×Ö²éÕÒ×ÊÔ´
  */
 StringObject* dvmGetBootPathResource(const char* name, int idx)
 {
@@ -961,6 +1090,10 @@ static InitiatingLoaderList *dvmGetInitiatingLoaderList(ClassObject* clazz)
  * to grab the lock to do a lookup.  Among other things, this would improve
  * the speed of compareDescriptorClasses().
  */
+/*
+ * ÅĞ¶ÏÕâ¸ö'loader'ÊÇ·ñ³öÏÖÔÚÀà¼ÓÔØÆ÷ÁĞ±íÖĞ
+ * 
+ */
 bool dvmLoaderInInitiatingList(const ClassObject* clazz, const Object* loader)
 {
     /*
@@ -999,6 +1132,11 @@ bool dvmLoaderInInitiatingList(const ClassObject* clazz, const Object* loader)
  * This locks gDvm.loadedClasses for synchronization, so don't hold it
  * when calling here.
  */
+ /*
+  * Èç¹û (loader != clazz->classLoader),ÄÇÃ´½«Ìî¼Ó'loader'µ½×î³õµÄÀà¼ÓÔØÆ÷ÁĞ±íÖĞ.
+  * Ò»°ãÇé¿öÏÂ£¬ÕâÊÇÒ»¸ö¶ÌÁĞ±í£¬ÒòĞ©ÔÚÕâ¶ù²»ĞèÒª×öÌ«¶àµÄÊÂÇé
+  * gDvm.loadedClassesÊÇÍ¬²½µÄ£¬ÒòĞ©ÔÚÕâ¶ùµ÷ÓÃµÄÊ±ºò²»»á³ÖÓĞËü
+  */
 void dvmAddInitiatingLoader(ClassObject* clazz, Object* loader)
 {
     if (loader != clazz->classLoader) {
@@ -1025,6 +1163,10 @@ void dvmAddInitiatingLoader(ClassObject* clazz, Object* loader)
          * The pointer is initially NULL, so we *do* want to call realloc
          * when count==0.
          */
+        /*
+     * ÁĞ±íµÄ´óĞ¡²»»á¼õĞ¡£¬ÒòĞ©ÎÒÃÇ½ö½ö±£³ÖÔªËØÔÚËüÀïÃæµÄ¼ÆÊı£¬²¢ÇÒµ±ÔËĞĞ½áÊøÖ®ºó£¬ÎÒÃÇ½«ÖØĞÂ·ÖÅä´óĞ¡
+     * Ö¸Õë×î³õÊÇ¿ÕµÄ£¬ÒòĞ©µ±¸öÊıÎª0Ê±£¬ÎÒÃÇ½«È¥ÖØĞÂ·ÖÅäËü
+     */
         InitiatingLoaderList *loaderList = dvmGetInitiatingLoaderList(clazz);
         if ((loaderList->initiatingLoaderCount & (kInitLoaderInc-1)) == 0) {
             Object** newList;
@@ -1118,6 +1260,10 @@ static int hashcmpClassByClass(const void* vclazz, const void* vaddclazz)
  *
  * Returns NULL if not found.
  */
+/*
+ * Ê×ÏÈËü»á²éÕÒhash±í£¬Èç³É¹¦£¬ÔòÖ±½Ó·µ»Ø£¨gDvm.loadedClasses£©
+ *
+ */
 ClassObject* dvmLookupClass(const char* descriptor, Object* loader,
     bool unprepOkay)
 {
@@ -1166,6 +1312,9 @@ ClassObject* dvmLookupClass(const char* descriptor, Object* loader,
  * for each ClassLoader object with loaded classes, which we don't
  * have yet.
  */
+/*
+ * ½«¼ÓÔØµÄClass·ÅÈëhash±í(gDvm.loadedClasses)ÖĞ£¬¼Ó¿ìÏÂ´ÎµÄ²éÕÒ
+ */
 bool dvmAddClassToHash(ClassObject* clazz)
 {
     void* found;
@@ -1212,6 +1361,9 @@ void dvmCheckClassTablePerf()
 /*
  * Remove a class object from the hash table.
  */
+/*
+ * ´Óhash±í(gDvm.loadedClasses)ÖĞÒÆ³ıClass
+ */
 static void removeClassFromHash(ClassObject* clazz)
 {
     ALOGV("+++ removeClassFromHash '%s'", clazz->descriptor);
@@ -1237,6 +1389,9 @@ static void removeClassFromHash(ClassObject* clazz)
  * This usually happens *very* early in class creation, so don't expect
  * anything else in the class to be ready.
  */
+/*
+ * ÉèÖÃÒ»¸ö¿ÉÓÃµÄÖµ¸øËü(clazz->serialNumber)
+ */
 void dvmSetClassSerialNumber(ClassObject* clazz)
 {
     assert(clazz->serialNumber == 0);
@@ -1253,6 +1408,12 @@ void dvmSetClassSerialNumber(ClassObject* clazz)
  *
  * If the class can't be found, returns NULL with an appropriate exception
  * raised.
+ */
+/*
+ * »ñÈ¡ClassË÷Òı,ÈçÎª»ù±¾Àà¿âÔòµ÷ÓÃsearchBootPathForClassº¯Êı£¬·ñÔòµ÷ÓÃdexFindClassÕâ¸öº¯Êı
+ * Ê¹ÓÃÖ¸¶¨µÄÆô¶¯Àà¼ÓÔØÆ÷ºÍÃèÊö·ûÀ´²éÕÒÖ¸¶¨Ãû³ÆµÄclass
+ * Èç¹ûÀàÃ»ÓĞ±»¼ÓÔØ¹ı£¬Ëü½«±»¼ÓÔØºÍ³õÊ¼»¯£¬ÓĞ±ØÒªµÄ»°£¬ËüµÄ¸¸ÀàÒ²½«±»¼ÓÔØ
+ * Èç¹ûÀà»¹ÊÇÃ»ÓĞ±»ÕÒµ½£¬Ôò·µ»ØNULL
  */
 ClassObject* dvmFindClass(const char* descriptor, Object* loader)
 {
@@ -1281,6 +1442,10 @@ ClassObject* dvmFindClass(const char* descriptor, Object* loader)
  *
  * If the class can't be found, returns NULL with an appropriate exception
  * raised.
+ */
+/*
+ * Ê¹ÓÃÖ¸¶¨µÄÆô¶¯Àà¼ÓÔØÆ÷ºÍÃèÊö·ûÀ´²éÕÒÖ¸¶¨Ãû³ÆµÄclass
+ * Èç¹û²»´æÔÚÕâ¸öÀà£¬ÄÇÃ´ËüºÍËüµÄ¸¸Àà½«±»¼ÓÔØ,ËüÃÇ²»»á±»³õÊ¼»¯
  */
 ClassObject* dvmFindClassNoInit(const char* descriptor,
         Object* loader)
@@ -1312,6 +1477,9 @@ ClassObject* dvmFindClassNoInit(const char* descriptor,
  * loader.  This calls out to let the ClassLoader object do its thing.
  *
  * Returns with NULL and an exception raised on error.
+ */
+/*
+ * ´ÓÖ¸¶¨µÄÀà¼ÓÔØÆ÷¼ÓÔØÖ¸¶¨Ãû³ÆµÄclass
  */
 static ClassObject* findClassFromLoaderNoInit(const char* descriptor,
     Object* loader)
@@ -1410,6 +1578,9 @@ bail:
  * Used by class loaders to instantiate a class object from a
  * VM-managed DEX.
  */
+ /*
+ * ´ÓÖ¸¶¨µÄDEXÎÄ¼şÖĞ¼ÓÔØÒ»¸öÀà£¬Ê¹ÓÃÀà¼ÓÔØÆ÷È¥³õÊ¼»¯Ò»¸öÀà¶ÔÏó
+ */
 ClassObject* dvmDefineClass(DvmDex* pDvmDex, const char* descriptor,
     Object* classLoader)
 {
@@ -1426,6 +1597,9 @@ ClassObject* dvmDefineClass(DvmDex* pDvmDex, const char* descriptor,
  * "descriptor" looks like "Landroid/debug/Stuff;".
  *
  * Uses NULL as the defining class loader.
+ */
+/*
+ * Í¨¹ıÉ¨Ãè»ù±¾Àà¿â£¬Èç¹ûËüÉĞÎ´±»¼ÓÔØ,¸ù¾İ'descriptor'²éÕÒÖ¸¶¨µÄÀà
  */
 ClassObject* dvmFindSystemClass(const char* descriptor)
 {
@@ -1451,6 +1625,9 @@ ClassObject* dvmFindSystemClass(const char* descriptor)
  *
  * On failure, this returns NULL with an exception raised.
  */
+/*
+ * ÔÚ»ù±¾Àà¿âÖĞ²éÕÒ
+ */
 ClassObject* dvmFindSystemClassNoInit(const char* descriptor)
 {
     return findClassNoInit(descriptor, NULL, NULL);
@@ -1469,6 +1646,9 @@ ClassObject* dvmFindSystemClassNoInit(const char* descriptor)
  * used an existing definition.  If somebody deliberately tries to load a
  * class twice in the same class loader, they should get a LinkageError,
  * but inadvertent simultaneous class references should "just work".
+ */
+/*
+ * ¸ºÔğ¼ÓÔØClass²¢Éú³ÉÏàÓ¦ClassObjectµÄº¯Êı
  */
 static ClassObject* findClassNoInit(const char* descriptor, Object* loader,
     DvmDex* pDvmDex)
@@ -1947,6 +2127,9 @@ static ClassObject* loadClassFromDex0(DvmDex* pDvmDex,
  * Returns NULL on failure.  If we locate the class but encounter an error
  * while processing it, an appropriate exception is thrown.
  */
+/*
+ * Êµ¼Ê¼ÓÔØ¹ı³ÌÔÚÕâ¸öµØ·½£¬Ëü»áÎªClassObjectÊı¾İ½á¹¹·ÖÅäÄÚ´æ£¬²¢ÇÒ¶ÁÈ¡DexÎÄ¼şµÄÏà¹ØĞÅÏ¢
+ */
 static ClassObject* loadClassFromDex(DvmDex* pDvmDex,
     const DexClassDef* pClassDef, Object* classLoader)
 {
@@ -1992,6 +2175,9 @@ static ClassObject* loadClassFromDex(DvmDex* pDvmDex,
  * NOTE: this may be called with a partially-constructed object.
  * NOTE: there is no particular ordering imposed, so don't go poking at
  * superclasses.
+ */
+/*
+ * ÊÍ·ÅÏµÍ³¶ÑÖĞ·ÖÅäµÄClassObjectÈÎºÎ×ÊÔ´,ClassObject±¾Éí±»·ÖÅäÔÚGC¶ÑÖĞ
  */
 void dvmFreeClassInnards(ClassObject* clazz)
 {
@@ -2098,6 +2284,9 @@ void dvmFreeClassInnards(ClassObject* clazz)
  *
  * The containing class is largely torn down by this point.
  */
+/*
+ * ÊÍ·ÅÏµÍ³¶ÑÖĞ·ÖÅäµÄMethodÈÎºÎ×ÊÔ´
+ */
 static void freeMethodInnards(Method* meth)
 {
 #if 0
@@ -2129,6 +2318,9 @@ static void freeMethodInnards(Method* meth)
  * Clone a Method, making new copies of anything that will be freed up
  * by freeMethodInnards().  This is used for "miranda" methods.
  */
+/*
+ * ¸´ÖÆÒ»¸öMethod½á¹¹Ìå,È·±£ĞÂ¿½±´µÄÈÎºÎ¶«Î÷ÄÜ±»ÊÍ·Å³öÈ¥
+ */
 static void cloneMethod(Method* dst, const Method* src)
 {
     if (src->registerMap != NULL) {
@@ -2144,6 +2336,9 @@ static void cloneMethod(Method* dst, const Method* src)
  *
  * The DEX file isn't going anywhere, so we don't need to make copies of
  * the code area.
+ */
+/*
+ * ´ÓDexÎÄ¼şÖĞ¼ÓÔØÒ»¸öMethodĞÅÏ¢
  */
 static void loadMethodFromDex(ClassObject* clazz, const DexMethod* pDexMethod,
     Method* meth)
@@ -2332,6 +2527,9 @@ static int computeJniArgInfo(const DexProto* proto)
  * This also "prepares" static fields by initializing them
  * to their "standard default values".
  */
+/*
+ * ¼ÓÔØ¾²Ì¬×Ö¶ÎĞÅÏ¢
+ */
 static void loadSFieldFromDex(ClassObject* clazz,
     const DexField* pDexSField, StaticField* sfield)
 {
@@ -2355,6 +2553,9 @@ static void loadSFieldFromDex(ClassObject* clazz,
 
 /*
  * Load information about an instance field.
+ */
+/*
+ * ¼ÓÔØÊµÀı×Ö¶ÎĞÅÏ¢
  */
 static void loadIFieldFromDex(ClassObject* clazz,
     const DexField* pDexIField, InstField* ifield)
@@ -2500,6 +2701,9 @@ static void computeRefOffsets(ClassObject* clazz)
  * pass the indices around.)
  *
  * Returns "false" with an exception pending on failure.
+ */
+/*
+ * ²éÕÒ×Ô¼ºµÄ¸¸Àà£¬Èç¸¸ÀàÃ»ÓĞ¼ÓÔØ£¬Ôò»á¼ÓÔØ¸¸Àà.ÈçÓĞinterface£¬Ôò¼ÓÔØÏàÓ¦µÄinterfaceÀà
  */
 bool dvmLinkClass(ClassObject* clazz)
 {
@@ -2860,6 +3064,9 @@ bail:
  * The top part of the table is a copy of the table from our superclass,
  * with our local methods overriding theirs.  The bottom part of the table
  * has any new methods we defined.
+ */
+/*
+ * ´´½¨ĞéÄâ·½·¨±í
  */
 static bool createVtable(ClassObject* clazz)
 {
@@ -3777,6 +3984,9 @@ static void throwEarlierClassFailure(ClassObject* clazz)
  * Initialize any static fields whose values are stored in
  * the DEX file.  This must be done during class initialization.
  */
+/*
+ * ³õÊ¼»¯Ò»Ğ©¾²Ì¬×Ö¶Î£¬½«ËüÃÇµÄÖµ±£´æÔÚDEXÎÄ¼şÖĞ£¬Õâ±ØĞëÔÚÀà³õÊ¼»¯Ö®Ç°Íê³É
+ */
 static void initSFields(ClassObject* clazz)
 {
     Thread* self = dvmThreadSelf(); /* for dvmReleaseTrackedAlloc() */
@@ -3990,6 +4200,7 @@ static bool compareDescriptorClasses(const char* descriptor,
  *
  * Returns "true" if the classes match, "false" otherwise.
  */
+
 static bool checkMethodDescriptorClasses(const Method* meth,
     const ClassObject* clazz1, const ClassObject* clazz2)
 {
@@ -4156,6 +4367,9 @@ static bool validateSuperDescriptors(const ClassObject* clazz)
  * possible to have a stale value floating around.  We need to ensure
  * that memory accesses happen in the correct order.
  */
+ /*
+ * ÅĞ¶Ïµ±Ç°µÄÀàÊÇ·ñÒÑ¾­³õÊ¼»¯
+ */
 bool dvmIsClassInitializing(const ClassObject* clazz)
 {
     const int32_t* addr = (const int32_t*)(const void*)&clazz->status;
@@ -4168,12 +4382,14 @@ bool dvmIsClassInitializing(const ClassObject* clazz)
 /*
  * If a class has not been initialized, do so by executing the code in
  * <clinit>.  The sequence is described in the VM spec v2 2.17.5.
+ * Èç¹ûÒ»¸öÀàÃ»ÓĞ±»³õÊ¼»¯£¬È¥Ö´ĞĞ<clinit>´úÂë.Ëü±»ÃèÊöÔÚĞéÄâ»ú¹æ·¶v2.2.17.5
  *
  * It is possible for multiple threads to arrive here simultaneously, so
  * we need to lock the class while we check stuff.  We know that no
  * interpreted code has access to the class yet, so we can use the class's
  * monitor lock.
- *
+ * ¶à¸öÏß³Ì¿ÉÄÜÍ¬Ê±µ½´ïÕâ¶ù,Òò´Ëµ±ÎÒÃÇÈ¥¼ì²éµÄÊ±ºò,ÎÒÃÇĞèÒªÈ¥Ëø¶¨Àà
+ * 
  * We will often be called recursively, e.g. when the <clinit> code resolves
  * one of its fields, the field resolution will try to initialize the class.
  * In that case we will return "true" even though the class isn't actually
@@ -4244,8 +4460,11 @@ bool dvmInitClass(ClassObject* clazz)
     assert(dvmIsClassLinked(clazz) || clazz->status == CLASS_ERROR);
 
     /*
-     * If the class hasn't been verified yet, do so now.
-     */
+   * If the class hasn't been verified yet, do so now.
+   */
+     /*
+   * Èç¹ûµ±Ç°µÄÀà»¹Ã»ÓĞÍê³ÉĞ£Ñé£¬ÔòÖ´ĞĞÏÂÃæÕâ¶Î
+   */
     if (clazz->status < CLASS_VERIFIED) {
         /*
          * If we're in an "erroneous" state, throw an exception and bail.
@@ -4273,10 +4492,14 @@ bool dvmInitClass(ClassObject* clazz)
             ALOGV("+++ late verify on %s", clazz->descriptor);
 
         /*
-         * We're not supposed to optimize an unverified class, but during
-         * development this mode was useful.  We can't verify an optimized
-         * class because the optimization process discards information.
-         */
+     * We're not supposed to optimize an unverified class, but during
+     * development this mode was useful.  We can't verify an optimized
+     * class because the optimization process discards information.
+     */
+       /*
+    * ÎÒÃÇ²»Ö§³ÖÈ¥ÓÅ»¯Ò»¸öÎ´Ğ£ÑéµÄÀà£¬µ«ÊÇÔÚ¿ª·¢ÆÚ¼ä£¬Õâ¸öÄ£Ê½ÊÇ¿ÉÄÜÊ¹ÓÃµÄ.
+    * ÎÒÃÇ²»ÄÜĞ£ÑéÒ»¸öÒÑ¾­ÓÅ»¯¹ıµÄÀà£¬ÒòÎªÓÅ»¯¹ı³Ì»á¶ªÆúÒ»Ğ©ĞÅÏ¢
+    */
         if (IS_CLASS_FLAG_SET(clazz, CLASS_ISOPTIMIZED)) {
             ALOGW("Class '%s' was optimized without verification; "
                  "not verifying now",
@@ -4551,6 +4774,15 @@ bail_unlock:
  * not allow it to be cleared.  A NULL value for the "insns" argument is
  * treated as "do not change existing value".
  */
+/*
+ * Ê¹ÓÃĞÂµÄÖµÈ¥Ìæ»»method->nativeFuncºÍmethod-insns. ±¾µØ·½·¨±»³É¹¦½âÎöÖ®ºó£¬Õâ½«Õı³£Ö´ĞĞ
+ * eg. method->insns=insns; 
+ *     method->nativeFunc=func;
+ *
+ * ²ÎÊımethod±íÊ¾Òª×¢²áJNI·½·¨µÄJavaÀà³ÉÔ±º¯Êı£¬²ÎÊıfunc±íÊ¾JNI·½·¨µÄBridgeº¯Êı£¬²ÎÊıinsns±íÊ¾Òª×¢²áµÄJNI·½·¨µÄº¯ÊıµØÖ·¡£
+ * µ±²ÎÊıinsnsµÄÖµ²»µÈÓÚNULLµÄÊ±ºò£¬º¯ÊıdvmSetNativeFunc¾Í·Ö±ğ½«²ÎÊıinsnsºÍfuncµÄÖµ·Ö±ğ±£´æÔÚ²ÎÊımethodËùÖ¸ÏòµÄÒ»¸öMethod¶ÔÏóµÄ³ÉÔ±±äÁ¿insnsºÍnativeFuncÖĞ
+ * ¶øµ±insnsµÄÖµµÈÓÚNULLµÄÊ±ºò£¬º¯ÊıdvmSetNativeFunc¾ÍÖ»½«²ÎÊıfuncµÄÖµ±£´æÔÚ²ÎÊımethodËùÖ¸ÏòµÄÒ»¸öMethod¶ÔÏó³ÉÔ±±äÁ¿nativeFuncÖĞ
+ */
 void dvmSetNativeFunc(Method* method, DalvikBridgeFunc func,
     const u2* insns)
 {
@@ -4582,6 +4814,10 @@ void dvmSetNativeFunc(Method* method, DalvikBridgeFunc func,
  * we don't have a pre-generated map).  This means "pMap" is on the heap
  * and should be freed when the Method is discarded.
  */
+/*
+ * Ìí¼ÓÒ»¸ö'pMap'µ½Method½á¹¹Ìå(method->rigisterMap=pMap)
+ *'pMap'ÊÇÔÚ¶ÑÖĞ´æ·ÅµÄ£¬Èç¹ûMethod±»Ïú»Ù£¬ÄÇÃ´ËüÒ²½«±»ÊÍ·Å
+ */
 void dvmSetRegisterMap(Method* method, const RegisterMap* pMap)
 {
     ClassObject* clazz = method->clazz;
@@ -4598,6 +4834,7 @@ void dvmSetRegisterMap(Method* method, const RegisterMap* pMap)
     dvmLinearReadWrite(clazz->classLoader, clazz->virtualMethods);
     dvmLinearReadWrite(clazz->classLoader, clazz->directMethods);
 
+   
     method->registerMap = pMap;
 
     dvmLinearReadOnly(clazz->classLoader, clazz->virtualMethods);
@@ -4607,6 +4844,9 @@ void dvmSetRegisterMap(Method* method, const RegisterMap* pMap)
 /*
  * dvmHashForeach callback.  A nonzero return value causes foreach to
  * bail out.
+ */
+/*
+ * dvmFindLoadedClassº¯ÊıµÄ»Øµ÷º¯Êı
  */
 static int findClassCallback(void* vclazz, void* arg)
 {
@@ -4628,6 +4868,10 @@ static int findClassCallback(void* vclazz, void* arg)
  * "[Ljava/lang/Class;", i.e. a descriptor and not an internal-form
  * class name.
  */
+
+/*
+ * Í¨¹ıÃèÊö·û²éÕÒÒ»¸öÒÑ¼ÓÔØµÄÀà
+ */
 ClassObject* dvmFindLoadedClass(const char* descriptor)
 {
     int result;
@@ -4644,6 +4888,9 @@ ClassObject* dvmFindLoadedClass(const char* descriptor)
  * Retrieve the system (a/k/a application) class loader.
  *
  * The caller must call dvmReleaseTrackedAlloc on the result.
+ */
+/*
+ * »ñÈ¡ÏµÍ³Àà¼ÓÔØÆ÷
  */
 Object* dvmGetSystemClassLoader()
 {
@@ -4664,6 +4911,9 @@ Object* dvmGetSystemClassLoader()
 
 /*
  * This is a dvmHashForeach callback.
+ */
+/*
+ * dumpµ¥¸öÀà£¬±»dvmDumpClassµÈº¯Êıµ÷ÓÃ
  */
 static int dumpClass(void* vclazz, void* varg)
 {
@@ -4788,6 +5038,9 @@ static int dumpClass(void* vclazz, void* varg)
  *
  * Pass kDumpClassFullDetail into "flags" to get lots of detail.
  */
+/*
+ * Dumpµ¥¸öÀàµÄÄÚÈİ
+ */
 void dvmDumpClass(const ClassObject* clazz, int flags)
 {
     dumpClass((void*) clazz, (void*) flags);
@@ -4795,6 +5048,9 @@ void dvmDumpClass(const ClassObject* clazz, int flags)
 
 /*
  * Dump the contents of all classes.
+ */
+/*
+ * DumpËùÓĞÀàµÄÄÚÈİ
  */
 void dvmDumpAllClasses(int flags)
 {
@@ -4805,6 +5061,9 @@ void dvmDumpAllClasses(int flags)
 
 /*
  * Get the number of loaded classes
+ */
+/*
+ * »ñÈ¡ÒÑ¾­±»¼ÓÔØÀàµÄÊıÁ¿
  */
 int dvmGetNumLoadedClasses()
 {
@@ -4817,6 +5076,9 @@ int dvmGetNumLoadedClasses()
 
 /*
  * Write some statistics to the log file.
+ */
+/*
+ * Ğ´Ò»Ğ©Í³¼Æµ½ÈÕÖ¾ÎÄ¼şÖĞ
  */
 void dvmDumpLoaderStats(const char* msg)
 {
@@ -4841,6 +5103,9 @@ void dvmDumpLoaderStats(const char* msg)
  * name is considered the "major" order and the prototype the "minor"
  * order. The prototypes are compared as if by dvmCompareMethodProtos().
  */
+/*
+ * ±È½ÏÁ½¸ö·½·¨µÄÃû³ÆºÍÔ­ĞÍ,Ãû³Æ±È½ÏÒªÓÅÏÈÓÚÔ­ĞÍ±È½Ï;Èç¹ûÒª½øĞĞÔ­ĞÍ±È½Ï£¬ÔòÍ¨¹ıdvmCompareMethodProtos()º¯Êı
+ */
 int dvmCompareMethodNamesAndProtos(const Method* method1,
         const Method* method2)
 {
@@ -4858,6 +5123,9 @@ int dvmCompareMethodNamesAndProtos(const Method* method1,
  * the return value. The name is considered the "major" order and the
  * prototype the "minor" order. The prototypes are compared as if by
  * dvmCompareMethodArgProtos().
+ */
+/*
+ * ±È½ÏÁ½¸ö·½·¨Ãû³ÆºÍÔ­ĞÍ ,Ãû³Æ±È½ÏÒªÓÅÏÈÓÚÔ­ĞÍ±È½Ï;Èç¹ûÒª½øĞĞÔ­ĞÍ±È½Ï,ÔòÍ¨¹ıdvmCompareMethodParameterProtosº¯Êı
  */
 int dvmCompareMethodNamesAndParameterProtos(const Method* method1,
         const Method* method2)
@@ -4877,6 +5145,10 @@ int dvmCompareMethodNamesAndParameterProtos(const Method* method1,
  * the prototype the "minor" order. The descriptor and prototype are
  * compared as if by dvmCompareDescriptorAndMethodProto().
  */
+/*
+ * ±È½Ï('name','method->name')Óë('proto','method->prototype');
+ * Ãû³Æ±È½ÏÒªÓÅÏÈÓÚÔ­ĞÍ±È½Ï;Èç¹ûÒª½øĞĞÔ­ĞÍ±È½Ï,ÔòÍ¨¹ıdexProtoCompareº¯Êı
+ */
 int dvmCompareNameProtoAndMethod(const char* name,
     const DexProto* proto, const Method* method)
 {
@@ -4894,6 +5166,10 @@ int dvmCompareNameProtoAndMethod(const char* name,
  * a method, a la strcmp(). The name is considered the "major" order and
  * the prototype the "minor" order. The descriptor and prototype are
  * compared as if by dvmCompareDescriptorAndMethodProto().
+ */
+/*
+ * ±È½Ï('name','method->name');
+ * Ãû³Æ±È½ÏÒªÓÅÏÈÓÚÔ­ĞÍ±È½Ï;Èç¹ûÒª½øĞĞÃèÊö·ûºÍÔ­ĞÍµÄ±È½Ï,ÔòÍ¨¹ıdvmCompareDescriptorAndMethodProto()º¯Êı
  */
 int dvmCompareNameDescriptorAndMethod(const char* name,
     const char* descriptor, const Method* method)

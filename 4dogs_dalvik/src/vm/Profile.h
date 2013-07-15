@@ -28,6 +28,7 @@ struct Thread;      // extern
 
 
 /* boot init */
+/* profiling启动初始化与关闭 */
 bool dvmProfilingStartup(void);
 void dvmProfilingShutdown(void);
 
@@ -35,23 +36,29 @@ void dvmProfilingShutdown(void);
  * Method trace state.  This is currently global.  In theory we could make
  * most of this per-thread.
  */
+/**
+ * @brief 函数trace状态
+ */
 struct MethodTraceState {
     /* active state */
-    pthread_mutex_t startStopLock;
-    pthread_cond_t  threadExitCond;
-    FILE*   traceFile;
-    bool    directToDdms;
-    int     bufferSize;
-    int     flags;
+    pthread_mutex_t startStopLock;		/* 同步锁 */
+    pthread_cond_t  threadExitCond;		/* 条件变量 */
+    FILE*   traceFile;					/* trace的文件句柄 */
+    bool    directToDdms;				/* 将trace的内容直接输出到DDMS */
+    int     bufferSize;					/* 缓冲的大小 */
+    int     flags;						/* trace的标志 */
 
-    int     traceEnabled;
-    u1*     buf;
-    volatile int curOffset;
-    u8      startWhen;
-    int     overflow;
+    int     traceEnabled;				/* 启动trace */
+    u1*     buf;						/* 缓冲指针 */
+    volatile int curOffset;				/* 当前的偏移 */
+    u8      startWhen;					/* 线程启动的时间 */
+    int     overflow;					/* 缓冲是否溢出 */
 
-    int     traceVersion;
-    size_t  recordSize;
+    int     traceVersion;				/* trace版本 */
+	/*
+	 * 两种获取时间的不同
+	 */
+    size_t  recordSize;					/* TRACE记录结构的大小 */
 };
 
 /*
@@ -60,27 +67,43 @@ struct MethodTraceState {
  *
  * If you add a field here, zero it out in dvmStartAllocCounting().
  */
+/**
+ * @brief 内存分配 profiler状态。可以在全局与每条线程中使用。
+ */
 struct AllocProfState {
+	/* 已经启动 */
     bool    enabled;            // is allocation tracking enabled?
 
+	/* 对象分配的次数 */
     int     allocCount;         // #of objects allocated
+	/* 对象分配的大小 */
     int     allocSize;          // cumulative size of objects
 
+	/* 分配失败的次数 */
     int     failedAllocCount;   // #of times an allocation failed
+	/* 分配失败的大小 */
     int     failedAllocSize;    // cumulative size of failed allocations
 
+	/* 对象释放的次数 */
     int     freeCount;          // #of objects freed
+	/* 对象释放的大小 */
     int     freeSize;           // cumulative size of freed objects
 
+	/*  */
     int     gcCount;            // #of times an allocation triggered a GC
 
+	/* 初始化的类数量 */
     int     classInitCount;     // #of initialized classes
+	/* 初始化的类时间 */
     u8      classInitTime;      // cumulative time spent in class init (nsec)
 };
 
 
 /*
  * Start/stop method tracing.
+ */
+/**
+ * @brief 开始/停止 函数的tracing
  */
 void dvmMethodTraceStart(const char* traceFileName, int traceFd, int bufferSize,
         int flags, bool directToDdms);
@@ -90,11 +113,17 @@ void dvmMethodTraceStop(void);
 /*
  * Start/stop emulator tracing.
  */
+/**
+ * @brief 开始/停止 仿真器的tracing
+ */
 void dvmEmulatorTraceStart(void);
 void dvmEmulatorTraceStop(void);
 
 /*
  * Start/stop Dalvik instruction counting.
+ */
+/**
+ * @brief 开始/停止 dalvik指令计数
  */
 void dvmStartInstructionCounting();
 void dvmStopInstructionCounting();
@@ -103,12 +132,19 @@ void dvmStopInstructionCounting();
  * Bit flags for dvmMethodTraceStart "flags" argument.  These must match
  * the values in android.os.Debug.
  */
+/**
+ * @brief 位标记对于 dvmMethodTraceStart 的 "flags"参数。
+ *	在android.os.Debug中的值
+ */
 enum {
     TRACE_ALLOC_COUNTS      = 0x01,
 };
 
 /*
  * Call these when a method enters or exits.
+ */
+/**
+ * @brief 当一个函数进入或者退出时调用这些
  */
 #define TRACE_METHOD_ENTER(_self, _method)                                  \
     do {                                                                    \
@@ -147,6 +183,9 @@ extern "C" void dvmFastNativeMethodTraceExit(const Method* method, struct Thread
 /*
  * Start/stop alloc counting.
  */
+/**
+ * @brief 开始/停止分配计数
+ */
 void dvmStartAllocCounting(void);
 void dvmStopAllocCounting(void);
 
@@ -168,7 +207,10 @@ enum {
 /*
  * Common definitions, shared with the dump tool.
  */
-#define METHOD_ACTION_MASK      0x03            /* two bits */
+/**
+ * @brief 一些公用的定义，通过dumptool共享
+ */
+#define METHOD_ACTION_MASK      0x03            /* 取两位 */
 #define METHOD_ID(_method)      ((_method) & (~METHOD_ACTION_MASK))
 #define METHOD_ACTION(_method)  (((unsigned int)(_method)) & METHOD_ACTION_MASK)
 #define METHOD_COMBINE(_method, _action)    ((_method) | (_action))

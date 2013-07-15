@@ -43,8 +43,14 @@
 /*
  * Allocate cache.
  */
+/*
+ * 这个函数定用来初始化instanceof操作符子模块。
+ * 在使用instanceof操作符来判断一个对象A是否是一个类B的实例时，Davlik虚拟机需要检查类B是否是从对象A的声明类继承下来的。
+ * 由于这个检查的过程比较耗时，Davlik虚拟机在内部使用一个缓冲，用来记录第一次两个类之间的instanceof操作结果，这样后面再碰到相同的instanceof操作时，就可以快速地得到结果
+ */
 bool dvmInstanceofStartup()
 {
+    /*用来保存类实例的缓冲的结果，eg.判断 'A'是否是'B'的一个实例 */
     gDvm.instanceofCache = dvmAllocAtomicCache(INSTANCEOF_CACHE_SIZE);
     if (gDvm.instanceofCache == NULL)
         return false;
@@ -56,6 +62,7 @@ bool dvmInstanceofStartup()
  */
 void dvmInstanceofShutdown()
 {
+   /* 释放类类实例缓冲 */
     dvmFreeAtomicCache(gDvm.instanceofCache);
 }
 

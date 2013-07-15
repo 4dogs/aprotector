@@ -4725,6 +4725,8 @@ bool dvmCompilerArchInit()
 
 /**
  * @brief 获取解释器模板
+ * @note codeCache是编译代码存放的缓冲，而templateEntryOffsets
+ *	是一个全局变量用于存放当前要编译代码的偏移
  */
 void *dvmCompilerGetInterpretTemplate()
 {

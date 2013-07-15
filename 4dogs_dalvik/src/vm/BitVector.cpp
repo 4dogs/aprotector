@@ -17,11 +17,16 @@
 /*
  * Implementation of an expandable bit vector.
  */
+
+/*
+ * 实现一个扩展位向量操作
+ */
 #include "Dalvik.h"
 
 #include <stdlib.h>
 #include <strings.h>
 
+/* 4位增长 */
 #define kBitVectorGrowth    4   /* increase by 4 u4s when limit hit */
 
 

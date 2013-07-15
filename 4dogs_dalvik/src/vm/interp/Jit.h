@@ -87,9 +87,9 @@ void* dvmSelfVerificationRestoreState(const u2* pc, u4* fp,
                                       SelfVerificationState exitPoint,
                                       Thread *self);
 void dvmCheckSelfVerification(const u2* pc, Thread* self);
-}
-#endif
 
+#endif
+}
 /*
  * Offsets for metadata in the trace run array from the trace that ends with
  * invoke instructions.
@@ -140,10 +140,17 @@ static inline u4 dvmJitHash( const u2* p ) {
 #define JIT_PROF_BLOCK_ENTRIES 1024
 #define JIT_PROF_BLOCK_BUCKETS (JIT_MAX_ENTRIES / JIT_PROF_BLOCK_ENTRIES)
 
+/**
+ * @brief Jit trace计数器类型
+ */
 typedef s4 JitTraceCounter_t;
 
+/**
+ * @brief JIT计数器结构
+ */
 struct JitTraceProfCounters {
-    unsigned int           next;
+    unsigned int           next;		/* 下一个计数器 */
+	/* 计数器的计数 */
     JitTraceCounter_t      *buckets[JIT_PROF_BLOCK_BUCKETS];
 };
 
@@ -155,13 +162,22 @@ struct JitTraceProfCounters {
 
 /**
  * @brief Jit哈希表项配置项
+ * @note JIT表项的信息结构
+ *	- isMethodEntry : 表明此项是否是函数块
+ *	- inlineCandidate : 未知
+ *	- profileEnabled : profiling是否启动
+ *	- instructionSet : 要编译的硬件平台
+ *	- profileOffset : profiling偏移，当profile模式大于等于
+ *		kTraceProfilingContinuous值时有效
+ *	- unused ： 未使用
+ *	- chain : 下一个链的节点索引
  */
 struct JitEntryInfo {
     unsigned int           isMethodEntry:1;			/* 是函数入口 */
     unsigned int           inlineCandidate:1;
     unsigned int           profileEnabled:1;		/* profiling启动 */
     JitInstructionSetType  instructionSet:3;		/* 要编译的硬件平台 */
-    unsigned int           profileOffset:5;			/* profiling关闭 */
+    unsigned int           profileOffset:5;			/* profiling偏移 */
     unsigned int           unused:5;
 	/* 下一个链接单元的索引 */
     u2                     chain;                 /* Index of next in chain */
@@ -212,13 +228,13 @@ void dvmJitSetCodeAddr(const u2* dPC, void *nPC, JitInstructionSetType set,
                        bool isMethodEntry, int profilePrefixSize);			/* 设置Jit代码地址 */
 void dvmJitEndTraceSelect(Thread* self, const u2* dPC);						/* 结束trace选择 */
 JitTraceCounter_t *dvmJitNextTraceCounter(void);							/* 下一个trace计数器 */
-void dvmJitTraceProfilingOff(void);											/* trace profiling关闭 */
-void dvmJitTraceProfilingOn(void);											/* trace profiling开启 */
+/* !!! */void dvmJitTraceProfilingOff(void);											/* trace profiling关闭 */
+/* !!! */void dvmJitTraceProfilingOn(void);											/* trace profiling开启 */
 void dvmJitChangeProfileMode(TraceProfilingModes newState);					/* 改变profile模式 */
-void dvmJitDumpTraceDesc(JitTraceDescription *trace);						/* 打印trace描述 */
+/* !!! */void dvmJitDumpTraceDesc(JitTraceDescription *trace);						/* 打印trace描述 */
 void dvmJitUpdateThreadStateSingle(Thread* threead);						/* 更新单个线程状态 */
 void dvmJitUpdateThreadStateAll(void);										/* 更新所有线程状态 */
-void dvmJitResumeTranslation(Thread* self, const u2* pc, const u4* fp);		/* 回复编译 */
+/* !!!! */void dvmJitResumeTranslation(Thread* self, const u2* pc, const u4* fp);		/* 回复编译 */
 }
 
 #endif  // DALVIK_INTERP_JIT_H_

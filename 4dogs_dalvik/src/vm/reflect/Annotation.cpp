@@ -57,6 +57,9 @@ static const char* kDescrThrows     = "Ldalvik/annotation/Throws;";
 /*
  * Read an unsigned LEB128 value from a buffer.  Advances "pBuf".
  */
+/*
+ * ´Ó'pBuf'ÖĞ¶ÁÈ¡ÎŞ·ûºÅLEB128Öµ
+ */
 static u4 readUleb128(const u1** pBuf)
 {
     u4 result = 0;
@@ -84,6 +87,10 @@ static u4 readUleb128(const u1** pBuf)
 /*
  * Get the annotations directory item.
  */
+/*
+ * »ñÈ¡×¢½âÄ¿Â¼Ïî
+ */
+
 static const DexAnnotationsDirectoryItem* getAnnoDirectory(DexFile* pDexFile,
     const ClassObject* clazz)
 {
@@ -93,6 +100,7 @@ static const DexAnnotationsDirectoryItem* getAnnoDirectory(DexFile* pDexFile,
      * Find the class def in the DEX file.  For better performance we should
      * stash this in the ClassObject.
      */
+    /*ÔÚDEXÎÄ¼şÖĞ²éÕÒclassË÷Òı,ÎªÁËÓĞ¸üºÃµÄĞÔÄÜ£¬ÎÒÃÇÓ¦¸Ã´¢´æÕâÔÚClassObject¶ÔÏóÖĞ*/
     pClassDef = dexFindClass(pDexFile, clazz->descriptor);
     assert(pClassDef != NULL);
     return dexGetAnnotationsDirectoryItem(pDexFile, pClassDef);
@@ -106,6 +114,9 @@ static const DexAnnotationsDirectoryItem* getAnnoDirectory(DexFile* pDexFile,
  *
  * Caller must call dvmReleaseTrackedAlloc().
  */
+/*
+ * ·µ»ØÒ»¸ö¿ÕµÄ×¢½âÊı×é
+ */
 static ArrayObject* emptyAnnoArray()
 {
     return dvmAllocArrayByClass(
@@ -116,6 +127,9 @@ static ArrayObject* emptyAnnoArray()
  * Return an array of empty arrays of Annotation objects.
  *
  * Caller must call dvmReleaseTrackedAlloc().
+ */
+/*
+ * ·µ»ØÒ»¸ö×¢½â¶ÔÏóÊı×éµÄ¿ÕÊı×é  
  */
 static ArrayObject* emptyAnnoArrayArray(int numElements)
 {
@@ -139,6 +153,9 @@ static ArrayObject* emptyAnnoArrayArray(int numElements)
 /*
  * Read a signed integer.  "zwidth" is the zero-based byte count.
  */
+/*
+ * ¶ÁÈ¡Ò»¸öÓĞ·ûºÅµÄÕûĞÎ£¬'zwidth'ÊÇ´ÓÁã¿ªÊ¼µÄ×Ö½ÚÊı
+ */
 static s4 readSignedInt(const u1* ptr, int zwidth)
 {
     s4 val = 0;
@@ -154,6 +171,9 @@ static s4 readSignedInt(const u1* ptr, int zwidth)
 /*
  * Read an unsigned integer.  "zwidth" is the zero-based byte count,
  * "fillOnRight" indicates which side we want to zero-fill from.
+ */
+/*
+ * ¶ÁÈ¡Ò»¸öÎŞ·ûºÅµÄÕûĞÎ,'zwidth'ÊÇ´ÓÁã¿ªÊ¼µÄ×Ö½ÚÊı,'fillOnRight'±êÊ¾ÓÒ±ßÎÒÃÇĞèÒªÁãÀ´Ìî³ä
  */
 static u4 readUnsignedInt(const u1* ptr, int zwidth, bool fillOnRight)
 {
@@ -174,6 +194,9 @@ static u4 readUnsignedInt(const u1* ptr, int zwidth, bool fillOnRight)
 /*
  * Read a signed long.  "zwidth" is the zero-based byte count.
  */
+/*
+ * ¶ÁÈ¡Ò»¸öÓĞ·ûºÅµÄ³¤ÕûĞÎ.'zwidth'ÊÇ´ÓÁã¿ªÊ¼µÄ×Ö½ÚÊı
+ */
 static s8 readSignedLong(const u1* ptr, int zwidth)
 {
     s8 val = 0;
@@ -189,6 +212,9 @@ static s8 readSignedLong(const u1* ptr, int zwidth)
 /*
  * Read an unsigned long.  "zwidth" is the zero-based byte count,
  * "fillOnRight" indicates which side we want to zero-fill from.
+ */
+/*
+ * ¶ÁÈ¡Ò»¸öÎŞ·ûºÅµÄ³¤ÕûĞÎ,'zwidth'ÊÇ´ÓÁã¿ªÊ¼µÄ×Ö½ÚÊı,'fillOnRight'±êÊ¾ÓÒ±ßĞèÒªÎÒÃÇÓÃÁãÀ´Ìî³ä
  */
 static u8 readUnsignedLong(const u1* ptr, int zwidth, bool fillOnRight)
 {
@@ -226,6 +252,10 @@ static u8 readUnsignedLong(const u1* ptr, int zwidth, bool fillOnRight)
  * that information here, so we have to do a bit of searching.
  *
  * Returns NULL if the method was not found (exception may be pending).
+ */
+/*
+ * Í¨¹ıË÷Òı¹ØÁªµ½Ò»¸ö·½·¨.Õâ½ö½ö¸ø¶¨ÎÒÃÇÀàµÄÃû×ÖºÍ·½·¨Ãû³ÆºÍ·½·¨Ç©Ãû£¬ÎÒÃÇĞèÒªÈ¥ÕÒ·½·¨µÄÀà£¬
+ * È»ºóÕÒÀàÀïÃæµÄ·½·¨.Èç¹ûÖ®Ç°·½·¨»¹Ã»ÓĞ±»½âÎö£¬ÎÒÃÇ¿ÉÒÔÊ¹ÓÃÒÔÇ°²éÑ¯µÄ½á¹û
  */
 static Method* resolveAmbiguousMethod(const ClassObject* referrer, u4 methodIdx)
 {
@@ -291,28 +321,41 @@ enum AnnotationResultStyle {
 
 /*
  * Recursively process an annotation value.
+ * µİ¹éµÄ´¦Àí×¢½âÖµ
  *
  * "clazz" is the class on which the annotations are defined.  It may be
  * NULL when "resultStyle" is "kAllRaw".
+ * ×¢½â±»¶¨ÒåÔÚ'clazz'µÄÀàÖĞ£¬µ±'resultStyle'ÊÇ'kAllRaw'Ê±£¬Ëü¿ÉÄÜÊÇNULL
  *
  * If "resultStyle" is "kAllObjects", the result will always be an Object of an
  * appropriate type (in pValue->value.l).  For primitive types, the usual
  * wrapper objects will be created.
+ * Èç¹û'resultStyle'ÊÇ'kAllObjects'£¬½á¹û½«×ÜÊÇÒ»¸öºÏÊÊÀàĞÍµÄ¶ÔÏó.¶ÔÓÚ»ù±¾Êı¾İ
+ * ÀàĞÍ£¬Í¨³£ÒÔ°ü×°ºó¶ÔÏó½«±»´´½¨
  *
  * If "resultStyle" is "kAllRaw", numeric constants are stored directly into
  * "pValue", and indexed values like String and Method are returned as
  * indexes.  Complex values like annotations and arrays are not handled.
+ * Èç¹û'resultStyle'ÊÇ'kAllRaw',ÄÇÃ´Êı×Ö³£Á¿½«Ö±½Ó±»±£´æµ½'pValue',²¢ÇÒ
+ * ±»±àÈëË÷ÒıµÄÖµ(Èç:StringtºÍMethod)½«×÷ÎªË÷Òı±»·µ»Ø£¬¸´ÔÓµÄÖµ(Èç:annotations ºÍ arrays)
+ * ²»È¥´¦Àí
  *
  * If "resultStyle" is "kPrimitivesOrObjects", numeric constants are stored
  * directly into "pValue", and everything else is constructed as an Object
  * of appropriate type (in pValue->value.l).
+ * Èç¹û'resultStyle'ÊÇ'kPrimitivesOrObjects'£¬³£Á¿³Ø±»Ö±½Ó±£´æµ½'pValue',
+ * ²¢ÇÒÆäËûÒ»ÇĞ×÷ÎªºÏÊÊÀàĞÍ¶ÔÏó±»¹¹Ôì
  *
  * The caller must call dvmReleaseTrackedAlloc on returned objects, when
  * using "kAllObjects" or "kPrimitivesOrObjects".
+ * µ±Ê¹ÓÃ'kAllObjects'»òÕß'kPrimitivesOrObjects'Ê±£¬µ÷ÓÃÕß±ØĞëµ÷ÓÃdvmReleaseTrackedAllocº¯Êı
+ * ·µ»Ø¶ÔÏó
  *
  * Returns "true" on success, "false" if the value could not be processed
  * or an object could not be allocated.  On allocation failure an exception
  * will be raised.
+ * ¡®true¡¯Ôò´ú±í³É¹¦£¬Èç¹ûÎª'false',Öµ½«²»ÄÜ±»´¦Àí»òÕß¶ÔÏó²»ÄÜ±»·ÖÅä
+ * Èç¹û·ÖÅäÊ§°Ü½«Òı·¢Òì³£
  */
 static bool processAnnotationValue(const ClassObject* clazz,
     const u1** pPtr, AnnotationValue* pValue,
@@ -549,11 +592,14 @@ static bool processAnnotationValue(const ClassObject* clazz,
 /*
  * For most object types, we have nothing to do here, and we just return
  * "valueObj".
- *
+ * ¶ÔÓÚ´ó¶àÊıµÄ¶ÔÏóÀàĞÍ£¬ÎÒÃÇÔÚÕâ¶ùÃ»ÓĞ×öÌ«¶àµÄÊÂÇé£¬Ö»½ö½ö·µ»ØÁË'valueObj'
+ * 
  * For an array annotation, the type of the extracted object will always
  * be java.lang.Object[], but we want it to match the type that the
  * annotation member is expected to return.  In some cases this may
  * involve un-boxing primitive values.
+ * ¶ÔÓÚÒ»¸öÊı×é×¢½â, ÌáÈ¡µÄ¶ÔÏóµÄÀàĞÍ×ÜÊÇjava.lang.Object[]£¬µ«ÊÇ£¬
+ * ÎÒÃÇÏëÒªËüµÄ×¢½â³ÉÔ±È¥·µ»ØÏàÆ¥ÅäÀàĞÍ£¬ÔÚÄ³ÖÖÇé¿öÏÂ£¬Õâ¿ÉÄÜÇ£Éæµ½²ğÏäµÄ»ù±¾Êı¾İÀàĞÍ
  *
  * We allocate a second array with the correct type, then copy the data
  * over.  This releases the tracked allocation on "valueObj" and returns
@@ -631,13 +677,16 @@ bail:
 
 /*
  * Create a new AnnotationMember.
+ * ´´½¨Ò»¸öĞÂµÄ×¢½â³ÉÔ±
  *
  * "clazz" is the class on which the annotations are defined.  "pPtr"
  * points to a pointer into the annotation data.  "annoClass" is the
  * annotation's class.
+ * ×¢½â±»¶¨ÒåÔÚ'clazz'ÀàÖĞ. 'pPtr'Ö¸ÏòÒ»¸öÖ¸ÕëµÄ×¢½âÊı¾İÇø.'annoClass'ÊÇÒ»¸ö×¢½âÀà
  *
  * We extract the annotation's value, create a new AnnotationMember object,
  * and construct it.
+ * ÎÒÃÇ³éÈ¡×¢½âÖµ£¬´´½¨Ò»¸öĞÂµÄ×¢½â³ÉÔ±¶ÔÏó²¢ÇÒ¹¹ÔìËü,'pPtr'Ö¸ÕëÖ¸ÏòÁË
  *
  * Returns NULL on failure; an exception may or may not be raised.
  */
@@ -735,6 +784,16 @@ bail:
  * not referenced elsewhere, so store it away soon.  On failure, returns NULL
  * with an exception raised.
  */
+/*
+ * ÎÒÃÇ´Ó×¢½âÏîÖĞ´´½¨Ò»¸öĞÂµÄ×¢½â¶ÔÏó.
+ *
+ * ×¢½â±»¶¨ÒåÔÚ'clazz'ÀàÖĞ£¬'pPtr'Ö¸ÏòÁËÒ»¸öÖ¸ÕëµÄ×¢½âÊı¾İÇø
+ * 
+ * ÎÒÃÇÊ¹ÓÃAnnotationFactoryÀàÈ¥´´½¨×¢½â,ÏÂÃæÕâ¸ö·½·¨½«±»µ÷ÓÃ
+ *  public static Annotation createAnnotation(
+ *      Class<? extends Annotation> annotationType,
+ *      AnnotationMember[] elements)
+ */
 static Object* processEncodedAnnotation(const ClassObject* clazz,
     const u1** pPtr)
 {
@@ -821,9 +880,11 @@ bail:
 /*
  * Run through an annotation set and convert each entry into an Annotation
  * object.
+ * ±éÀú×¢½â¼¯ºÏ²¢×ª»»Ã¿Ò»Ïî³É×¢½â¶ÔÏó
  *
  * Returns an array of Annotation objects, or NULL with an exception raised
  * on alloc failure.
+ * ·µ»ØÒ»¸ö×¢½âÊı×é¶ÔÏó£¬»òÕßÊÇNULL,·ÖÅäÊ§°Ü½«Òı·¢Òì³£
  */
 static ArrayObject* processAnnotationSet(const ClassObject* clazz,
     const DexAnnotationSetItem* pAnnoSet, int visibility)
@@ -879,6 +940,9 @@ static ArrayObject* processAnnotationSet(const ClassObject* clazz,
  * Return the annotation item of the specified type in the annotation set, or
  * NULL if the set contains no annotation of that type.
  */
+/*
+ * ÔÚ×¢½â¼¯ºÏ('pAnnoSet')ÖĞ·µ»ØÒ»¸öÖ¸¶¨ÀàĞÍµÄ×¢½âÏî; Èç¹ûÈç¹û×¢½â¼¯ºÏÖĞ²»°üÀ¨Ö¸¶¨ÀàĞÍµÄ×¢½â£¬Ôò·µ»ØNULL
+ */
 static const DexAnnotationItem* getAnnotationItemFromAnnotationSet(
         const ClassObject* clazz, const DexAnnotationSetItem* pAnnoSet,
         int visibility, const ClassObject* annotationClazz)
@@ -924,6 +988,9 @@ static const DexAnnotationItem* getAnnotationItemFromAnnotationSet(
  * Return the Annotation object of the specified type in the annotation set, or
  * NULL if the set contains no annotation of that type.
  */
+/*
+ * ÔÚ×¢½â¼¯ºÏÖĞ·µ»ØÒ»¸öÖ¸¶¨ÀàĞÍµÄ×¢½â¶ÔÏó£¬Èç¹û¸Ã¼¯ºÏÃ»ÓĞ°üº­Ö¸¶¨ÀàĞÍµÄ×¢½â£¬Ôò·µ»ØNULL
+ */
 static Object* getAnnotationObjectFromAnnotationSet(const ClassObject* clazz,
         const DexAnnotationSetItem* pAnnoSet, int visibility,
         const ClassObject* annotationClazz)
@@ -949,6 +1016,10 @@ static Object* getAnnotationObjectFromAnnotationSet(const ClassObject* clazz,
  * "clazz" is the class on which the annotations are defined.
  *
  * Returns "true" on success, "false" on parsing failure.
+ */
+/*
+ * Ìø¹ıÒ»¸ö×¢½âÖµ . ×¢½â±»¶¨ÒåÔÚ'clazz'ÀàÖĞ
+ * 'true'´ú±í³É¹¦£¬'false'´ú±í½âÎöÊ§°Ü
  */
 static bool skipAnnotationValue(const ClassObject* clazz, const u1** pPtr)
 {
@@ -1015,6 +1086,10 @@ static bool skipAnnotationValue(const ClassObject* clazz, const u1** pPtr)
  * Skip past an encoded annotation.  Mainly useful for annotations embedded
  * in other annotations.
  */
+/*
+ * Ìø¹ıÒ»¸ö¼ÓÃÜ×¢½â.
+ * ÔÚÆäËûµÄ×¢½âÖĞ£¬Ö÷ÒªÓÃÓÚ¿ÉÇ¶Èë×¢½â
+ */
 static bool skipEncodedAnnotation(const ClassObject* clazz, const u1** pPtr)
 {
     const u1* ptr;
@@ -1044,6 +1119,9 @@ static bool skipEncodedAnnotation(const ClassObject* clazz, const u1** pPtr)
  * Compare the name of the class in the DEX file to the supplied descriptor.
  * Return value is equivalent to strcmp.
  */
+/*
+ * ±È½ÏDEXÎÄ¼şËùÌá¹©µÄÃèÊö·ûÖĞµÄÀàµÄÃû³Æ¡£
+ */
 static int compareClassDescriptor(DexFile* pDexFile, u4 typeIdx,
     const char* descriptor)
 {
@@ -1055,6 +1133,7 @@ static int compareClassDescriptor(DexFile* pDexFile, u4 typeIdx,
 /*
  * Search through the annotation set for an annotation with a matching
  * descriptor.
+ * Í¨¹ı×¢½â¼¯ËÑË÷ÓëÆ¥ÅäµÄÃèÊö·ûµÄ×¢½â
  *
  * Comparing the string descriptor is slower than comparing an integer class
  * index.  If annotation lists are expected to be long, we could look up
@@ -1097,6 +1176,9 @@ static const DexAnnotationItem* searchAnnotationSet(const ClassObject* clazz,
  * Find an annotation value in the annotation_item whose name matches "name".
  * A pointer to the annotation_value is returned, or NULL if it's not found.
  */
+/*
+ * ÔÚ×¢½âÏîÖĞ²éÕÒÒ»¸ö×¢½âÖµ£¬ÆäÃû³ÆÆ¥Åä'name'
+ */
 static const u1* searchEncodedAnnotation(const ClassObject* clazz,
     const u1* ptr, const char* name)
 {
@@ -1136,6 +1218,12 @@ static const u1* searchEncodedAnnotation(const ClassObject* clazz,
  * Returns GAV_FAILED on failure.  If an allocation failed, an exception
  * will be raised.
  */
+/*
+ * ´ÓÖ¸¶¨×Ö¶ÎÖµ'annoName'ÌáÈ¡Ò»¸ö×¢½â±àÂëÖµ(Õâ¸öÖµ¿ÉÄÜÊÇÊı×é¶ÔÏó£¬ÆÕÍ¨¶ÔÏó,Òì³£µÈ...)
+ *
+ * 'expectedType'ÊÇÒ»¸ö×¢½âÖµÀàĞÍ, ÀıÈç kDexAnnotationString.
+ * 'debugAnnoName'½ö½ö±»Ê¹ÓÃÔÚµ÷ÊÔÏûÏ¢
+ */
 static Object* getAnnotationValue(const ClassObject* clazz,
     const DexAnnotationItem* pAnnoItem, const char* annoName,
     int expectedType, const char* debugAnnoName)
@@ -1173,6 +1261,9 @@ static Object* getAnnotationValue(const ClassObject* clazz,
  * Returns NULL if not found.  On memory alloc failure, returns NULL with an
  * exception raised.
  */
+ /*
+ * ²éÕÒÒ»¸öÇ©ÃûÊôĞÔ²¢³éÈ¡ËüµÄÖµ.(Ç©ÃûÄÜ±»ÕÒµ½ÔÚ×¢½âÀà£¬¹¹Ôìº¯Êı£¬·½·¨ºÍ×Ö¶ÎÖĞ)
+ */
 static ArrayObject* getSignatureValue(const ClassObject* clazz,
     const DexAnnotationSetItem* pAnnoSet)
 {
@@ -1206,6 +1297,9 @@ static ArrayObject* getSignatureValue(const ClassObject* clazz,
 /*
  * Find the DexAnnotationSetItem for this class.
  */
+/*
+ * ²éÕÒÕâ¸öÀàµÄDexAnnotationSetItem
+ */
 static const DexAnnotationSetItem* findAnnotationSetForClass(
     const ClassObject* clazz)
 {
@@ -1231,6 +1325,9 @@ static const DexAnnotationSetItem* findAnnotationSetForClass(
  *
  * On allocation failure, this returns NULL with an exception raised.
  */
+/*
+ * ·µ»ØÕâ¸öÀàµÄ×¢½âÊı×é¶ÔÏó.Èç¹ûÕâ¶ùÃ»ÓĞ×¢½âÖµ£¬Ôò·µ»Ø¿Õ
+ */
 ArrayObject* dvmGetClassAnnotations(const ClassObject* clazz)
 {
     ArrayObject* annoArray;
@@ -1251,6 +1348,9 @@ ArrayObject* dvmGetClassAnnotations(const ClassObject* clazz)
 /*
  * Returns the annotation or NULL if it doesn't exist.
  */
+ /* 
+ * »ñÈ¡±¾ÀàµÄ×¢½â
+ */
 Object* dvmGetClassAnnotation(const ClassObject* clazz,
         const ClassObject* annotationClazz)
 {
@@ -1264,6 +1364,9 @@ Object* dvmGetClassAnnotation(const ClassObject* clazz,
 
 /*
  * Returns true if the annotation exists.
+ */
+/*
+ * ÅĞ¶ÏÄ¿Ç°ÀàÖĞÊÇ·ñÓĞÖ¸¶¨ÀàĞÍµÄ×¢½â
  */
 bool dvmIsClassAnnotationPresent(const ClassObject* clazz,
         const ClassObject* annotationClazz)
@@ -1283,6 +1386,9 @@ bool dvmIsClassAnnotationPresent(const ClassObject* clazz,
  *
  * Caller must call dvmReleaseTrackedAlloc().
  */
+ /*
+  * »ñÈ¡Ç©Ãû×¢½â
+  */
 ArrayObject* dvmGetClassSignatureAnnotation(const ClassObject* clazz)
 {
     ArrayObject* signature = NULL;
@@ -1300,6 +1406,9 @@ ArrayObject* dvmGetClassSignatureAnnotation(const ClassObject* clazz)
  * object, or NULL.
  *
  * Caller must call dvmReleaseTrackedAlloc().
+ */
+¡/*
+ * ´Ó×¢½âÖĞµÃµ½EnclosingMethodÊôĞÔ.·µ»ØÒ»¸öMethod¶ÔÏó»òNULL
  */
 Object* dvmGetEnclosingMethod(const ClassObject* clazz)
 {
@@ -1332,10 +1441,13 @@ Object* dvmGetEnclosingMethod(const ClassObject* clazz)
 /*
  * Find a class' enclosing class.  We return what we find in the
  * EnclosingClass attribute.
- *
+ * 
  * Returns a Class object, or NULL.
  *
  * Caller must call dvmReleaseTrackedAlloc().
+ */
+/*
+ * ÕÒµ½Ò»¸ö·â±ÕÀà,·µ»ØEnclosingClassµÄÊôĞÔÖµ
  */
 ClassObject* dvmGetDeclaringClass(const ClassObject* clazz)
 {
@@ -1355,6 +1467,9 @@ ClassObject* dvmGetDeclaringClass(const ClassObject* clazz)
     /*
      * The EnclosingClass annotation has one member, "Class value".
      */
+    /*
+   * EnclosingClass×¢½âÓĞÒ»¸ö³ÉÔ±¡®Class value¡¯
+   */
     obj = getAnnotationValue(clazz, pAnnoItem, "value", kDexAnnotationType,
             "EnclosingClass");
     if (obj == GAV_FAILED)
@@ -1371,6 +1486,9 @@ ClassObject* dvmGetDeclaringClass(const ClassObject* clazz)
  * Returns a Class object, or NULL.
  *
  * Caller must call dvmReleaseTrackedAlloc().
+ */
+ /*
+ * ²éÕÒÒ»¸ö·â±ÕÀà£¬ÎÒÃÇÊ×ÏÈ²éÕÒÒ»¸öEnclosingClassÊôĞÔ,²¢ÇÒÈç¹ûÃ»ÓĞ±»ÕÒµ½£¬ÔòÎÒÃÇ²éÕÒÒ»¸öEnclosingMethod
  */
 ClassObject* dvmGetEnclosingClass(const ClassObject* clazz)
 {
@@ -1445,6 +1563,10 @@ ClassObject* dvmGetEnclosingClass(const ClassObject* clazz)
  * for an anonymous inner class.)
  *
  * Caller must call dvmReleaseTrackedAlloc().
+ */
+/*
+ * ´ÓÒ»¸ö×¢½âÖĞ»ñÈ¡EnclosingÊôĞÔ.Èç¹ûÕÒµ½ÁË£¬Ôò·µ»Øtrue.Í¨¹ı²ÎÊı ÀàµÄÔ­Ê¼Ãû³Æ×Ö·û´®ºÍ
+ * Ô­Ê¼·ÃÎÊ±êÊ¶½«±»·µ»Ø(¶ÔÓÚÄäÃûÄÚ²¿Àà£¬Õâ¸öÃû×Ö½«ÊÇNULL)
  */
 bool dvmGetInnerClass(const ClassObject* clazz, StringObject** pName,
     int* pAccessFlags)
@@ -1522,6 +1644,10 @@ bool dvmGetInnerClass(const ClassObject* clazz, StringObject** pName,
  *
  * Returns NULL if we don't find any member classes.
  */
+ /*
+  * ´ÓMemberClasses×¢½âÖĞ³éÈ¡Class[]£¬MemberClasses×¢½âÓĞÒ»¸ö³ÉÔ±'Class[] value'
+  * 
+  */
 ArrayObject* dvmGetDeclaredClasses(const ClassObject* clazz)
 {
     const DexAnnotationSetItem* pAnnoSet;
@@ -1538,8 +1664,8 @@ ArrayObject* dvmGetDeclaredClasses(const ClassObject* clazz)
         return NULL;
 
     /*
-     * The MemberClasses annotation has one member, "Class[] value".
-     */
+   * The MemberClasses annotation has one member, "Class[] value".
+   */
     obj = getAnnotationValue(clazz, pAnnoItem, "value",
             kDexAnnotationArray, "MemberClasses");
     if (obj == GAV_FAILED)
@@ -1559,6 +1685,9 @@ ArrayObject* dvmGetDeclaredClasses(const ClassObject* clazz)
 /*
  * Compare the attributes (class name, method name, method signature) of
  * the specified method to "method".
+ */
+/*
+ * Ö¸¶¨·½·¨µ½'method'±È½ÏÊôĞÔ£¨ÀàÃû£¬·½·¨Ãû£¬·½·¨Ç©Ãû£©
  */
 static int compareMethodStr(DexFile* pDexFile, u4 methodIdx,
     const Method* method)
@@ -1592,6 +1721,9 @@ static int compareMethodStr(DexFile* pDexFile, u4 methodIdx,
  * out reasonably well because it's in sorted order, though we're still left
  * doing a fair number of string comparisons.
  */
+ ¡/*
+  * ¸ø¶¨Ò»¸ö·½·¨À´È·¶¨·½·¨µÄË÷Òı
+  */
 static u4 getMethodIdx(const Method* method)
 {
     DexFile* pDexFile = method->clazz->pDvmDex->pDexFile;
@@ -1629,6 +1761,9 @@ static u4 getMethodIdx(const Method* method)
  * Find the DexAnnotationSetItem for this method.
  *
  * Returns NULL if none found.
+ */
+/*
+ * ¸ù¾İ'method'·µ»ØDexAnnotationSetItem
  */
 static const DexAnnotationSetItem* findAnnotationSetForMethod(
     const Method* method)
@@ -1684,6 +1819,9 @@ static const DexAnnotationSetItem* findAnnotationSetForMethod(
  *
  * On allocation failure, this returns NULL with an exception raised.
  */
+ /*
+ * ¸ù¾İ'method'·µ»Ø×¢½âÊı×é¶ÔÏó£¬Èç¹ûÕâ¶ùÃ»ÓĞ×¢½âÔò·µ»Ø¿Õ
+ */
 ArrayObject* dvmGetMethodAnnotations(const Method* method)
 {
     ClassObject* clazz = method->clazz;
@@ -1703,6 +1841,9 @@ ArrayObject* dvmGetMethodAnnotations(const Method* method)
 
 /*
  * Returns the annotation or NULL if it doesn't exist.
+ */
+/*
+ * »ñÈ¡×¢½â¼¯'pAnnoSet'ÖĞkDexVisibilityRuntimeÀàĞÍµÄ×¢½â¶ÔÏó
  */
 Object* dvmGetMethodAnnotation(const ClassObject* clazz, const Method* method,
         const ClassObject* annotationClazz)
@@ -1736,6 +1877,9 @@ bool dvmIsMethodAnnotationPresent(const ClassObject* clazz,
  *
  * Caller must call dvmReleaseTrackedAlloc().
  */
+/*
+ * »ñÈ¡×¢½âÇ©Ãû£¬Èç¹ûÃ»ÓĞÇ©Ãû´æÔÚÔò·µ»ØNULL
+ */
 ArrayObject* dvmGetMethodSignatureAnnotation(const Method* method)
 {
     ClassObject* clazz = method->clazz;
@@ -1756,6 +1900,11 @@ ArrayObject* dvmGetMethodSignatureAnnotation(const Method* method)
  * Caller must call dvmReleaseTrackedAlloc().
  *
  * Returns NULL if we don't find any exceptions for this method.
+ */
+/*
+ * ´Ó'system'×¢½âÁĞ±íÖĞÌáÈ¡Òì³£Êı×é¶ÔÏó
+ *
+ * Throws×¢½âÓĞÒ»¸ö³ÉÔ±'Class[] value'
  */
 ArrayObject* dvmGetMethodThrows(const Method* method)
 {
@@ -1879,6 +2028,9 @@ Object* dvmGetAnnotationDefaultValue(const Method* method)
  * Compare the attributes (class name, field name, field signature) of
  * the specified field to "field".
  */
+/*
+ * Ö¸¶¨×Ö¶Î'field',±È½ÏÊôĞÔ(ÀàÃû£¬×Ö¶ÎÃû£¬×Ö¶ÎÇ©Ãû)
+ */
 static int compareFieldStr(DexFile* pDexFile, u4 idx, const Field* field)
 {
     const DexFieldId* pFieldId = dexGetFieldId(pDexFile, idx);
@@ -1901,6 +2053,9 @@ static int compareFieldStr(DexFile* pDexFile, u4 idx, const Field* field)
  * Given a field, determine the field's index.
  *
  * This has the same tradeoffs as getMethodIdx.
+ */
+/*
+ * ¸ø¶¨Ò»¸ö×Ö¶ÎÀ´È·¶¨×Ö¶ÎµÄË÷Òı
  */
 static u4 getFieldIdx(const Field* field)
 {
@@ -1937,6 +2092,9 @@ static u4 getFieldIdx(const Field* field)
  * Find the DexAnnotationSetItem for this field.
  *
  * Returns NULL if none found.
+ */
+/*
+ * ¸ù¾İ'field'·µ»ØDexAnnotationSetItem
  */
 static const DexAnnotationSetItem* findAnnotationSetForField(const Field* field)
 {
@@ -1986,6 +2144,9 @@ static const DexAnnotationSetItem* findAnnotationSetForField(const Field* field)
  *
  * On allocation failure, this returns NULL with an exception raised.
  */
+ /*
+ * ¸ù¾İ'field'·µ»Ø×¢½âÊı×é¶ÔÏó£¬Èç¹ûÕâ¶ùÃ»ÓĞ×¢½âÔò·µ»Ø¿Õ
+ */
 ArrayObject* dvmGetFieldAnnotations(const Field* field)
 {
     ClassObject* clazz = field->clazz;
@@ -2006,6 +2167,9 @@ ArrayObject* dvmGetFieldAnnotations(const Field* field)
 
 /*
  * Returns the annotation or NULL if it doesn't exist.
+ */
+/*
+ * »ñÈ¡×¢½â¼¯'pAnnoSet'ÖĞkDexVisibilityRuntimeÀàĞÍµÄ×¢½â¶ÔÏó
  */
 Object* dvmGetFieldAnnotation(const ClassObject* clazz, const Field* field,
         const ClassObject* annotationClazz)
@@ -2039,6 +2203,9 @@ bool dvmIsFieldAnnotationPresent(const ClassObject* clazz,
  *
  * Caller must call dvmReleaseTrackedAlloc().
  */
+/*
+ * »ñÈ¡×¢½âÇ©Ãû£¬Èç¹ûÃ»ÓĞÇ©Ãû´æÔÚÔò·µ»ØNULL
+ */
 ArrayObject* dvmGetFieldSignatureAnnotation(const Field* field)
 {
     ClassObject* clazz = field->clazz;
@@ -2064,6 +2231,12 @@ ArrayObject* dvmGetFieldSignatureAnnotation(const Field* field)
  * entries that we pass to processAnnotationSet().
  *
  * The returned object must be released with dvmReleaseTrackedAlloc.
+ */
+/*
+ * ÎÒÃÇÓĞÒ»¸öannotation_set_ref_list£¬Õâ±¾ÖÊÉÏÊÇÒ»¸öÌõÄ¿ÁĞ±í£¬
+ * ÎÒÃÇ´«µİ¸øprocessAnnotationSet()
+ *
+ * ·µ»ØµÄ¶ÔÏó±ØĞë±»ÊÍ·ÅdvmReleaseTrackedAlloc
  */
 static ArrayObject* processAnnotationSetRefList(const ClassObject* clazz,
     const DexAnnotationSetRefList* pAnnoSetList, u4 count)
@@ -2115,6 +2288,9 @@ bail:
  *
  * Returns NULL if none found.
  */
+/*
+ * Í¨¹ı'method'²éÕÒ DexAnnotationSetItem
+ */
 static const DexParameterAnnotationsItem* findAnnotationsItemForMethod(
     const Method* method)
 {
@@ -2165,6 +2341,9 @@ static const DexParameterAnnotationsItem* findAnnotationsItemForMethod(
  * Count up the number of arguments the method takes.  The "this" pointer
  * doesn't count.
  */
+/*
+ * Í³¼Æ·½·¨µÄ²ÎÊıÊı
+ */
 static int countMethodArguments(const Method* method)
 {
     /* method->shorty[0] is the return type */
@@ -2175,11 +2354,15 @@ static int countMethodArguments(const Method* method)
  * Return an array of arrays of Annotation objects.  The outer array has
  * one entry per method parameter, the inner array has the list of annotations
  * associated with that parameter.
+ * ·µ»ØÒ»¸öµÄ×¢½â¶ÔÏóÊı×éµÄÊı×é,Íâ²¿Êı×éÓĞ·½·¨²ÎÊıÌõÄ¿£¬ÄÚ²¿Êı×éÓĞÓë¸Ã²ÎÊıÓĞ¹ØµÄ×¢ÊÍÁĞ±í
  *
  * If the method has no parameters, we return an array of length zero.  If
  * the method has one or more parameters, we return an array whose length
  * is equal to the number of parameters; if a given parameter does not have
  * an annotation, the corresponding entry will be null.
+ * Èç¹û·½·¨Ã»ÓĞ²ÎÊı,ÎÒÃÇ·µ»ØÒ»¸öÁã³¤¶ÈµÄÊı×é.Èç¹û¸Ã·½·¨ÓĞÒ»¸ö»òÕß¶à¸ö²ÎÊı,
+ * ÄÇÃ´·µ»ØÒ»¸öÊı×é£¬Æä³¤¶ÈµÈÓÚ²ÎÊıµÄÊıÄ¿£¬Èç¹ûÒ»¸ö¸ø¶¨µÄ²ÎÊı²»¾ßÓĞÒ»¸ö×¢ÊÍ£¬
+ * ÏàÓ¦µÄÌõÄ¿½«ÊÇ¿Õ¡£
  *
  * Caller must call dvmReleaseTrackedAlloc().
  */
@@ -2220,6 +2403,9 @@ ArrayObject* dvmGetParameterAnnotations(const Method* method)
  * @param encodedArray encoded array to iterate over
  * @param clazz class to use when resolving strings and types
  */
+/*
+ * ³õÊ¼»¯Ò»¸ö¼ÓÃÜÊı×éµü´úÆ÷
+ */
 void dvmEncodedArrayIteratorInitialize(EncodedArrayIterator* iterator,
         const DexEncodedArray* encodedArray, const ClassObject* clazz) {
     iterator->encodedArray = encodedArray;
@@ -2231,6 +2417,9 @@ void dvmEncodedArrayIteratorInitialize(EncodedArrayIterator* iterator,
 
 /**
  * Returns whether there are more elements to be read.
+ */
+/*
+ * ·µ»ØÊÇ·ñÓĞ¸ü¶àµÄÊı¾İ½«±»¶ÁÈ¡
  */
 bool dvmEncodedArrayIteratorHasNext(const EncodedArrayIterator* iterator) {
     return (iterator->elementsLeft != 0);
@@ -2247,6 +2436,9 @@ bool dvmEncodedArrayIteratorHasNext(const EncodedArrayIterator* iterator) {
  * @param value pointer to store decoded value into
  * @returns true if a value was decoded and the cursor advanced; false if
  * the last value had already been decoded or if there was a problem decoding
+ */
+/*
+ * ÒÆ¶¯ËüµÄË÷Òı.´Óµü´úÆ÷ÖĞ·µ»ØÏÂÒ»¸ö½âÃÜÖµ
  */
 bool dvmEncodedArrayIteratorGetNext(EncodedArrayIterator* iterator,
         AnnotationValue* value) {

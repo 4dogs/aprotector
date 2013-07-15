@@ -525,16 +525,25 @@ static bool clearPredecessorVector(struct CompilationUnit *cUnit,
     return false;
 }
 
+/**
+ * @brief 过滤循环块
+ * @param cUnit 编译单元
+ * @retval 0 失败
+ * @retval 1 成功
+ */
 bool dvmCompilerFilterLoopBlocks(CompilationUnit *cUnit)
 {
+	/* 下一个基本块 */
     BasicBlock *firstBB = cUnit->entryBlock->fallThrough;
 
     int numPred = dvmCountSetBits(firstBB->predecessors);
     /*
      * A loop body should have at least two incoming edges.
      */
-    if (numPred < 2) return false;
+	/* 一个循环体必须至少包含两条边 */
+    if (numPred < 2) return false;			/* 小于2则返回失败 */
 
+	/* 基本块链 */
     GrowableList *blockList = &cUnit->blockList;
 
     /* Record blocks included in the loop */
