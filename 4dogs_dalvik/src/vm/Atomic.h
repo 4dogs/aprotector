@@ -16,6 +16,7 @@
 
 /*
  * Atomic operations
+ * Ô­×Ó²Ù×÷
  */
 #ifndef DALVIK_ATOMIC_H_
 #define DALVIK_ATOMIC_H_
