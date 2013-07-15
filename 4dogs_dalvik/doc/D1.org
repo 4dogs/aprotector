@@ -21,10 +21,17 @@
 
 	 2.每个人对于623代码分析任务的完成时间进行评估(全体项目组)
 
-** 6.30 - 7.16
+** 6.30 - 7.14
    1.除阎文斌与彭州外其余人完成对所分析的代码模块
 
    2.针对hprof进行深入的调查研究(王艳东)
+
+** 7.15 - 7.21
+   1.上次没有分析完毕的文件处理完毕(全体项目组)
+
+   2.完成721任务(全体项目组)
+
+   3.确定方案可实施性 (彭州)
 
 * 任务
 ** 623任务
@@ -63,10 +70,37 @@
 
    对hprof的实际使用，以及当前android提供的应用做了解(王艳东)
 
+** 721任务
+   王艳东
+
+   Bits.h BitVector.h/cpp Ddm.h/Ddm.cpp Debugger.h/cpp Exception.h/cpp Hash.h/cpp IndirectRefTable.h/cpp Intern.h/cpp 
+   
+   linerAlloc.h/cpp PointerSet.h/cpp AllocTracker.h/cpp
+
+   彭州
+
+   AtomicCache.h/cpp Atomic.h/cpp Common.h Dalvik.h DalvikVersion.h Globals.h Init.h/cpp InitRefs.cpp
+   
+   Misc.h/cpp SignalCatcher.h/cpp StdioConverter.h/cpp Thread.h/cpp Sync.h/cpp UtfString.h/cpp
+
+   李晋飞 王一飞
+
+   CheckJni.cpp DvmDex.h/cpp JarFile.h/cpp Jni.cpp JniInternal.h Native.h/cpp RawDexFile.h/cpp
+   
+   ReferenceTable.h/cpp
+
+   dalvik/Main.cpp （彭州）
+
+   dalvik整体流程分析 （彭州)
+
+   闫文斌
+   
+   Profile.h/cpp
+
 * 例会
 	 6.23(13:30 - 16.15) 623代码分析任务的第一次分工,以及文档的规格。下周确定623任务完成时间。
 
-	 6.30(13:40 - ) 首先对飞哥进行了批评，提交文档格式不正确。飞哥对X1的设计延后。
+	 6.30(13:40 - 17:00) 首先对飞哥进行了批评，提交文档格式不正确。飞哥对X1的设计延后。
 	 针对623任务的时间进行了规划，确定了代码分析的时间，重新划分了王一飞与李靖飞的工作。
 
      | 姓名   | 时间进度 |
@@ -76,7 +110,6 @@
      | 王艳东 | 2周      |
      | 阎文斌 | 1月      |
 	 
-	 
-	 
-	 
-	 
+	 7.14(14:30 - )飞哥缺席。彭提出了对现有项目实施方案的异议。分配了在vm目录下的源代码分析任务，让
+	 彭州负责整体设计。确定实施方案
+	 	 

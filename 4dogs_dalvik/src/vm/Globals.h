@@ -83,6 +83,7 @@ enum ProfilerClockSource {
 /**
  * @brief dalvik虚拟机的全局设定
  * @note 
+ */
 struct DvmGlobals {
     /*
      * Some options from the command line or environment.
@@ -674,6 +675,9 @@ struct DvmGlobals {
     /*
      * State for method-trace profiling.
      */
+	/*
+	 * method-trace profiling的状态
+	 */
     MethodTraceState methodTrace;
     Method*     methodTraceGcMethod;
     Method*     methodTraceClassPrepMethod;

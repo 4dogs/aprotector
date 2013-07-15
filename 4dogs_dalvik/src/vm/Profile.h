@@ -89,7 +89,7 @@ struct AllocProfState {
 	/* 对象释放的大小 */
     int     freeSize;           // cumulative size of freed objects
 
-	/*  */
+	/* 用于垃圾回收的那次分配数量 */
     int     gcCount;            // #of times an allocation triggered a GC
 
 	/* 初始化的类数量 */

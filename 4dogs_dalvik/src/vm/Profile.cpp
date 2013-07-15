@@ -226,6 +226,12 @@ bool dvmProfilingStartup()
      * We could key this off of the "ro.kernel.qemu" property, but there's
      * no real harm in doing this on a real device.
      */
+	/*
+	 * 如果是运行在一个仿真器中，这里有一个Magic Page放置我们中断函数的信息。
+	 * 这允许被中断的函数显示在仿真器的code traces中。
+	 *
+	 * 可以对"ro.kernel.qemu"属性进行关闭，但是不能对一个真实的设备做这些
+	 */
     int fd = open("/dev/qemu_trace", O_RDWR);
     if (fd < 0) {
         ALOGV("Unable to open /dev/qemu_trace");
@@ -651,6 +657,7 @@ void dvmMethodTraceStop()
      */
     dvmLockMutex(&state->startStopLock);
 
+	/* 如果trace没有启动则退出函数 */
     if (!state->traceEnabled) {
         /* somebody already stopped it, or it was never started */
         ALOGD("TRACE stop requested, but not running");
@@ -821,6 +828,7 @@ void dvmMethodTraceStop()
     state->traceFile = NULL;
 
     /* wake any threads that were waiting for profiling to complete */
+	/* 唤醒所有等待profiling完成信号的线程 */
     dvmBroadcastCond(&state->threadExitCond);
     dvmUnlockMutex(&state->startStopLock);
 }
@@ -839,7 +847,7 @@ void dvmMethodTraceStop()
  */
 void dvmMethodTraceAdd(Thread* self, const Method* method, int action)
 {
-    MethodTraceState* state = &gDvm.methodTrace;
+    MethodTraceState* state = &gDvm.methodTrace;		/* 获取当前函数Trace状态的全局变量 */
     u4 methodVal;
     int oldOffset, newOffset;
     u1* ptr;
@@ -853,6 +861,7 @@ void dvmMethodTraceAdd(Thread* self, const Method* method, int action)
      * (Looks like pthread_getcpuclockid(thread, &id) will do what we
      * want, but it doesn't appear to be defined on the device.)
      */
+	/* 设置时钟开始点 */
     if (!self->cpuClockBaseSet) {
         self->cpuClockBase = getThreadCpuTimeInUsec();
         self->cpuClockBaseSet = true;
@@ -864,11 +873,14 @@ void dvmMethodTraceAdd(Thread* self, const Method* method, int action)
     /*
      * Advance "curOffset" atomically.
      */
+	/*
+	 * 检查记录缓冲区的内存
+	 */
     do {
         oldOffset = state->curOffset;
         newOffset = oldOffset + state->recordSize;
         if (newOffset > state->bufferSize) {
-            state->overflow = true;
+            state->overflow = true;	/* 超出记录缓冲区 */
             return;
         }
     } while (android_atomic_release_cas(oldOffset, newOffset,
@@ -876,6 +888,7 @@ void dvmMethodTraceAdd(Thread* self, const Method* method, int action)
 
     //assert(METHOD_ACTION((u4) method) == 0);
 
+	/* 取函数的HASH值吧 method的指针 + 动作*/
     methodVal = METHOD_COMBINE((u4) method, action);	/* 组合 */
 
     /*
@@ -884,14 +897,15 @@ void dvmMethodTraceAdd(Thread* self, const Method* method, int action)
 	/*
 	 * 将数据写入到"oldOffset"
 	 */
-    ptr = state->buf + oldOffset;
-    *ptr++ = (u1) self->threadId;
+    ptr = state->buf + oldOffset;				/* 得到要记录的位置 */
+    *ptr++ = (u1) self->threadId;				/* 线程的ID */
     *ptr++ = (u1) (self->threadId >> 8);
-    *ptr++ = (u1) methodVal;
+    *ptr++ = (u1) methodVal;					/* 函数的值 */
     *ptr++ = (u1) (methodVal >> 8);
     *ptr++ = (u1) (methodVal >> 16);
     *ptr++ = (u1) (methodVal >> 24);
 
+	/* 记录开始的时间 */
 #if defined(HAVE_POSIX_CLOCKS)
     if (useThreadCpuClock()) {
         u4 cpuClockDiff = (u4) (getThreadCpuTimeInUsec() - self->cpuClockBase);
@@ -1089,6 +1103,9 @@ void dvmEmulatorTraceStop()
 /*
  * Start instruction counting.
  */
+/**
+ * @brief 开始指令的计数
+ */
 void dvmStartInstructionCounting()
 {
     /* in theory we should make this an atomic inc; in practice not important */
@@ -1099,6 +1116,9 @@ void dvmStartInstructionCounting()
 /*
  * Stop instruction counting.
  */
+/**
+ * @brief 停止指令的计数
+ */
 void dvmStopInstructionCounting()
 {
     if (gDvm.instructionCountEnableCount == 0) {
@@ -1106,6 +1126,7 @@ void dvmStopInstructionCounting()
         dvmAbort();
     }
     gDvm.instructionCountEnableCount--;
+	/* 更新Profiling的状态 */
     updateActiveProfilers(kSubModeInstCounting,
                           (gDvm.instructionCountEnableCount != 0));
 }

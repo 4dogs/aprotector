@@ -228,13 +228,13 @@ void dvmJitSetCodeAddr(const u2* dPC, void *nPC, JitInstructionSetType set,
                        bool isMethodEntry, int profilePrefixSize);			/* 设置Jit代码地址 */
 void dvmJitEndTraceSelect(Thread* self, const u2* dPC);						/* 结束trace选择 */
 JitTraceCounter_t *dvmJitNextTraceCounter(void);							/* 下一个trace计数器 */
-/* !!! */void dvmJitTraceProfilingOff(void);											/* trace profiling关闭 */
-/* !!! */void dvmJitTraceProfilingOn(void);											/* trace profiling开启 */
+void dvmJitTraceProfilingOff(void);											/* trace profiling关闭 */
+void dvmJitTraceProfilingOn(void);											/* trace profiling开启 */
 void dvmJitChangeProfileMode(TraceProfilingModes newState);					/* 改变profile模式 */
-/* !!! */void dvmJitDumpTraceDesc(JitTraceDescription *trace);						/* 打印trace描述 */
+void dvmJitDumpTraceDesc(JitTraceDescription *trace);						/* 打印trace描述 */
 void dvmJitUpdateThreadStateSingle(Thread* threead);						/* 更新单个线程状态 */
 void dvmJitUpdateThreadStateAll(void);										/* 更新所有线程状态 */
-/* !!!! */void dvmJitResumeTranslation(Thread* self, const u2* pc, const u4* fp);		/* 回复编译 */
+void dvmJitResumeTranslation(Thread* self, const u2* pc, const u4* fp);		/* 回复编译 */
 }
 
 #endif  // DALVIK_INTERP_JIT_H_
