@@ -1,0 +1,2 @@
+[整体介绍]
+实现utf-8以及unicode字符串的操作，同时也提供给java/lang/String一些功能函数。
