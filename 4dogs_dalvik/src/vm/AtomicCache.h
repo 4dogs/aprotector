@@ -1,4 +1,4 @@
-ï»¿/*
+/*
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,6 +30,9 @@
  * arguments to "instanceof") and one result (e.g. a boolean value).
  *
  * Must be exactly 16 bytes.
+ * µ¥¸öµÄÔ­×Ó»º´æ½á¹¹ÃèÊö
+ * Õâ¸öÒª±£´æÁ½¸ökey£¬ÒòÎª±ÈÈçÓöµ½instanceofÕâÑùµÄ²Ù×÷·û£¬ËûÊÇ¶şÔª²Ù×÷·û£¬ÓĞ×ó²Ù×÷ÊıºÍÓÒ²Ù×÷Êı
+ * 
  */
 struct AtomicCacheEntry {
     u4          key1;
@@ -39,19 +42,19 @@ struct AtomicCacheEntry {
 };
 
 /*
- * One cache.
+ * One cache. Ò»¸öÍêÕûµÄ»º´æ
  *
  * Thought: we might be able to save a few cycles by storing the cache
  * struct and "entries" separately, avoiding an indirection.  (We already
  * handle "numEntries" separately in ATOMIC_CACHE_LOOKUP.)
  */
 struct AtomicCache {
-    AtomicCacheEntry*   entries;        /* array of entries */
-    int         numEntries;             /* #of entries, must be power of 2 */
+    AtomicCacheEntry*   entries;        /* array of entries ´æ·Å¶à¸öµ¥¸ö»º³åÃèÊöµ¥Ôª*/
+    int         numEntries;             /* #of entries, must be power of 2 »º´æµ¥ÔªµÄ¸öÊı£¬±ØĞëÊÇ2µÄ±¶Êı*/
 
-    void*       entryAlloc;             /* memory allocated for entries */
+    void*       entryAlloc;             /* memory allocated for entries Îª»º´æµ¥Ôª·ÖÅäµÄÄÚ´æ*/
 
-    /* cache stats; note we don't guarantee atomic increments for these */
+    /* cache stats; note we don't guarantee atomic increments for these ÒÔÏÂÊÇÒ»Ğ©×´Ì¬Öµ*/
     int         trivial;                /* cache access not required */
     int         fail;                   /* contention failure */
     int         hits;                   /* found entry in cache */
@@ -60,6 +63,9 @@ struct AtomicCache {
 };
 
 /*
+ * ±éÀúÒ»¸ö»º´æ¡£±éÀúµÄ¹ı³ÌÖĞĞèÒª±£³ÖÔ­×Ó¼¶±ğµÄ°²È«¡£
+ * Òò´Ë¿ÉÒÔ²ÉÈ¡Á½ÖÖ·½·¨ 
+ * 1. È«¾ÖËø  2.°æ±¾¿ØÖÆ
  * Do a cache lookup.  We need to be able to read and write entries
  * atomically.  There are a couple of ways to do this:
  *  (1) Have a global lock.  A mutex is too heavy, so instead we would use
@@ -144,11 +150,13 @@ struct AtomicCache {
 
 /*
  * Allocate a cache.
+ * ÉêÇëÒ»¸ö»º´æ
  */
 AtomicCache* dvmAllocAtomicCache(int numEntries);
 
 /*
  * Free a cache.
+ * ÊÍ·ÅÒ»¸ö»º´æ
  */
 void dvmFreeAtomicCache(AtomicCache* cache);
 
