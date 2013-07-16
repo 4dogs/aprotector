@@ -1,0 +1,38 @@
+[整体介绍]
+该模块跟StdioConverter一样，是实现为一个线程，主要是用来捕获信号的。
+主要是配合调试过程来使用的。
+比如SIGQUIT (Ctrl-\)这个信号到达时，就会挂起虚拟机，然后转储所有线程的状态。
+
+[详细说明]
+这个线程处理的信号过程中也会有JIT的相关的部分，比如是否要转储编译器的状态。
+#if defined(WITH_JIT) && defined(WITH_JIT_TUNING)
+    dvmCompilerDumpStats();
+#endif
+
+
+目前该线程只捕获三种信号，在代码中可以看到如下的表示：
+        if (gDvm.haltSignalCatcher)
+            break;
+
+        switch (rcvd) {
+        case SIGQUIT:
+            handleSigQuit(); //转储线程堆栈信息
+            break;
+        case SIGUSR1:
+            handleSigUsr1(); //强制进行一次垃圾回收
+            break;
+#if defined(WITH_JIT) && defined(WITH_JIT_TUNING)
+        case SIGUSR2:
+            handleSigUsr2(); //转储一些JIT状态，或者重置代码缓冲
+            break;
+#endif
+        default:
+            ALOGE("unexpected signal %d", rcvd);
+            break;
+        }
+
+
+该线程的基本流程是：
+1.设置线程状态为等待 dvmChangeStatus(self, THREAD_VMWAIT);
+2.在sigwait信号处一直等待，直到接收到有效的信号
+3.设置线程状态为正在执行，然后处理不同的信号 dvmChangeStatus(self, THREAD_RUNNING);
