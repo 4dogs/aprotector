@@ -49,6 +49,10 @@
 /*
  * Record the details of an allocation.
  */
+
+/*
+ *breif:记录分配内容.包括类内存块，要求的总大小，可回收的简单线程id，函数栈信息（正在执行的方法,当前执行的偏移，以16字节为单位）.
+*/
 struct AllocRecord {
     ClassObject*    clazz;      /* class allocated in this block */
     u4              size;       /* total size requested */
@@ -73,6 +77,10 @@ struct AllocRecord {
  * Initialize a few things.  This gets called early, so keep activity to
  * a minimum.
  */
+
+/*
+ *breif:初始化操作，实际是初始化allocTracker的互斥.
+*/
 bool dvmAllocTrackerStartup()
 {
     /* prep locks */
@@ -87,6 +95,10 @@ bool dvmAllocTrackerStartup()
 /*
  * Release anything we're holding on to.
  */
+
+/*
+ *breif:清理操作，释放互斥.
+*/
 void dvmAllocTrackerShutdown()
 {
     free(gDvm.allocRecords);
@@ -105,6 +117,10 @@ void dvmAllocTrackerShutdown()
  *
  * Returns "true" on success.
  */
+
+/*
+ *breif:开启内存分配跟踪器.实际是为gDvm的allocrecords分配一块内存.
+*/
 bool dvmEnableAllocTracker()
 {
     bool result = true;
@@ -129,6 +145,10 @@ bool dvmEnableAllocTracker()
 /*
  * Disable allocation tracking.  Does nothing if tracking is not enabled.
  */
+
+/*
+ *breif:禁用内存分配跟踪器.实际释放gDvm的allocRecords.
+*/
 void dvmDisableAllocTracker()
 {
     dvmLockMutex(&gDvm.allocTrackerLock);
@@ -144,6 +164,10 @@ void dvmDisableAllocTracker()
 /*
  * Get the last few stack frames.
  */
+
+/*
+ *breif:获取函数信息栈的信息.
+*/
 static void getStackFrames(Thread* self, AllocRecord* pRec)
 {
     int stackDepth = 0;
@@ -183,7 +207,14 @@ static void getStackFrames(Thread* self, AllocRecord* pRec)
 
 /*
  * Add a new allocation to the set.
+ *
  */
+
+/*
+ *breif:向gDvm.allocRecords添加新的allocrecord并且将分配信息初始化.
+ *param[clazz]:类对象.
+ *param[size]:需要的大小.
+*/
 void dvmDoTrackAllocation(ClassObject* clazz, size_t size)
 {
     Thread* self = dvmThreadSelf();
@@ -264,6 +295,13 @@ We use separate string tables for class names, method names, and source
 files to keep the indexes small.  There will generally be no overlap
 between the contents of these tables.
 */
+
+/*
+我们在字符串表存储16位无符号索引,从理论上可以将字符串分开存储在每个表(kMaxAllocRecordStackDepth * kNumAllocRecords)，实际上用到的少的多.
+在这里使用字符串表主要原因是为了保持ddms的消息长度最小.
+我们使用单独的字符串表保存类名，方法名，源文件.通常在这些表之间内容不重叠.
+*/
+
 const int kMessageHeaderLen = 15;
 const int kEntryHeaderLen = 9;
 const int kStackFrameLen = 8;
@@ -278,6 +316,10 @@ const int kStackFrameLen = 8;
  * We need to handle underflow in our circular buffer, so we add
  * kNumAllocRecords and then mask it back down.
  */
+
+/*
+ *breif:返回头元素的索引.头元素指向最近写入的记录，所以如果allocRecordCount是1,要使用当前元素，则需要一系列运算来计算.我们添加kNumAllocRecords作为掩码用来处理循环缓冲区的溢出.
+*/
 inline static int headIndex()
 {
     return (gDvm.allocRecordHead+1 + kNumAllocRecords - gDvm.allocRecordCount)
@@ -287,6 +329,11 @@ inline static int headIndex()
 /*
  * Dump the contents of a PointerSet full of character pointers.
  */
+
+/*
+ *breif:一个PointerSet的字符指针的内容转储.
+ *param[strings]:PointerSet类型的字符串.
+*/
 static void dumpStringTable(PointerSet* strings)
 {
     int count = dvmPointerSetGetCount(strings);
@@ -300,6 +347,11 @@ static void dumpStringTable(PointerSet* strings)
  * Get the method's source file.  If we don't know it, return "" instead
  * of a NULL pointer.
  */
+
+/*
+ *breif:返回方法所在类的源文件.
+ *param[method]:方法.
+*/
 static const char* getMethodSourceFile(const Method* method)
 {
     const char* fileName = dvmGetMethodSourceFile(method);
@@ -319,6 +371,13 @@ static const char* getMethodSourceFile(const Method* method)
  * but in practice this shouldn't matter (and if it does, we can uniq-sort
  * the result in a second pass).
  */
+
+/*
+ *breif:将allocrecords信息存储到PointerSet指针集合里.
+ *param[classNames]:存储类信息的集合.
+ *param[methodNames]:存储方法名的集合.
+ *param[fileNames]:存储文件的集合.
+*/
 static bool populateStringTables(PointerSet* classNames,
     PointerSet* methodNames, PointerSet* fileNames)
 {
@@ -369,6 +428,15 @@ static bool populateStringTables(PointerSet* classNames,
  *
  * The size of the output data is returned.
  */
+
+/*
+ *breif:生成基本信息存储在(ptr)中.包括类名，方法名，源文件，函数栈等信息.
+ *param[ptr]:存储的内存地址.
+ *param[baseLen]:base长度.
+ *param[classNames]:类名集合.
+ *param[methodNames]:方法名集合.
+ *param[fileNames]:文件名集合.
+*/
 static size_t generateBaseOutput(u1* ptr, size_t baseLen,
     const PointerSet* classNames, const PointerSet* methodNames,
     const PointerSet* fileNames)
@@ -441,6 +509,11 @@ static size_t generateBaseOutput(u1* ptr, size_t baseLen,
  * Compute the size required to store a string table.  Includes the length
  * word and conversion to UTF-16.
  */
+
+/*
+ *breif:计算需要存储字符串表的大小.包括字  转换为utf-16的长度.
+ *param[strings]:字符串指针集合.
+*/
 static size_t computeStringTableSize(PointerSet* strings)
 {
     int count = dvmPointerSetGetCount(strings);
@@ -462,6 +535,12 @@ static size_t computeStringTableSize(PointerSet* strings)
  *
  * Returns the string's length, in characters.
  */
+
+/*
+ *breif:utf-8字符串转换为utf-16字符串并且将字节序换成大端.
+ *param[utf16Str]:utf-16的字符串.
+ *param[utf8Str]:utf-8的字符串.
+*/
 static int convertUtf8ToUtf16BEUA(u1* utf16Str, const char* utf8Str)
 {
     u1* origUtf16Str = utf16Str;
@@ -478,6 +557,12 @@ static int convertUtf8ToUtf16BEUA(u1* utf16Str, const char* utf8Str)
 /*
  * Output a string table serially.
  */
+
+/*
+ *breif:将字符串表连续输出到(ptr)指向的地址，字符串从utf-8转换为utf-16大端.
+ *param[strings]:字符串集合.
+ *param[ptr]:输出地址.
+*/
 static size_t outputStringTable(PointerSet* strings, u1* ptr)
 {
     int count = dvmPointerSetGetCount(strings);
@@ -503,6 +588,12 @@ static size_t outputStringTable(PointerSet* strings, u1* ptr)
  *
  * On success, returns "true" with "*pData" and "*pDataLen" set.
  */
+
+/*
+ *breif:生成ddm所有跟踪分配的数据包.
+ *param[pData]:输出的数据包.
+ *param[pDataLen]:数据包长度.
+*/
 bool dvmGenerateTrackedAllocationReport(u1** pData, size_t* pDataLen)
 {
     bool result = false;
@@ -595,6 +686,11 @@ bail:
  * If "enable" is set, we try to enable the feature if it's not already
  * active.
  */
+
+/*
+ *breif:转储跟踪分配到日志文件.
+ *param[enable]:启用同步.
+*/
 void dvmDumpTrackedAllocations(bool enable)
 {
     if (enable)

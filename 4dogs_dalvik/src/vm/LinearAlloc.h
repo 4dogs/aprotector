@@ -16,6 +16,10 @@
 /*
  * Simple linear memory allocator.
  */
+
+/*
+简单的线性内存非配器.
+*/
 #ifndef DALVIK_LINEARALLOC_H_
 #define DALVIK_LINEARALLOC_H_
 
@@ -23,6 +27,10 @@
  * If this is set, we create additional data structures and make many
  * additional mprotect() calls.
  */
+
+/*
+  如果设置，我们创建额外数据结构与许多mprotect调用.
+*/
 #define ENFORCE_READ_ONLY   false
 
 /*
@@ -30,6 +38,10 @@
  * allocated region, but that would prevent us from sharing the rest of
  * that first page.
  */
+
+/*
+  线性分配状态.
+*/
 struct LinearAllocHdr {
     int     curOffset;          /* offset where next data goes */
     pthread_mutex_t lock;       /* controls updates to this struct */

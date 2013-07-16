@@ -16,11 +16,20 @@
 /*
  * Maintain an expanding set of unique pointer values.
  */
+
+/*
+ *breif:扩展指针集合.PointerSet是包含一个有序的指针链表.
+*/
+
 #include "Dalvik.h"
 
 /*
  * Sorted, expanding list of pointers.
  */
+
+/*
+ *breif:排序扩展指针列表.
+*/
 struct PointerSet {
     u2          alloc;
     u2          count;
@@ -30,6 +39,10 @@ struct PointerSet {
 /*
  * Verify that the set is in sorted order.
  */
+
+/*
+ *breif:验证列表集排序.
+*/
 #ifndef NDEBUG
 static bool verifySorted(PointerSet* pSet)
 {
@@ -52,6 +65,11 @@ static bool verifySorted(PointerSet* pSet)
  *
  * Returns NULL on failure.
  */
+
+/*
+ *breif:分配一个新的PointerSet
+ *param[initialSize]:PointerSet大小.
+*/
 PointerSet* dvmPointerSetAlloc(int initialSize)
 {
     PointerSet* pSet = (PointerSet*)calloc(1, sizeof(PointerSet));
@@ -72,6 +90,10 @@ PointerSet* dvmPointerSetAlloc(int initialSize)
 /*
  * Free up a PointerSet.
  */
+
+/*
+ *breif:释放PointerSet指针的内存.
+*/
 void dvmPointerSetFree(PointerSet* pSet)
 {
     if (pSet == NULL)
@@ -87,6 +109,10 @@ void dvmPointerSetFree(PointerSet* pSet)
 /*
  * Clear the contents of a pointer set.
  */
+
+/*
+ *breif:清除一个指针集合(PointerSet)的内容.
+*/
 void dvmPointerSetClear(PointerSet* pSet)
 {
     pSet->count = 0;
@@ -95,6 +121,11 @@ void dvmPointerSetClear(PointerSet* pSet)
 /*
  * Get the number of pointers currently stored in the list.
  */
+
+/*
+ *breif:获取当前存储在链表里的指针数.
+ *param[pSet]:指针集合.
+*/
 int dvmPointerSetGetCount(const PointerSet* pSet)
 {
     return pSet->count;
@@ -103,6 +134,12 @@ int dvmPointerSetGetCount(const PointerSet* pSet)
 /*
  * Get the Nth entry from the list.
  */
+
+/*
+ *breif:获取指针集合的序号为i的链表条目.
+ *param[pSet]:指针集合.
+ *param[i]:序号.
+*/
 const void* dvmPointerSetGetEntry(const PointerSet* pSet, int i)
 {
     return pSet->list[i];
@@ -114,6 +151,12 @@ const void* dvmPointerSetGetEntry(const PointerSet* pSet, int i)
  *
  * Returns "true" if the value was added.
  */
+
+/*
+ *breif:向指针集合添加链表条目.
+ *param[pSet]:指针集合.
+ *param[ptr]:条目指针.
+*/
 bool dvmPointerSetAddEntry(PointerSet* pSet, const void* ptr)
 {
     int nearby;
@@ -180,6 +223,12 @@ bool dvmPointerSetAddEntry(PointerSet* pSet, const void* ptr)
 /*
  * Returns "true" if the element was successfully removed.
  */
+
+/*
+ *breif:移除指针集合链表元素.
+ *param[pSet]:指针集合.
+ *param[ptr]:要移除的指针元素.
+*/
 bool dvmPointerSetRemoveEntry(PointerSet* pSet, const void* ptr)
 {
     int where;
@@ -202,6 +251,13 @@ bool dvmPointerSetRemoveEntry(PointerSet* pSet, const void* ptr)
  * Returns the index if "ptr" appears in the list.  If it doesn't appear,
  * this returns a negative index for a nearby element.
  */
+
+/*
+ *breif:返回出现在list里的"ptr",如果没在list里，则返回附近的负值.
+ *param[pSet]:指针集合.
+ *param[ptr]:元素指针.
+ *param[pIndex]:序号.
+*/
 bool dvmPointerSetHas(const PointerSet* pSet, const void* ptr, int* pIndex)
 {
     int hi, lo, mid;
@@ -235,6 +291,13 @@ bool dvmPointerSetHas(const PointerSet* pSet, const void* ptr, int* pIndex)
  *
  * Any pointer in "pSet" that does not appear in "ptrArray" is removed.
  */
+
+/*
+ *breif:计算传入的指针数组与集合的交叉点.不会出现在"ptrArray"的任意在"pSet"里的指针将被移除.
+ *param[pSet]:集合.
+ *param[ptrArray]:
+ *param[count]:
+*/
 void dvmPointerSetIntersect(PointerSet* pSet, const void** ptrArray, int count)
 {
     int i, j;
@@ -265,6 +328,10 @@ void dvmPointerSetIntersect(PointerSet* pSet, const void** ptrArray, int count)
 /*
  * Print the list contents to stdout.  For debugging.
  */
+
+/*
+ *breif:当调试时打印指针.
+*/
 void dvmPointerSetDump(const PointerSet* pSet)
 {
     ALOGI("PointerSet %p", pSet);
