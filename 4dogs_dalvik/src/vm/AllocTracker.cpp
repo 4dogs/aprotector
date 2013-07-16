@@ -349,7 +349,7 @@ static void dumpStringTable(PointerSet* strings)
  */
 
 /*
- *breif:返回方法的源文件.
+ *breif:返回方法所在类的源文件.
  *param[method]:方法.
 */
 static const char* getMethodSourceFile(const Method* method)
@@ -371,6 +371,13 @@ static const char* getMethodSourceFile(const Method* method)
  * but in practice this shouldn't matter (and if it does, we can uniq-sort
  * the result in a second pass).
  */
+
+/*
+ *breif:将allocrecords信息存储到PointerSet指针集合里.
+ *param[classNames]:存储类信息的集合.
+ *param[methodNames]:存储方法名的集合.
+ *param[fileNames]:存储文件的集合.
+*/
 static bool populateStringTables(PointerSet* classNames,
     PointerSet* methodNames, PointerSet* fileNames)
 {
@@ -421,6 +428,15 @@ static bool populateStringTables(PointerSet* classNames,
  *
  * The size of the output data is returned.
  */
+
+/*
+ *breif:生成基本信息存储在(ptr)中.包括类名，方法名，源文件，函数栈等信息.
+ *param[ptr]:存储的内存地址.
+ *param[baseLen]:base长度.
+ *param[classNames]:类名集合.
+ *param[methodNames]:方法名集合.
+ *param[fileNames]:文件名集合.
+*/
 static size_t generateBaseOutput(u1* ptr, size_t baseLen,
     const PointerSet* classNames, const PointerSet* methodNames,
     const PointerSet* fileNames)
@@ -493,6 +509,11 @@ static size_t generateBaseOutput(u1* ptr, size_t baseLen,
  * Compute the size required to store a string table.  Includes the length
  * word and conversion to UTF-16.
  */
+
+/*
+ *breif:计算需要存储字符串表的大小.包括字  转换为utf-16的长度.
+ *param[strings]:字符串指针集合.
+*/
 static size_t computeStringTableSize(PointerSet* strings)
 {
     int count = dvmPointerSetGetCount(strings);
@@ -514,6 +535,12 @@ static size_t computeStringTableSize(PointerSet* strings)
  *
  * Returns the string's length, in characters.
  */
+
+/*
+ *breif:utf-8字符串转换为utf-16字符串并且将字节序换成大端.
+ *param[utf16Str]:utf-16的字符串.
+ *param[utf8Str]:utf-8的字符串.
+*/
 static int convertUtf8ToUtf16BEUA(u1* utf16Str, const char* utf8Str)
 {
     u1* origUtf16Str = utf16Str;
@@ -530,6 +557,12 @@ static int convertUtf8ToUtf16BEUA(u1* utf16Str, const char* utf8Str)
 /*
  * Output a string table serially.
  */
+
+/*
+ *breif:将字符串表连续输出到(ptr)指向的地址，字符串从utf-8转换为utf-16大端.
+ *param[strings]:字符串集合.
+ *param[ptr]:输出地址.
+*/
 static size_t outputStringTable(PointerSet* strings, u1* ptr)
 {
     int count = dvmPointerSetGetCount(strings);
@@ -555,6 +588,12 @@ static size_t outputStringTable(PointerSet* strings, u1* ptr)
  *
  * On success, returns "true" with "*pData" and "*pDataLen" set.
  */
+
+/*
+ *breif:生成ddm所有跟踪分配的数据包.
+ *param[pData]:输出的数据包.
+ *param[pDataLen]:数据包长度.
+*/
 bool dvmGenerateTrackedAllocationReport(u1** pData, size_t* pDataLen)
 {
     bool result = false;
@@ -647,6 +686,11 @@ bail:
  * If "enable" is set, we try to enable the feature if it's not already
  * active.
  */
+
+/*
+ *breif:转储跟踪分配到日志文件.
+ *param[enable]:启用同步.
+*/
 void dvmDumpTrackedAllocations(bool enable)
 {
     if (enable)
