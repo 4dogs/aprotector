@@ -1,0 +1,16 @@
+[整体介绍]
+实现原子级别的缓存操作机制。
+
+[具体举例]
+比如有一个表达式：key1+key2=value。如果要实现原子操作（出于线程安全考虑），那么就可以使用这个模块实现的机制，可以方便的存储和遍历。
+
+该模块中最小的单元是AtomicCacheEntry结构体。
+struct AtomicCacheEntry {
+    u4          key1;
+    u4          key2;
+    u4          value;
+    volatile u4 version;    /* version and lock flag */
+};
+该结构体之所以有两个key，是因为 除了  key1+key2 = value这种情况下我们可以先计算好左值的情况下，我们还会遇到一些二元操作符。
+比如 += -= |=   等等的。对于二元操作符，左右两边都是key，value是隐含的。
+
