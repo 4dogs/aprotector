@@ -18,6 +18,11 @@
  *
  * These get inlined, so prefer small size over maximum speed.
  */
+
+/*
+一些操作bit与字节的功能函数.
+*/
+
 #ifndef DALVIK_BITS_H_
 #define DALVIK_BITS_H_
 
@@ -30,6 +35,10 @@
 /*
  * Get 1 byte.  (Included to make the code more legible.)
  */
+
+/*
+ *breif:获取字符串的第一个字节.
+*/
 INLINE u1 get1(unsigned const char* pSrc)
 {
     return *pSrc;
@@ -38,6 +47,10 @@ INLINE u1 get1(unsigned const char* pSrc)
 /*
  * Get 2 big-endian bytes.
  */
+
+/*
+ *breif:获取字符串前两个字节并转换为大端存储格式.
+*/
 INLINE u2 get2BE(unsigned char const* pSrc)
 {
     return (pSrc[0] << 8) | pSrc[1];
@@ -46,6 +59,10 @@ INLINE u2 get2BE(unsigned char const* pSrc)
 /*
  * Get 4 big-endian bytes.
  */
+
+/*
+ *breif:获取字符串前4个大端字节.
+*/
 INLINE u4 get4BE(unsigned char const* pSrc)
 {
     return (pSrc[0] << 24) | (pSrc[1] << 16) | (pSrc[2] << 8) | pSrc[3];
@@ -54,6 +71,10 @@ INLINE u4 get4BE(unsigned char const* pSrc)
 /*
  * Get 8 big-endian bytes.
  */
+
+/*
+ *breif:获取8个字节
+*/
 INLINE u8 get8BE(unsigned char const* pSrc)
 {
     u4 low, high;
@@ -73,6 +94,10 @@ INLINE u8 get8BE(unsigned char const* pSrc)
 /*
  * Get 2 little-endian bytes.
  */
+
+/*
+ *breif:获取字符串的两个字节的小端值.
+*/
 INLINE u2 get2LE(unsigned char const* pSrc)
 {
     return pSrc[0] | (pSrc[1] << 8);
@@ -81,6 +106,10 @@ INLINE u2 get2LE(unsigned char const* pSrc)
 /*
  * Get 4 little-endian bytes.
  */
+
+/*
+ *breif:获取字符串的4个字节的小端值.
+*/
 INLINE u4 get4LE(unsigned char const* pSrc)
 {
     u4 result;
@@ -96,6 +125,10 @@ INLINE u4 get4LE(unsigned char const* pSrc)
 /*
  * Get 8 little-endian bytes.
  */
+
+/*
+ *breif:获取字符串的8个字节的小端值.
+*/
 INLINE u8 get8LE(unsigned char const* pSrc)
 {
     u4 low, high;
@@ -114,6 +147,10 @@ INLINE u8 get8LE(unsigned char const* pSrc)
 /*
  * Grab 1 byte and advance the data pointer.
  */
+
+/*
+ *breif:获取字符串的一个字节并将指针指向下一个字节.
+*/
 INLINE u1 read1(unsigned const char** ppSrc)
 {
     return *(*ppSrc)++;
@@ -122,6 +159,10 @@ INLINE u1 read1(unsigned const char** ppSrc)
 /*
  * Grab 2 big-endian bytes and advance the data pointer.
  */
+
+/*
+ *breif:获取字符串的两个大端字节并将指针+2.
+*/
 INLINE u2 read2BE(unsigned char const** ppSrc)
 {
     const unsigned char* pSrc = *ppSrc;
@@ -133,6 +174,10 @@ INLINE u2 read2BE(unsigned char const** ppSrc)
 /*
  * Grab 4 big-endian bytes and advance the data pointer.
  */
+
+/*
+ *breif:获取字符串的4字节的大端值并更新指针.
+*/
 INLINE u4 read4BE(unsigned char const** ppSrc)
 {
     const unsigned char* pSrc = *ppSrc;
@@ -150,6 +195,10 @@ INLINE u4 read4BE(unsigned char const** ppSrc)
 /*
  * Get 8 big-endian bytes and advance the data pointer.
  */
+
+/*
+ *breif:获取8字节的大端值并更新指针.
+*/
 INLINE u8 read8BE(unsigned char const** ppSrc)
 {
     const unsigned char* pSrc = *ppSrc;
@@ -171,6 +220,10 @@ INLINE u8 read8BE(unsigned char const** ppSrc)
 /*
  * Grab 2 little-endian bytes and advance the data pointer.
  */
+
+/*
+ *breif:获取两个字节的小端值并更新指针.
+*/
 INLINE u2 read2LE(unsigned char const** ppSrc)
 {
     const unsigned char* pSrc = *ppSrc;
@@ -181,6 +234,10 @@ INLINE u2 read2LE(unsigned char const** ppSrc)
 /*
  * Grab 4 little-endian bytes and advance the data pointer.
  */
+
+/*
+ *breif:获取4个字节的小端值并更新指针.
+*/
 INLINE u4 read4LE(unsigned char const** ppSrc)
 {
     const unsigned char* pSrc = *ppSrc;
@@ -198,6 +255,10 @@ INLINE u4 read4LE(unsigned char const** ppSrc)
 /*
  * Get 8 little-endian bytes and advance the data pointer.
  */
+
+/*
+ *breif:获取8个字节的小端值并更细指针.
+*/
 INLINE u8 read8LE(unsigned char const** ppSrc)
 {
     const unsigned char* pSrc = *ppSrc;
@@ -219,6 +280,10 @@ INLINE u8 read8LE(unsigned char const** ppSrc)
 /*
  * Skip over a UTF-8 string (preceded by a 4-byte length).
  */
+
+/*
+ *breif:跳过utf-8字符串.
+*/
 INLINE void skipUtf8String(unsigned char const** ppSrc)
 {
     u4 length = read4BE(ppSrc);
@@ -231,6 +296,10 @@ INLINE void skipUtf8String(unsigned char const** ppSrc)
  *
  * Returns the length of the original string.
  */
+
+/*
+ *breif:读取一个utf-8字符串到缓冲并更新指针.
+*/
 INLINE int readUtf8String(unsigned char const** ppSrc, char* buf, size_t bufLen)
 {
     u4 length = read4BE(ppSrc);
@@ -249,6 +318,10 @@ INLINE int readUtf8String(unsigned char const** ppSrc, char* buf, size_t bufLen)
  * Returns the string and its length.  (The latter is probably unnecessary
  * for the way we're using UTF8.)
  */
+
+/*
+ *breif:读取一个utf8字符串到新分配的一块内存并更新指针.
+*/
 INLINE char* readNewUtf8String(unsigned char const** ppSrc, size_t* pLength)
 {
     u4 length = read4BE(ppSrc);
@@ -269,6 +342,10 @@ INLINE char* readNewUtf8String(unsigned char const** ppSrc, size_t* pLength)
 /*
  * Set 1 byte.  (Included to make code more consistent/legible.)
  */
+
+/*
+ *breif:给1字节赋值.
+*/
 INLINE void set1(u1* buf, u1 val)
 {
     *buf = (u1)(val);
@@ -277,6 +354,10 @@ INLINE void set1(u1* buf, u1 val)
 /*
  * Set 2 big-endian bytes.
  */
+
+/*
+ *breif:给两字节的大端赋值.
+*/
 INLINE void set2BE(u1* buf, u2 val)
 {
     *buf++ = (u1)(val >> 8);
@@ -286,6 +367,10 @@ INLINE void set2BE(u1* buf, u2 val)
 /*
  * Set 4 big-endian bytes.
  */
+
+/*
+  breif:给4字节的大端赋值.
+*/
 INLINE void set4BE(u1* buf, u4 val)
 {
     *buf++ = (u1)(val >> 24);
@@ -297,6 +382,10 @@ INLINE void set4BE(u1* buf, u4 val)
 /*
  * Set 8 big-endian bytes.
  */
+
+/*
+ *breif:给8字节的大端赋值.
+*/
 INLINE void set8BE(u1* buf, u8 val)
 {
     *buf++ = (u1)(val >> 56);
@@ -312,6 +401,10 @@ INLINE void set8BE(u1* buf, u8 val)
 /*
  * Set 2 little-endian bytes.
  */
+
+/*
+ *breif:给两字节的小端赋值.
+*/
 INLINE void set2LE(u1* buf, u2 val)
 {
     *buf++ = (u1)(val);
@@ -321,6 +414,10 @@ INLINE void set2LE(u1* buf, u2 val)
 /*
  * Set 4 little-endian bytes.
  */
+
+/*
+ *breif:给4字节的小端赋值.
+*/
 INLINE void set4LE(u1* buf, u4 val)
 {
     *buf++ = (u1)(val);
@@ -332,6 +429,10 @@ INLINE void set4LE(u1* buf, u4 val)
 /*
  * Set 8 little-endian bytes.
  */
+
+/*
+ *breif:给8字节的小端赋值.
+*/
 INLINE void set8LE(u1* buf, u8 val)
 {
     *buf++ = (u1)(val);
@@ -347,6 +448,10 @@ INLINE void set8LE(u1* buf, u8 val)
 /*
  * Stuff a UTF-8 string into the buffer.
  */
+
+/*
+ *breif:将utf8字符串存储到buf.
+*/
 INLINE void setUtf8String(u1* buf, const u1* str)
 {
     u4 strLen = strlen((const char*)str);
