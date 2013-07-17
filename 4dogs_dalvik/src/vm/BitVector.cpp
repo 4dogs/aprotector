@@ -34,6 +34,12 @@
  * Allocate a bit vector with enough space to hold at least the specified
  * number of bits.
  */
+
+/*
+ *breif:分配一个足够空间的位向量容纳最少的指定的位数.
+ *param[startBits]:扩展的起始地址.
+ *param[expandable]:扩展标记.
+*/
 BitVector* dvmAllocBitVector(unsigned int startBits, bool expandable)
 {
     BitVector* bv;
@@ -54,6 +60,11 @@ BitVector* dvmAllocBitVector(unsigned int startBits, bool expandable)
 /*
  * Free a BitVector.
  */
+
+/*
+ *breif:释放位向量器.
+ *param[pBits]:位向量指针.
+*/
 void dvmFreeBitVector(BitVector* pBits)
 {
     if (pBits == NULL)
@@ -70,6 +81,11 @@ void dvmFreeBitVector(BitVector* pBits)
  * lock that prevents multiple threads from executing simultaneously in
  * dvmAllocBit/dvmFreeBit.
  */
+
+/*
+ *breif:位图中第一个可分配的位.若有扩展标记则分配扩展.
+ *param[pBits]:位向量.
+*/
 int dvmAllocBit(BitVector* pBits)
 {
     unsigned int word, bit;
@@ -104,6 +120,12 @@ retry:
 /*
  * Mark the specified bit as "set".
  */
+
+/*
+ *breif:标记指定的位"set".
+ *param[pBits]:位向量.
+ *param[num]:指定的位.
+*/
 void dvmSetBit(BitVector* pBits, unsigned int num)
 {
     if (num >= pBits->storageSize * sizeof(u4) * 8) {
@@ -132,6 +154,12 @@ void dvmSetBit(BitVector* pBits, unsigned int num)
 /*
  * Mark the specified bit as "clear".
  */
+
+/*
+ *breif:标记指定位"clear".
+ *pBits:位向量.
+ *num:指定位.
+*/
 void dvmClearBit(BitVector* pBits, unsigned int num)
 {
     assert(num < pBits->storageSize * sizeof(u4) * 8);
@@ -142,6 +170,11 @@ void dvmClearBit(BitVector* pBits, unsigned int num)
 /*
  * Mark all bits bit as "clear".
  */
+
+/*
+ *breif:清理所有位向量的标记.
+ *param[pBits]:位向量.
+*/
 void dvmClearAllBits(BitVector* pBits)
 {
     unsigned int count = pBits->storageSize;
@@ -153,6 +186,12 @@ void dvmClearAllBits(BitVector* pBits)
  * since there might be unused bits - setting those to one will confuse the
  * iterator.
  */
+
+/*
+ *breif:标记指定位数为"set".
+ *param[pBits]:位向量.
+ *param[numBits]:位数.
+*/
 void dvmSetInitialBits(BitVector* pBits, unsigned int numBits)
 {
     unsigned int idx;
@@ -169,6 +208,12 @@ void dvmSetInitialBits(BitVector* pBits, unsigned int numBits)
 /*
  * Determine whether or not the specified bit is set.
  */
+
+/*
+ *breif:判断指定的位是否设置.
+ *param[pBits]:位向量.
+ *param[num]:指定的位.
+*/
 bool dvmIsBitSet(const BitVector* pBits, unsigned int num)
 {
     assert(num < pBits->storageSize * sizeof(u4) * 8);
@@ -180,6 +225,11 @@ bool dvmIsBitSet(const BitVector* pBits, unsigned int num)
 /*
  * Count the number of bits that are set.
  */
+
+/*
+ *breif:计算标记的位数.
+ *param[pBits]:位向量.
+*/
 int dvmCountSetBits(const BitVector* pBits)
 {
     unsigned int word;
@@ -207,6 +257,12 @@ int dvmCountSetBits(const BitVector* pBits)
 /*
  * If the vector sizes don't match, log an error and abort.
  */
+
+/*
+ *breif:如果矢量的大小不匹配，记录错误并中止.
+ *param[bv1]:位向量.
+ *param[bv2]:位向量.
+*/
 static void checkSizes(const BitVector* bv1, const BitVector* bv2)
 {
     if (bv1->storageSize != bv2->storageSize) {
@@ -220,6 +276,12 @@ static void checkSizes(const BitVector* bv1, const BitVector* bv2)
  * Copy a whole vector to the other. Only do that when the both vectors have
  * the same size.
  */
+
+/*
+ *breif:当位向量大小相同时，将源位向量拷贝到目的位向量.
+ *param[dest]:目的位向量.
+ *param[src]:源位向量.
+*/
 void dvmCopyBitVector(BitVector *dest, const BitVector *src)
 {
     /* if dest is expandable and < src, we could expand dest to match */
@@ -231,6 +293,13 @@ void dvmCopyBitVector(BitVector *dest, const BitVector *src)
 /*
  * Intersect two bit vectors and store the result to the dest vector.
  */
+
+/*
+ *breif:将大小相同扩展标记相同的两个位向量与操作后存储到同样大小与标记目标位向量.
+ *param[dest]:目的位向量.
+ *param[src1]:源位向量.
+ *param[src2]:源位向量.
+*/
 bool dvmIntersectBitVectors(BitVector *dest, const BitVector *src1,
                             const BitVector *src2)
 {
@@ -250,6 +319,15 @@ bool dvmIntersectBitVectors(BitVector *dest, const BitVector *src1,
 /*
  * Unify two bit vectors and store the result to the dest vector.
  */
+
+/*                                                                              
+ *breif:将大小相同扩展标记相同的两个位向量或操作后存储到同样大小与标记目标位向\\
+量.                                                                             
+*param[dest]:目的位向量.                                                       
+*param[src1]:源位向量.                                                         
+*param[src2]:源位向量.                                                         
+*/
+
 bool dvmUnifyBitVectors(BitVector *dest, const BitVector *src1,
                         const BitVector *src2)
 {
@@ -269,6 +347,12 @@ bool dvmUnifyBitVectors(BitVector *dest, const BitVector *src1,
 /*
  * Compare two bit vectors and return true if difference is seen.
  */
+
+/*
+ *breif:判断两个位向量，若true表示不相同.
+ *param[src1]:位向量.
+ *param[src2]:位向量.
+*/
 bool dvmCompareBitVectors(const BitVector *src1, const BitVector *src2)
 {
     if (src1->storageSize != src2->storageSize ||
@@ -283,6 +367,12 @@ bool dvmCompareBitVectors(const BitVector *src1, const BitVector *src2)
 }
 
 /* Initialize the iterator structure */
+
+/*
+ *breif:初始化迭代器.
+ *param[pBits]:位向量.
+ *param[iterator]:迭代器.
+*/
 void dvmBitVectorIteratorInit(BitVector* pBits, BitVectorIterator* iterator)
 {
     iterator->pBits = pBits;
@@ -291,6 +381,11 @@ void dvmBitVectorIteratorInit(BitVector* pBits, BitVectorIterator* iterator)
 }
 
 /* Return the next position set to 1. -1 means end-of-element reached */
+
+/*
+ *breif:返回迭代器中下一个设置的位向量.若位-1则表示结束位置.
+ *param[iterator]:迭代器.
+*/
 int dvmBitVectorIteratorNext(BitVectorIterator* iterator)
 {
     const BitVector* pBits = iterator->pBits;
@@ -318,6 +413,12 @@ int dvmBitVectorIteratorNext(BitVectorIterator* iterator)
  *
  * Returns "true" if the contents of the destination vector were modified.
  */
+
+/*
+ *breif:检查两个位向量变化，若有变化则返回true.
+ *param[dst]:目标位向量.
+ *param[src]:源位向量.
+*/
 bool dvmCheckMergeBitVectors(BitVector* dst, const BitVector* src)
 {
     bool changed = false;
