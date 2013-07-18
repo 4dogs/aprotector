@@ -17,6 +17,10 @@
 /*
  * Linear memory allocation, tied to class loaders.
  */
+
+/*
+ * 内存的线性分配,绑定在类加载器上.
+*/
 #include "Dalvik.h"
 
 #include <sys/mman.h>
@@ -88,6 +92,11 @@ static void checkAllFree(Object* classLoader);
  * Someday, retrieve the linear alloc struct associated with a particular
  * class loader.  For now, always use the boostrap loader's instance.
  */
+
+/*
+ *breif:返回一个LinearAllocHdr的结构的数据，此数据在gDvm.pBootLoaderAlloc.
+ *param[classLoader]:类加载器对象.
+*/
 static inline LinearAllocHdr* getHeader(Object* classLoader)
 {
     return gDvm.pBootLoaderAlloc;
@@ -97,6 +106,12 @@ static inline LinearAllocHdr* getHeader(Object* classLoader)
  * Convert a pointer to memory to a pointer to the block header (which is
  * currently just a length word).
  */
+
+/*
+ *breif:将内存指针转换为指向内存头的指针，相当于将原指针 + 4个字节.
+ *param[mem]:内存指针.
+ *return:返回只想内存块头的指针.
+*/
 static inline u4* getBlockHeader(void* mem)
 {
     return ((u4*) mem) -1;
@@ -105,6 +120,12 @@ static inline u4* getBlockHeader(void* mem)
 /*
  * Create a new linear allocation block.
  */
+
+/*
+ *breif:创建一个新的线性内存块.若ashmem宏定义则使用共享内存块.
+ *param[classLoader]:类加载器.
+ *return:返回线性内存块.
+*/
 LinearAllocHdr* dvmLinearAllocCreate(Object* classLoader)
 {
 #ifdef DISABLE_LINEAR_ALLOC
