@@ -122,7 +122,7 @@ static inline u4* getBlockHeader(void* mem)
  */
 
 /*
- *breif:创建一个新的线性内存块.若ashmem宏定义则使用共享内存块.
+ *breif:创建一个新的线性内存块.若ashmem宏定义则使用android 否则使用linux.
  *param[classLoader]:类加载器.
  *return:返回线性内存块.
 */
@@ -244,6 +244,11 @@ LinearAllocHdr* dvmLinearAllocCreate(Object* classLoader)
  * We do a trivial "has everything been freed?" check before unmapping the
  * memory and freeing the LinearAllocHdr.
  */
+
+/*
+ *breif:销毁线性内存区.
+ *param[classLoader]:类加载器.
+*/
 void dvmLinearAllocDestroy(Object* classLoader)
 {
 #ifdef DISABLE_LINEAR_ALLOC
@@ -283,6 +288,12 @@ void dvmLinearAllocDestroy(Object* classLoader)
  * This aborts the VM on failure, so it's not necessary to check for a
  * NULL return value.
  */
+
+/*
+ *breif:分配"size"大小的内存并与类加载器关联.其实就是类加载器结构里的LinearAllocHdr结构的内存.貌似是在页上预留一块内存.
+ *param[classLoader]:类加载器.
+ *param[size]:分配的大小.
+*/
 void* dvmLinearAlloc(Object* classLoader, size_t size)
 {
     LinearAllocHdr* pHdr = getHeader(classLoader);
@@ -413,6 +424,12 @@ void* dvmLinearAlloc(Object* classLoader, size_t size)
 /*
  * Helper function, replaces strdup().
  */
+
+/*
+ *breif:帮助函数.替换strdup的.
+ *param[classLoader]:类加载器.
+ *param[str]:字符串.
+*/
 char* dvmLinearStrdup(Object* classLoader, const char* str)
 {
 #ifdef DISABLE_LINEAR_ALLOC
@@ -435,6 +452,13 @@ char* dvmLinearStrdup(Object* classLoader, const char* str)
  * If the new size is > the old size, we allocate new storage, copy the
  * old stuff over, and mark the new stuff as free.
  */
+
+/*
+ *breif:重新非配一块新内存,如果新内存大小比原来的小，不做任何操作.否则，分配新的内存，把旧的内存内容复制到新的.
+ *param[classLoader]:类加载器.
+ *param[mem]:内存块.
+ *param[newSize]:新内存大小.
+*/
 void* dvmLinearRealloc(Object* classLoader, void* mem, size_t newSize)
 {
 #ifdef DISABLE_LINEAR_ALLOC
@@ -470,6 +494,13 @@ void* dvmLinearRealloc(Object* classLoader, void* mem, size_t newSize)
 /*
  * Update the read/write status of one or more pages.
  */
+
+/*
+ *breif:更新一个或多个页的读写状态.
+ *param[classLoader]:类加载器.
+ *param[mem]:页内存地址.
+ *param[direction]:direction < 0 只读， 否则是 可写.
+*/
 static void updatePages(Object* classLoader, void* mem, int direction)
 {
     LinearAllocHdr* pHdr = getHeader(classLoader);
@@ -554,6 +585,12 @@ static void updatePages(Object* classLoader, void* mem, int direction)
  *
  * Only call here if ENFORCE_READ_ONLY is true.
  */
+
+/*
+ *breif:当页面里的一块内存为只读时标记，是否改变状态取决于有多少访问同一页面.
+ *param[classLoader]:类加载器.
+ *param[mem]:页面上的内存块.
+*/
 void dvmLinearSetReadOnly(Object* classLoader, void* mem)
 {
 #ifdef DISABLE_LINEAR_ALLOC
@@ -570,6 +607,12 @@ void dvmLinearSetReadOnly(Object* classLoader, void* mem)
  *
  * Only call here if ENFORCE_READ_ONLY is true.
  */
+
+/*
+ *breif:标记"mem"所在的页面为可读写.
+ *param[classLoader]:类加载器.
+ *param[mem]:页内存.
+*/
 void dvmLinearSetReadWrite(Object* classLoader, void* mem)
 {
 #ifdef DISABLE_LINEAR_ALLOC
@@ -581,6 +624,12 @@ void dvmLinearSetReadWrite(Object* classLoader, void* mem)
 /*
  * Mark an allocation as free.
  */
+
+/*
+ *breif:标记页内存为free.
+ *param[classLoader]:类加载器.
+ *param[mem]:页内存.
+*/
 void dvmLinearFree(Object* classLoader, void* mem)
 {
 #ifdef DISABLE_LINEAR_ALLOC
@@ -611,6 +660,11 @@ void dvmLinearFree(Object* classLoader, void* mem)
  * We grab the lock so that the header contents and list output are
  * consistent.
  */
+
+/*
+ *breif:为调试器使用，转储线性内存的内容.
+ *param[classLoader]:类加载器.
+*/
 void dvmLinearAllocDump(Object* classLoader)
 {
 #ifdef DISABLE_LINEAR_ALLOC
@@ -678,6 +732,11 @@ void dvmLinearAllocDump(Object* classLoader)
  * This should only be done as we're shutting down, but there could be a
  * daemon thread that's still trying to do something, so we grab the locks.
  */
+
+/*
+ *breif:校验所有线性块内存释放掉.
+ *param[classLoader]:类加载器.
+*/
 static void checkAllFree(Object* classLoader)
 {
 #ifdef DISABLE_LINEAR_ALLOC
@@ -713,6 +772,12 @@ static void checkAllFree(Object* classLoader)
  * [ Since we currently only have one region, this is pretty simple.  In
  * the future we'll need to traverse a table of class loaders. ]
  */
+
+/*
+ *breif:确定 [start,start+length]在单独的线性内存中使用.
+ *param[start]:起始地址.
+ *param[length]:长度.
+*/
 bool dvmLinearAllocContains(const void* start, size_t length)
 {
     LinearAllocHdr* pHdr = getHeader(NULL);
