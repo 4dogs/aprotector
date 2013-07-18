@@ -18,6 +18,10 @@
  * happening very infrequently.  We use probing, and don't worry much
  * about tombstone removal.
  */
+
+/*
+ *哈希表，用于查找类，方法等.
+*/
 #include "Dalvik.h"
 
 #include <stdlib.h>
@@ -33,6 +37,12 @@
 /*
  * Compute the capacity needed for a table to hold "size" elements.
  */
+
+/*
+ *breif:计算hash表容纳的"size"元素个数.
+ *param[size]:大小.
+ *return:hash表元素个数.
+*/
 size_t dvmHashSize(size_t size) {
     return (size * LOAD_DENOM) / LOAD_NUMER +1;
 }
@@ -41,6 +51,13 @@ size_t dvmHashSize(size_t size) {
 /*
  * Create and initialize a hash table.
  */
+
+/*
+ *breif:创建一个hash表.
+ *param[initialSize]:初始化hash表的大小.
+ *param[freeFunc]:哈希表释放回调函数.
+ *return: 返回一个hash表.
+*/
 HashTable* dvmHashTableCreate(size_t initialSize, HashFreeFunc freeFunc)
 {
     HashTable* pHashTable;
@@ -69,6 +86,11 @@ HashTable* dvmHashTableCreate(size_t initialSize, HashFreeFunc freeFunc)
 /*
  * Clear out all entries.
  */
+
+/*
+ *breif:清理释放hash表的条目数据.调用回调函数操作.
+ *param[pHashTable]:hash表.
+*/
 void dvmHashTableClear(HashTable* pHashTable)
 {
     HashEntry* pEnt;
@@ -94,6 +116,11 @@ void dvmHashTableClear(HashTable* pHashTable)
 /*
  * Free the table.
  */
+
+/*
+ *breif:清理hash表内存.
+ *param[pHashTable]:hash表.
+*/
 void dvmHashTableFree(HashTable* pHashTable)
 {
     if (pHashTable == NULL)
@@ -107,6 +134,11 @@ void dvmHashTableFree(HashTable* pHashTable)
 /*
  * Count up the number of tombstone entries in the hash table.
  */
+
+/*
+ *breif:计算hash表中HASH_TOMBSTONE的数目.
+ *param[pHashTable]:hash表.
+*/
 static int countTombStones(HashTable* pHashTable)
 {
     int i, count;
@@ -129,6 +161,12 @@ static int countTombStones(HashTable* pHashTable)
  * have been grabbed before issuing the "lookup+add" call that led to the
  * resize, so we don't have a synchronization problem here.
  */
+
+/*
+ *breif:调整hash大小其实调整的是HashEntry的大小.
+ *param[pHashTable]:hash表.
+ *param[newSize]:新的大小.
+*/
 static bool resizeHash(HashTable* pHashTable, int newSize)
 {
     HashEntry* pNewEntries;
@@ -171,6 +209,15 @@ static bool resizeHash(HashTable* pHashTable, int newSize)
  *
  * We probe on collisions, wrapping around the table.
  */
+
+/*
+ *breif:搜索hash表中的一个条目.
+ *param[pHashTable]:hash表.
+ *param[itemHash]:hash条目的键值.
+ *param[item]:hash的键值.
+ *param[cmpFunc]:比较回调函数.
+ *param[doAdd]:添加条目标记.
+*/
 void* dvmHashTableLookup(HashTable* pHashTable, u4 itemHash, void* item,
     HashCompareFunc cmpFunc, bool doAdd)
 {
@@ -247,6 +294,13 @@ void* dvmHashTableLookup(HashTable* pHashTable, u4 itemHash, void* item,
  *
  * Does NOT invoke the "free" function on the item.
  */
+
+/*
+ *breif:搜索hash表中值为"item"的条目并标记为HASH_TOMBSTONE，hashtable计数减1达到移除效果.
+ *param[pHashTable]:hash表.
+ *param[itemHash]:hash键值，定位位置.
+ *param[item]:数据.
+*/
 bool dvmHashTableRemove(HashTable* pHashTable, u4 itemHash, void* item)
 {
     HashEntry* pEntry;
@@ -288,6 +342,12 @@ bool dvmHashTableRemove(HashTable* pHashTable, u4 itemHash, void* item)
  *
  * Returning values other than 0 or 1 will abort the routine.
  */
+
+/*
+ *breif:遍历扫描hashtable中的每个条目，并将值传入"func"中，若返回1则删除此条目.
+ *param[pHashTable]:哈希表.
+ *param[func]:回调函数.
+*/
 int dvmHashForeachRemove(HashTable* pHashTable, HashForeachRemoveFunc func)
 {
     int i, val;
@@ -316,6 +376,12 @@ int dvmHashForeachRemove(HashTable* pHashTable, HashForeachRemoveFunc func)
  *
  * If "func" returns a nonzero value, terminate early and return the value.
  */
+
+/*
+ *breif:执行hashtable中的每个条目，若成功返回非零.
+ *param[func]:执行hashtable中条目的回调函数.
+ *param[arg]:参数.
+*/
 int dvmHashForeach(HashTable* pHashTable, HashForeachFunc func, void* arg)
 {
     int i, val;
@@ -339,6 +405,14 @@ int dvmHashForeach(HashTable* pHashTable, HashForeachFunc func, void* arg)
  *
  * Returns -1 if the entry wasn't found.
  */
+
+/*
+ *breif:搜索与"item"相等的hashtable中的条目个数.
+ *param[pHashTable]:哈希表.
+ *param[itemHash]:键值，可以定位到匹配的第一个条目.
+ *param[item]:值,需要比较的数据.
+ *param[cmpFunc]:比较操作的回调函数.
+*/
 static int countProbes(HashTable* pHashTable, u4 itemHash, const void* item,
     HashCompareFunc cmpFunc)
 {
@@ -385,6 +459,13 @@ static int countProbes(HashTable* pHashTable, u4 itemHash, const void* item,
  *
  * The caller should lock the table before calling here.
  */
+
+/*
+ *breif:探测哈希表的值.
+ *param[pHashtable]:哈希表.
+ *param[calcFunc]:计算回调函数.
+ *param[cmpFunc]:比较函数.
+*/
 void dvmHashTableProbeCount(HashTable* pHashTable, HashCalcFunc calcFunc,
     HashCompareFunc cmpFunc)
 {
