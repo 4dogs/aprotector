@@ -16,6 +16,10 @@
 /*
  * Dalvik Debug Monitor
  */
+
+/*
+ * 虚拟机监视器.
+*/
 #ifndef DALVIK_DDM_H_
 #define DALVIK_DDM_H_
 

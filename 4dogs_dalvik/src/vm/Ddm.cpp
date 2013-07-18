@@ -20,6 +20,10 @@
  * Remember that all DDM traffic is big-endian since it travels over the
  * JDWP connection.
  */
+
+/*
+ *处理dalvik 调试监视器请求与事件.
+*/
 #include "Dalvik.h"
 
 #include <fcntl.h>
@@ -36,6 +40,18 @@
  * TODO: we currently assume that the request and reply include a single
  * chunk.  If this becomes inconvenient we will need to adapt.
  */
+
+/*
+JDWP 是一种调试协议.
+*/
+/*
+ *breif:处理jdwp包数据."buf"包含完整的jdwp包，可能有很多块，需要处理累计的回应，并回馈.
+ *param[buf]:jdwp完整包.
+ *param[dataLen]:jdwp数据包长度.
+ *param[pReplyBuf]:回馈数据包.
+ *param[pReplyLen]:回馈数据长度.
+ *return:如果返回true说明有从ddm反馈的数据.
+*/
 bool dvmDdmHandlePacket(const u1* buf, int dataLen, u1** pReplyBuf,
     int* pReplyLen)
 {
@@ -159,6 +175,11 @@ bail:
 /*
  * Broadcast an event to all handlers.
  */
+
+/*
+ *breif:向所有处理过程广播事件.
+ *param:事件.
+*/
 static void broadcast(int event)
 {
     Thread* self = dvmThreadSelf();
@@ -192,6 +213,10 @@ static void broadcast(int event)
  *
  * We can do some initialization here too.
  */
+
+/*
+ *breif:ddm包到达jdwp并通知.可以在这里做些初始化.就是广播已经链接.
+*/
 void dvmDdmConnected()
 {
     // TODO: any init
@@ -205,6 +230,10 @@ void dvmDdmConnected()
  *
  * Do some cleanup.
  */
+
+/*
+ *breif:断开jdwp的链接,并做些清理工作.
+*/
 void dvmDdmDisconnected()
 {
     ALOGV("Broadcasting DDM disconnect");
@@ -217,6 +246,11 @@ void dvmDdmDisconnected()
 /*
  * Turn thread notification on or off.
  */
+
+/*
+ *breif:关闭或打开线程的通知.
+ *param[enable]: true 为打开，false为关闭.
+*/
 void dvmDdmSetThreadNotification(bool enable)
 {
     /*
@@ -244,6 +278,12 @@ void dvmDdmSetThreadNotification(bool enable)
  * Because we broadcast the full set of threads when the notifications are
  * first enabled, it's possible for "thread" to be actively executing.
  */
+
+/*
+ *breif:当一个线程启动或停止时发送一个通知.
+ *param[thread]:线程.
+ *param[started]:启动或停止通知.
+*/
 void dvmDdmSendThreadNotification(Thread* thread, bool started)
 {
     if (!gDvm.ddmThreadNotification) {
@@ -304,6 +344,12 @@ void dvmDdmSendThreadNotification(Thread* thread, bool started)
 /*
  * Send a notification when a thread's name changes.
  */
+
+/*
+ *breif:当线程名字发生变化时发送通知.
+ *param[threadId]:线程id.
+ *param[newName]：线程名.
+*/
 void dvmDdmSendThreadNameChange(int threadId, StringObject* newName)
 {
     if (!gDvm.ddmThreadNotification) {
@@ -356,6 +402,11 @@ void dvmDdmSendThreadNameChange(int threadId, StringObject* newName)
  * Returns a new byte[] with the data inside, or NULL on failure.  The
  * caller must call dvmReleaseTrackedAlloc() on the array.
  */
+
+/*
+ *breif:生成一个THST块的结构的内容，该数据包包括所有已知线程(存在).
+ *return:将所有线程信息存放到字节类型的ArrayObject里并返回.
+*/
 ArrayObject* dvmDdmGenerateThreadStats()
 {
     const int kHeaderLen = 4;
@@ -423,6 +474,12 @@ ArrayObject* dvmDdmGenerateThreadStats()
  * Find the specified thread and return its stack trace as an array of
  * StackTraceElement objects.
  */
+
+/*
+ *breif:遍历所有线程找到 "hreadId"的线程，将此线程的跟踪栈存储在StackTraceElement对象并返回.
+ *param[threadId]:线程id.
+ *return:返回线程的跟踪栈.
+*/
 ArrayObject* dvmDdmGetStackTraceById(u4 threadId)
 {
     Thread* self = dvmThreadSelf();
@@ -467,6 +524,11 @@ ArrayObject* dvmDdmGetStackTraceById(u4 threadId)
  *
  * Returns NULL on failure with an exception raised.
  */
+
+/*
+ *breif:收集内存分配信息的数据，并把它复制到byte数组里.
+ *return: 返回保存分配的数据的byte数组.
+*/
 ArrayObject* dvmDdmGetRecentAllocations()
 {
     u1* data;
