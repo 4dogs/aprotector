@@ -33,8 +33,13 @@ static void* lookupSharedLibMethod(const Method* method);
 /*
  * Initialize the native code loader.
  */
+/*
+ * ÓÃÀ´³õÊ¼»¯Native Shared Object¿â¼ÓÔØ±í£¬Ò²¾ÍÊÇ.SO¿â¼ÓÔØ±í.
+ * Õâ¸ö¼ÓÔØ±íÊÇÓÃÀ´ÃèÊöµ±Ç°½ø³ÌÓÐÄÄÐ©SOÎÄ¼þÒÑ¾­±»¼ÓÔØ¹ýÁË
+ */
 bool dvmNativeStartup()
 {
+    /*native¹²ÏíÀà¿â±í*/
     gDvm.nativeLibs = dvmHashTableCreate(4, freeSharedLibEntry);
     if (gDvm.nativeLibs == NULL)
         return false;
@@ -47,6 +52,9 @@ bool dvmNativeStartup()
  */
 void dvmNativeShutdown()
 {
+    /*
+   * ÊÍ·Å¹²ÏíÀà¿â
+   */
     dvmHashTableFree(gDvm.nativeLibs);
     gDvm.nativeLibs = NULL;
 }
@@ -67,6 +75,9 @@ void dvmNativeShutdown()
  * structure, but the declaration needs to match the DalvikBridgeFunc
  * type definition.)
  */
+/*
+ * ½âÎöÒ»¸ö±¾µØµÄ·½·¨£¬²¢µ÷ÓÃËü
+ */
 void dvmResolveNativeMethod(const u4* args, JValue* pResult,
     const Method* method, Thread* self)
 {
@@ -76,7 +87,13 @@ void dvmResolveNativeMethod(const u4* args, JValue* pResult,
      * If this is a static method, it could be called before the class
      * has been initialized.
      */
+    /*
+   * Èç¹ûÕâÊÇÒ»¸ö¾²Ì¬µÄ·½·¨£¬Ëü¿ÉÄÜÔÚÀàÍê³É³õÊ¼»¯Ö®Ç°±»µ÷ÓÃ
+   */
     if (dvmIsStaticMethod(method)) {
+        /*
+    * ÅÐ¶ÏÀàÊÇ·ñÒÑ¾­±»³õÊ¼»¯ÁË£¬ÀàÖÐ¾²Ì¬·½·¨¿ÉÖ±½Óµ÷ÓÃ£¬Ã»ÓÐ³õÊ¼»¯Ò²¿Éµ÷ÓÃ
+    */
         if (!dvmIsClassInitialized(clazz) && !dvmInitClass(clazz)) {
             assert(dvmCheckException(dvmThreadSelf()));
             return;
@@ -147,6 +164,9 @@ enum OnLoadState {
  * We add one of these to the hash table for every library we load.  The
  * hash is on the "pathName" field.
  */
+/*
+ * ¹²Ïílibrary½á¹¹Ìå
+ */
 struct SharedLib {
     char*       pathName;           /* absolute path to library */
     void*       handle;             /* from dlopen */
@@ -162,6 +182,9 @@ struct SharedLib {
  * (This is a dvmHashTableLookup callback.)
  *
  * Find an entry that matches the string.
+ */
+/*
+ * ±È½Ï'pathName'Óë'vname'
  */
 static int hashcmpNameStr(const void* ventry, const void* vname)
 {
@@ -179,6 +202,9 @@ static int hashcmpNameStr(const void* ventry, const void* vname)
  * We don't compare the class loader here, because you're not allowed to
  * have the same shared library associated with more than one CL.
  */
+/*
+ * ±È½Ï'ventry'Óë'vnewEntry'µÄ'pathName'Öµ
+ */
 static int hashcmpSharedLib(const void* ventry, const void* vnewEntry)
 {
     const SharedLib* pLib = (const SharedLib*) ventry;
@@ -191,6 +217,9 @@ static int hashcmpSharedLib(const void* ventry, const void* vnewEntry)
 
 /*
  * Check to see if an entry with the same pathname already exists.
+ */
+ /*
+ * ¼ì²é²ÎÊýpathNameËùÖ¸¶¨µÄsoÎÄ¼þÊÇ·ñÒÑ¾­¼ÓÔØ¹ýÁË
  */
 static SharedLib* findSharedLibEntry(const char* pathName)
 {
@@ -208,6 +237,9 @@ static SharedLib* findSharedLibEntry(const char* pathName)
  * Returns the table entry, which will not be the same as "pLib" if the
  * entry already exists.
  */
+/*
+ * Ìí¼ÓÒ»¸öÐÂµÄÌõÄ¿µ½hash±íÖÐ,½«Æä»º³åÆðÀ´£¬ÒÔ±ã¿ÉÒÔÖªµÀµ±Ç°½ø³Ì¶¼¼ÓÔØÁËÄÄÐ©soÎÄ¼þ
+ */
 static SharedLib* addSharedLibEntry(SharedLib* pLib)
 {
     u4 hash = dvmComputeUtf8Hash(pLib->pathName);
@@ -223,6 +255,9 @@ static SharedLib* addSharedLibEntry(SharedLib* pLib)
 
 /*
  * Free up an entry.  (This is a dvmHashTableFree callback.)
+ */
+/* 
+ * ÊÍ·ÅÒ»¸öÌØ¶¨µÄsoÎÄ¼þ
  */
 static void freeSharedLibEntry(void* ptr)
 {
@@ -245,6 +280,9 @@ static void freeSharedLibEntry(void* ptr)
  * (Should we have this take buffer+len and avoid the alloc?  It gets
  * called very rarely.)
  */
+/*
+ * ×ª»»libNameÃû³Æ³ÉÎªÏµÍ³ËùÐèÒª£¬ËùÄÜÊ¶±ðµÄ¸ñÊ½£¬eg. 'jpeg'±ä³É'libjpeg.so'
+ */
 char* dvmCreateSystemLibraryName(char* libName)
 {
     char buf[256];
@@ -260,6 +298,9 @@ char* dvmCreateSystemLibraryName(char* libName)
 /*
  * Check the result of an earlier call to JNI_OnLoad on this library.  If
  * the call has not yet finished in another thread, wait for it.
+ */
+/*
+ * ÔÚÖ¸¶¨µÄlibrary¿âÖÐ£¬¼ì²éÖ®Ç°µ÷ÓÃJNI_OnLoadº¯ÊýµÄ½á¹û.Èç¹ûËü±»ÁíÒ»¸öÏß³Ìµ÷ÓÃÃ»ÓÐÍê³É£¬ÄÇ½«¼ÌÐøµÈ´ýËü
  */
 static bool checkOnLoadResult(SharedLib* pEntry)
 {
@@ -315,6 +356,9 @@ typedef int (*OnLoadFunc)(JavaVM*, void*);
  * human-readable description of the error or NULL if no detail is
  * available; ownership of the string is transferred to the caller.
  */
+/*
+ * Ö´ÐÐ¼ÓÔØsoÎÄ¼þµÄÒ»ÏµÁÐ²Ù×÷²Ù×÷
+ */
 bool dvmLoadNativeCode(const char* pathName, Object* classLoader,
         char** detail)
 {
@@ -335,6 +379,11 @@ bool dvmLoadNativeCode(const char* pathName, Object* classLoader,
      * See if we've already loaded it.  If we have, and the class loader
      * matches, return successfully without doing anything.
      */
+    /*
+   * ¼ì²é²ÎÊýpathNameËùÖ¸¶¨µÄsoÎÄ¼þÊÇ·ñÒÑ¾­¼ÓÔØ¹ýÁË,Èç¹ûÒÑ¾­¼ÓÔØ¹ý£¬
+   * ÄÇÃ´¾Í¿ÉÒÔ»ñµÃÒ»¸öSharedLib¶ÔÏópEntry,
+   * Õâ¸öSharedLib¶ÔÏópEntryÃèÊöÁËÓÐ¹Ø²ÎÊýpathNameËùÖ¸¶¨µÄsoÎÄ¼þµÄ¼ÓÔØÐÅÏ¢
+   */
     pEntry = findSharedLibEntry(pathName);
     if (pEntry != NULL) {
         if (pEntry->classLoader != classLoader) {
@@ -380,6 +429,10 @@ bool dvmLoadNativeCode(const char* pathName, Object* classLoader,
      */
     Thread* self = dvmThreadSelf();
     ThreadStatus oldStatus = dvmChangeStatus(self, THREAD_VMWAIT);
+    /*
+   * ¼ÙÉè²ÎÊýpathNameËùÖ¸¶¨µÄsoÎÄ¼þ»¹Ã»ÓÐ±»¼ÓÔØ¹ý,ÄÇÃ´µ÷ÓÃdlopenÔÚµ±Ç°½ø³ÌÖÐ¼ÓÔØËü,
+   * ²¢ÇÒ½«»ñµÃµÄ¾ä±ú±£´æÔÚ±äÁ¿handleÖÐ£¬½Ó×ÅÔÙ´´½¨Ò»¸öSharedLib¶ÔÏópNewEntryÀ´ÃèÊöËüµÄ¼ÓÔØÐÅÏ¢
+   */
     handle = dlopen(pathName, RTLD_LAZY);
     dvmChangeStatus(self, oldStatus);
 
@@ -400,8 +453,18 @@ bool dvmLoadNativeCode(const char* pathName, Object* classLoader,
     pNewEntry->onLoadThreadId = self->threadId;
 
     /* try to add it to the list */
+   /*
+  * Õâ¸öSharedLib¶ÔÏópNewEntry»áÍ¨¹ýº¯ÊýaddSharedLibEntry±»»º´æÆðÀ´£¬
+  * ÒÔ±ã¿ÉÒÔÖªµÀµ±Ç°½ø³Ì¶¼¼ÓÔØÁËÄÄÐ©soÎÄ¼þ
+  */
     SharedLib* pActualEntry = addSharedLibEntry(pNewEntry);
-
+   /*
+  * ×¢Òâ£¬ÔÚµ÷ÓÃº¯ÊýaddSharedLibEntryÀ´»º´æÐÂ´´½¨µÄSharedLib¶ÔÏópNewEntryµÄÊ±ºò,
+  * Èç¹ûµÃµ½µÄ·µ»ØÖµpActualEntryÖ¸ÏòµÄ²»ÊÇSharedLib¶ÔÏópNewEntry£¬
+  * ÄÇÃ´¾Í±íÊ¾ÁíÍâÒ»¸öÏß³ÌÒ²ÕýÔÚ¼ÓÔØ²ÎÊýpathNameËùÖ¸¶¨µÄsoÎÄ¼þ£¬²¢ÇÒ±Èµ±Ç°Ïß³ÌÌáÇ°¼ÓÔØÍê³É¡£
+  * ÔÚÕâÖÖÇé¿öÏÂ£¬º¯ÊýaddSharedLibEntry¾ÍÊ²Ã´Ò²²»ÓÃ×ö¶øÖ±½Ó·µ»ØÁË,
+  * ·ñÔòµÄ»°£¬º¯ÊýaddSharedLibEntry¾ÍÒª¼ÌÐø¸ºÔðµ÷ÓÃÇ°ÃæËù¼ÓÔØµÄsoÎÄ¼þÖÐµÄÒ»¸öÖ¸¶¨µÄº¯ÊýÀ´×¢²áËüÀïÃæµÄJNI·½·¨
+  */
     if (pNewEntry != pActualEntry) {
         ALOGI("WOW: we lost a race to add a shared lib (%s CL=%p)",
             pathName, classLoader);
@@ -414,7 +477,10 @@ bool dvmLoadNativeCode(const char* pathName, Object* classLoader,
         bool result = true;
         void* vonLoad;
         int version;
-
+       /*
+    * Ö¸¶¨µÄº¯ÊýµÄÃû³ÆÎª¡°JNI_OnLoad¡±£¬Ò²¾ÍÊÇËµ£¬Ã¿Ò»¸öÓÃÀ´ÊµÏÖJNI·½·¨µÄsoÎÄ¼þ¶¼Ó¦¸Ã¶¨ÒåÓÐÒ»¸öÃû³ÆÎª¡°JNI_OnLoad¡±µÄº¯Êý
+	 * µ÷ÓÃº¯Êýdlsym¾Í¿ÉÒÔ»ñµÃÔÚÇ°Ãæ¼ÓÔØµÄsoÖÐÃû³ÆÎª¡°JNI_OnLoad¡±µÄº¯ÊýµÄµØÖ·,×îÖÕ±£´æÔÚº¯ÊýÖ¸ÕëfuncÖÐ
+    */
         vonLoad = dlsym(handle, "JNI_OnLoad");
         if (vonLoad == NULL) {
             ALOGD("No JNI_OnLoad found in %s %p, skipping init",
@@ -434,10 +500,18 @@ bool dvmLoadNativeCode(const char* pathName, Object* classLoader,
             if (gDvm.verboseJni) {
                 ALOGI("[Calling JNI_OnLoad for \"%s\"]", pathName);
             }
+	   /*
+	  * ÓÐÁËÕâ¸öº¯ÊýÖ¸ÕëÖ®ºó£¬ÎÒÃÇ¾Í¿ÉÒÔÖ±½Óµ÷ÓÃËüÀ´Ö´ÐÐ×¢²áJNI·½·¨µÄ²Ù×÷ÁË¡£
+	  * ×¢Òâ£¬ÔÚµ÷ÓÃ¸ÃJNI_OnLoadº¯ÊýÊ±£¬µÚÒ»¸öÒª´«µÝ½øÐÐµÄ²ÎÊýÊÇÒ»¸öJavaVM¶ÔÏó£¬
+	  * Õâ¸öJavaVM¶ÔÏóÃèÊöµÄÊÇÔÚµ±Ç°½ø³ÌÖÐÔËÐÐµÄDalvikÐéÄâ»ú£¬µÚ¶þ¸öÒª´«µÝµÄ²ÎÊý¿ÉÒÔÉèÖÃÎªNULL£
+	  * ÕâÊÇ±£Áô¸øÒÔºóÊ¹ÓÃµÄ
+	  */
             version = (*func)(gDvmJni.jniVm, NULL);
             dvmChangeStatus(self, oldStatus);
             self->classLoaderOverride = prevOverride;
-
+            /*
+      * JNI_VERSION_1_2¡¢JNI_VERSION_1_4»òÕßJNI_VERSION_1_6£¬ÓÃÀ´±íÊ¾Ëù×¢²áµÄJNI·½·¨µÄ°æ±¾¡£
+      */
             if (version != JNI_VERSION_1_2 && version != JNI_VERSION_1_4 &&
                 version != JNI_VERSION_1_6)
             {
@@ -459,7 +533,10 @@ bool dvmLoadNativeCode(const char* pathName, Object* classLoader,
                 }
             }
         }
-
+        /*
+    * onLoadResultÉèÖÃÎªkOnLoadOkay»òÕßkOnLoadFailed£¬
+    * ÕâÑù¾Í¿ÉÒÔ¼ÇÂ¼²ÎÊýpathNameËùÖ¸¶¨µÄsoÎÄ¼þÊÇ·ñÊÇ¼ÓÔØ³É¹¦µÄ£¬Ò²¾ÍÊÇËüÊÇ·ñ³É¹¦µØ×¢²áÁËÆäÄÚ²¿µÄJNI·½·¨
+    */
         if (result)
             pNewEntry->onLoadResult = kOnLoadOkay;
         else
@@ -504,6 +581,9 @@ bool dvmLoadNativeCode(const char* pathName, Object* classLoader,
  * we shouldn't be in a situation where we have a "live" call bridge and
  * a stale implementation pointer.
  */
+/*
+ * È¡ÏûËùÓÐ×¢²áµÄJNI·½·¨
+ */
 static void unregisterJNINativeMethods(Method* methods, size_t count)
 {
     while (count != 0) {
@@ -535,6 +615,9 @@ static void unregisterJNINativeMethods(Method* methods, size_t count)
 
 /*
  * Un-register all JNI native methods from a class.
+ */
+/*
+ * È¡ÏûÔÚÌØ¶¨Àà×¢²áÖÐËùÓÐJNI·½·¨
  */
 void dvmUnregisterJNINativeMethods(ClassObject* clazz)
 {
@@ -596,8 +679,8 @@ static char* mangleString(const char* str, int len)
     dvmConvertUtf8ToUtf16(utf16, str);
 
     /*
-     * Compute the length of the mangled string.
-     */
+   * Compute the length of the mangled string.
+   */
     size_t mangleLen = 0;
     for (size_t i = 0; i < charLen; i++) {
         u2 ch = utf16[i];
@@ -685,6 +768,9 @@ static char* createMangledSignature(const DexProto* proto)
  *
  * TODO: we may want to skip libraries for which JNI_OnLoad failed.
  */
+/*
+ * ÔÚ¹²ÏíLibraryÖÐ²éÕÒÏàÆ¥ÅäµÄ·½·¨
+ */
 static int findMethodInLib(void* vlib, void* vmethod)
 {
     const SharedLib* pLib = (const SharedLib*) vlib;
@@ -750,6 +836,9 @@ bail:
  * See if the requested method lives in any of the currently-loaded
  * shared libraries.  We do this by checking each of them for the expected
  * method signature.
+ */
+/*
+ * ²é¿´ËùÇëÇóµÄmethodÊÇ·ñ´æÔÚµ±Ç°ÒÑ±»¼ÓÔØµÄ¹²Ïí¿âÖÐ.Îª´Ë£¬ÎÒÃÇ¼ì²éËûÃÇÃ¿¸öÈËËùÔ¤ÆÚµÄ·½·¨Ç©Ãû
  */
 static void* lookupSharedLibMethod(const Method* method)
 {

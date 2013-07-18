@@ -772,6 +772,15 @@ const InlineOperation gDvmInlineOpsTable[] = {
 /*
  * Allocate some tables.
  */
+/*
+ * 用来初始化Davlik虚拟机的内建Native函数表.
+ * 这些内建Native函数主要是针对java.Lang.String、java.Lang.Math、java.Lang.Float和java.Lang.Double类的，
+ * 用来替换这些类的某些成员函数原来的实现（包括Java实现和Native实现）。
+ * 例如，当我们调用java.Lang.String类的成员函数compareTo来比较两个字符串的大小时，
+ * 实际执行的是由Davlik虚拟机提供的内建函数javaLangString_compareTo（同样是定义在文件dalvik/vm/InlineNative.cpp中）。
+ * 在提供有__memcmp16函数的系统中，函数javaLangString_compareTo会利用它来直接比较两个字符串的大小。
+ * 由于函数__memcmp16是用优化过的汇编语言的来实现的，它的效率会更高。
+ */
 bool dvmInlineNativeStartup()
 {
     gDvm.inlinedMethods =

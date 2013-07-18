@@ -25,8 +25,11 @@
 /*
  * Method description; equivalent to a JNI struct.
  */
+/*
+ * Method描述,相当于一个JNI结构体
+ */
 struct DalvikNativeMethod {
-    const char* name;
+    const char* name; 
     const char* signature;
     DalvikNativeFunc  fnPtr;
 };
@@ -34,9 +37,12 @@ struct DalvikNativeMethod {
 /*
  * All methods for one class.  The last "methodInfo" has a NULL "name".
  */
+/*
+ * 描述一个类中的全部方法
+ */
 struct DalvikNativeClass {
     const char* classDescriptor;
-    const DalvikNativeMethod* methodInfo;
+    const DalvikNativeMethod* methodInfo;  // DalvikNativeMethod 
     u4          classDescriptorHash;          /* initialized at runtime */
 };
 

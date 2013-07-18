@@ -27,6 +27,9 @@
  * Return the Signature annotation for the specified class.  Equivalent to
  * Class.getSignatureAnnotation(), but available to java.lang.reflect.
  */
+/*
+ * 获取特定类的注解签名
+ */
 static void Dalvik_java_lang_reflect_AccessibleObject_getClassSignatureAnnotation(
     const u4* args, JValue* pResult)
 {

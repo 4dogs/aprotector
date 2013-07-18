@@ -31,6 +31,9 @@
  * Gets the current ideal heap utilization, represented as a number
  * between zero and one.
  */
+/*
+ * 获取当前堆的有效利用，用0到1之间的数表示
+ */
 static void Dalvik_dalvik_system_VMRuntime_getTargetHeapUtilization(
     const u4* args, JValue* pResult)
 {
@@ -47,6 +50,9 @@ static void Dalvik_dalvik_system_VMRuntime_getTargetHeapUtilization(
  *
  * Note that this is NOT static.
  */
+/*
+ * 设置当前堆的有效利用，用0到1之间的数来表示
+ */
 static void Dalvik_dalvik_system_VMRuntime_nativeSetTargetHeapUtilization(
     const u4* args, JValue* pResult)
 {
@@ -60,6 +66,9 @@ static void Dalvik_dalvik_system_VMRuntime_nativeSetTargetHeapUtilization(
  *
  * Callback function from the framework to indicate that an app has gone
  * through the startup phase and it is time to enable the JIT compiler.
+ */
+/*
+ * 启动Jit编译
  */
 static void Dalvik_dalvik_system_VMRuntime_startJitCompilation(const u4* args,
     JValue* pResult)
@@ -81,6 +90,9 @@ static void Dalvik_dalvik_system_VMRuntime_startJitCompilation(const u4* args,
  * permanently disable the JIT compiler. Currently only the system server uses
  * this interface when it detects system-wide safe mode is enabled.
  */
+/*
+ * 禁用Jit编译
+ */
 static void Dalvik_dalvik_system_VMRuntime_disableJitCompilation(const u4* args,
     JValue* pResult)
 {
@@ -92,6 +104,9 @@ static void Dalvik_dalvik_system_VMRuntime_disableJitCompilation(const u4* args,
     RETURN_VOID();
 }
 
+/*
+ * 创建一个新的指定大小的数组
+ */
 static void Dalvik_dalvik_system_VMRuntime_newNonMovableArray(const u4* args,
     JValue* pResult)
 {
@@ -110,6 +125,7 @@ static void Dalvik_dalvik_system_VMRuntime_newNonMovableArray(const u4* args,
     // TODO: right now, we don't have a copying collector, so there's no need
     // to do anything special here, but we ought to pass the non-movability
     // through to the allocator.
+    // 查找数组类
     ClassObject* arrayClass = dvmFindArrayClassForElement(elementClass);
     ArrayObject* newArray = dvmAllocArrayByClass(arrayClass,
                                                  length,
@@ -185,6 +201,9 @@ static void Dalvik_dalvik_system_VMRuntime_vmVersion(const u4* args,
     returnCString(pResult, buf);
 }
 
+/*
+ * 设置目标SDK的版本
+ */
 static void Dalvik_dalvik_system_VMRuntime_setTargetSdkVersion(const u4* args,
     JValue* pResult)
 {

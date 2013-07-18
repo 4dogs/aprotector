@@ -31,11 +31,14 @@
  * If an error is encountered, or the extracted descriptor is numerically
  * invalid, this returns -1 with an exception raised.
  */
+/*
+ * 从一个FileDescriptor中获取Field
+ */
 static int getFileDescriptor(Object* obj)
 {
     assert(obj != NULL);
     assert(strcmp(obj->clazz->descriptor, "Ljava/io/FileDescriptor;") == 0);
-
+    /*获取Field*/
     int fd = dvmGetFieldInt(obj, gDvm.offJavaIoFileDescriptor_descriptor);
     if (fd < 0) {
         dvmThrowRuntimeException("Invalid file descriptor");
@@ -50,6 +53,7 @@ static int getFileDescriptor(Object* obj)
  *
  * Return a set of strings describing available VM features (this is chiefly
  * of interest to DDMS).
+ * 返回可用的虚拟机的特征字符串描述
  */
 static void Dalvik_dalvik_system_VMDebug_getVmFeatureList(const u4* args, JValue* pResult) {
     std::vector<std::string> features;
@@ -133,6 +137,7 @@ static void clearAllocProfStateFields(AllocProfState *allocProf,
  * static void startAllocCounting()
  *
  * Reset the counters and enable counting.
+ * 重置计数器,并且启用计数
  *
  * TODO: this currently only resets the per-thread counters for the current
  * thread.  If we actually start using the per-thread counters we'll
@@ -151,6 +156,9 @@ static void Dalvik_dalvik_system_VMDebug_startAllocCounting(const u4* args,
 
 /*
  * public static void stopAllocCounting()
+ */
+/*
+ *停止计数
  */
 static void Dalvik_dalvik_system_VMDebug_stopAllocCounting(const u4* args,
     JValue* pResult)
@@ -232,6 +240,9 @@ static void Dalvik_dalvik_system_VMDebug_resetAllocCount(const u4* args,
  * directly to DDMS.  (The non-DDMS versions of the calls are expected
  * to enforce non-NULL filenames.)
  */
+/*
+ * 启动函数trace
+ */
 static void Dalvik_dalvik_system_VMDebug_startMethodTracingNative(const u4* args,
     JValue* pResult)
 {
@@ -279,6 +290,9 @@ static void Dalvik_dalvik_system_VMDebug_startMethodTracingNative(const u4* args
  *
  * Determine whether method tracing is currently active.
  */
+/*
+ * 如果函数的trace开启则返回true
+ */
 static void Dalvik_dalvik_system_VMDebug_isMethodTracingActive(const u4* args,
     JValue* pResult)
 {
@@ -291,6 +305,10 @@ static void Dalvik_dalvik_system_VMDebug_isMethodTracingActive(const u4* args,
  * static void stopMethodTracing()
  *
  * Stop method tracing.
+ */
+/*
+ * 停止函数trace.然后将缓冲中的内容写入到硬盘并且产生一个key文件
+ *	因此我们能中断它
  */
 static void Dalvik_dalvik_system_VMDebug_stopMethodTracing(const u4* args,
     JValue* pResult)
@@ -306,6 +324,9 @@ static void Dalvik_dalvik_system_VMDebug_stopMethodTracing(const u4* args,
  *
  * Start sending method trace info to the emulator.
  */
+/*
+ * 启用模拟器跟踪信息
+ */
 static void Dalvik_dalvik_system_VMDebug_startEmulatorTracing(const u4* args,
     JValue* pResult)
 {
@@ -319,6 +340,9 @@ static void Dalvik_dalvik_system_VMDebug_startEmulatorTracing(const u4* args,
  * static void stopEmulatorTracing()
  *
  * Start sending method trace info to the emulator.
+ */
+/*
+ * 停止模拟器跟踪信息
  */
 static void Dalvik_dalvik_system_VMDebug_stopEmulatorTracing(const u4* args,
     JValue* pResult)
@@ -372,6 +396,9 @@ static void Dalvik_dalvik_system_VMDebug_lastDebuggerActivity(const u4* args,
 /*
  * static void startInstructionCounting()
  */
+/*
+ * 开始指令的计数
+ */
 static void Dalvik_dalvik_system_VMDebug_startInstructionCounting(const u4* args,
     JValue* pResult)
 {
@@ -381,6 +408,9 @@ static void Dalvik_dalvik_system_VMDebug_startInstructionCounting(const u4* args
 
 /*
  * static void stopInstructionCounting()
+ */
+/*
+ * 停止指令的计数
  */
 static void Dalvik_dalvik_system_VMDebug_stopInstructionCounting(const u4* args,
     JValue* pResult)
@@ -427,6 +457,7 @@ static void Dalvik_dalvik_system_VMDebug_getInstructionCount(const u4* args,
  *
  * Reset the instruction count array.
  */
+ /*重置指令计数*/
 static void Dalvik_dalvik_system_VMDebug_resetInstructionCount(const u4* args,
     JValue* pResult)
 {
@@ -439,6 +470,7 @@ static void Dalvik_dalvik_system_VMDebug_resetInstructionCount(const u4* args,
  * static void printLoadedClasses(int flags)
  *
  * Dump the list of loaded classes.
+ * Dump已经被加载类的内容
  */
 static void Dalvik_dalvik_system_VMDebug_printLoadedClasses(const u4* args,
     JValue* pResult)
@@ -454,6 +486,7 @@ static void Dalvik_dalvik_system_VMDebug_printLoadedClasses(const u4* args,
  * static int getLoadedClassCount()
  *
  * Return the number of loaded classes
+ * 获取已经被加载类的数量
  */
 static void Dalvik_dalvik_system_VMDebug_getLoadedClassCount(const u4* args,
     JValue* pResult)
@@ -728,6 +761,9 @@ static void Dalvik_dalvik_system_VMDebug_infopoint(const u4* args,
     RETURN_VOID();
 }
 
+/*
+ * 类实例的个数
+ */
 static void Dalvik_dalvik_system_VMDebug_countInstancesOfClass(const u4* args,
     JValue* pResult)
 {

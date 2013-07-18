@@ -21,6 +21,11 @@
  * just wants a zip archive with "classes.dex" inside.  In Android the
  * most common example is ".apk".
  */
+/*
+ * 访问一个jar文件内容
+ * 这儿实际上并不关心任何jar文件的元素;它仅仅想在'classes.dex'里获取一个zip文档
+ * 在Android中大多数事例是'.apk'
+ */
 
 #include "Dalvik.h"
 #include "libdex/OptInvocation.h"
@@ -41,6 +46,11 @@ static const char* kDexInJarName = "classes.dex";
  * malloc()ed copy of the opened file name will be put in <*pCachedName>.
  *
  * <flags> is passed directly to open(). O_CREAT is not supported.
+ */
+/*
+ * 尝试去打开一个文件,其名称类似于'fileName',但附加后缀，
+ * eg.openAlternateSuffix("Home.apk", "dex", O_RDONLY) 将尝试去打开'Home.dex'.
+ * 如果打开成功, *pCachedName = buf;
  */
 static int openAlternateSuffix(const char *fileName, const char *suffix,
     int flags, char **pCachedName)
@@ -70,6 +80,7 @@ static int openAlternateSuffix(const char *fileName, const char *suffix,
 
     fd = open(buf, flags);
     if (fd >= 0) {
+	/*成功了就将buf赋值给指针*/
         *pCachedName = buf;
         return fd;
     }
@@ -184,6 +195,9 @@ bail:
  *
  * If "isBootstrap" is not set, the optimizer/verifier regards this DEX as
  * being part of a different class loader.
+ */
+/*
+ * 打开jar文件. 它仅仅是一个zip压缩，但是我们需要去它里面查找'classes.dex'或'.odex'命名的文件
  */
 int dvmJarFileOpen(const char* fileName, const char* odexOutputName,
     JarFile** ppJarFile, bool isBootstrap)
@@ -365,6 +379,9 @@ bail:
 
 /*
  * Close a Jar file and free the struct.
+ */
+/*
+ * 关闭一个Jar文件和释放JarFile结构体
  */
 void dvmJarFileFree(JarFile* pJarFile)
 {

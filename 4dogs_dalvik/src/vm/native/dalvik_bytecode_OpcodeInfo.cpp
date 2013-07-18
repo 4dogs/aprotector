@@ -16,10 +16,12 @@
 
 /*
  * dalvik.bytecode.OpcodeInfo
+ * OpcodeInfo继承了java.lang.Object
  *
  * This file mostly exists in its current form so that we don't have
  * to have duplicate definitions for things both in libcore and in
  * libdex.
+ * 这个文件主要是以目前的形式存在，因些我们不必重复定义的在libcore和libdex中。
  */
 
 #include "Dalvik.h"

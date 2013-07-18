@@ -17,6 +17,9 @@
 /*
  * Internal-native initialization and some common utility functions.
  */
+ /*
+ * 本地函数的类库的初始化和一些常用的功能函数
+ */
 #include "Dalvik.h"
 #include "native/InternalNativePriv.h"
 
@@ -24,6 +27,9 @@
  * Set of classes for which we provide methods.
  *
  * The last field, classNameHash, is filled in at startup.
+ */
+/*
+ * 类库的本地函数集
  */
 static DalvikNativeClass gDvmNativeMethodSet[] = {
     { "Ljava/lang/Object;",               dvm_java_lang_Object, 0 },
@@ -67,11 +73,20 @@ static DalvikNativeClass gDvmNativeMethodSet[] = {
 /*
  * Set up hash values on the class names.
  */
+/*
+ * 基于类的名称去建立hash值
+ * 
+ * 用来初始化一个内部Native函数表。所有需要直接访问Dalvik虚拟机内部函数或者数据结构的Native函数都定义在这张表中，
+ * 因为它们如果定义在外部的其它.SO文件中，就无法直接访问Dalvik虚拟机的内部函数或者数据结构。
+ * 例如，前面提到的java.lang.String类的成员函数intent，由于它要访问Dalvik虚拟机内部的一个私有字符串池，
+ * 因此，它所对应的Native函数就要在Dalvik虚拟机内部实现
+ */
 bool dvmInternalNativeStartup()
 {
     DalvikNativeClass* classPtr = gDvmNativeMethodSet;
 
     while (classPtr->classDescriptor != NULL) {
+	/*计算classDescriptor的hash值*/
         classPtr->classDescriptorHash =
             dvmComputeUtf8Hash(classPtr->classDescriptor);
         classPtr++;
@@ -94,6 +109,9 @@ void dvmInternalNativeShutdown()
 
 /*
  * Search the internal native set for a match.
+ */
+/*
+ * 从本地函数集中搜索与'method'相匹配的DalvikNativeFunc
  */
 DalvikNativeFunc dvmLookupInternalNativeMethod(const Method* method)
 {
@@ -152,6 +170,9 @@ void dvmAbstractMethodStub(const u4* args, JValue* pResult)
  *
  * Returns "false" and throws an exception if not.
  */
+ /*
+ * 校验'obj'是否为空,是否为'clazz'的实例
+ */
 bool dvmVerifyObjectInClass(Object* obj, ClassObject* clazz) {
     ClassObject* exceptionClass = NULL;
     if (obj == NULL) {
@@ -174,6 +195,9 @@ bool dvmVerifyObjectInClass(Object* obj, ClassObject* clazz) {
 /*
  * Find a class by name, initializing it if requested.
  */
+/*
+ * 通过名字查找一个类，如果有必要则初始化它
+ */
 ClassObject* dvmFindClassByName(StringObject* nameObj, Object* loader,
     bool doInit)
 {
@@ -185,6 +209,7 @@ ClassObject* dvmFindClassByName(StringObject* nameObj, Object* loader,
         dvmThrowNullPointerException("name == null");
         goto bail;
     }
+    /*转换成C语言的String类型*/
     name = dvmCreateCstrFromString(nameObj);
 
     /*

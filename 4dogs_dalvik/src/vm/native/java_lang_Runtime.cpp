@@ -76,8 +76,14 @@ static void Dalvik_java_lang_Runtime_nativeLoad(const u4* args,
     bool success;
 
     assert(fileNameObj != NULL);
+    /*
+   * 将它转换成一个C++层的字符串fileName
+   */
     fileName = dvmCreateCstrFromString(fileNameObj);
 
+    /*
+   * 来执行加载so文件的操作
+   */
     success = dvmLoadNativeCode(fileName, classLoader, &reason);
     if (!success) {
         const char* msg = (reason != NULL) ? reason : "unknown failure";

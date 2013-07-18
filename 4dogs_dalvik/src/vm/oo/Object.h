@@ -793,6 +793,10 @@ INLINE bool dvmIsDeclaredSynchronizedMethod(const Method* method) {
 INLINE bool dvmIsFinalMethod(const Method* method) {
     return (method->accessFlags & ACC_FINAL) != 0;
 }
+
+/*
+ * 判断是否是一个JNI方法
+ */
 INLINE bool dvmIsNativeMethod(const Method* method) {
     return (method->accessFlags & ACC_NATIVE) != 0;
 }

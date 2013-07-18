@@ -473,6 +473,9 @@ static int setCapabilities(int64_t permitted, int64_t effective)
  *
  * Returns 0 on success, -1 on failure.
  */
+/*
+ * 设置SELinux安全上下文方法实现： 
+ */
 static int setSELinuxContext(uid_t uid, bool isSystemServer,
                              const char *seInfo, const char *niceName)
 {

@@ -111,6 +111,9 @@ static void move32(void* dest, const void* src, size_t n)
  * The description of this function is long, and describes a multitude
  * of checks and exceptions.
  */
+ /*
+ * 拷贝指定的源数组到目标数组，从指定的开始位置，到目标数组的指定位置
+ */
 static void Dalvik_java_lang_System_arraycopy(const u4* args, JValue* pResult)
 {
     ArrayObject* srcArray = (ArrayObject*) args[0];
@@ -291,6 +294,9 @@ static void Dalvik_java_lang_System_arraycopy(const u4* args, JValue* pResult)
  * Current time, in miliseconds.  This doesn't need to be internal to the
  * VM, but we're already handling java.lang.System here.
  */
+ /*
+  * 返回当前时间的毫秒数
+  */
 static void Dalvik_java_lang_System_currentTimeMillis(const u4* args,
     JValue* pResult)
 {
@@ -311,6 +317,9 @@ static void Dalvik_java_lang_System_currentTimeMillis(const u4* args,
  * need to be internal to the VM, but we're already handling
  * java.lang.System here.
  */
+/*
+ * 返回当前最精确的系统时间，十亿分之一秒
+ */
 static void Dalvik_java_lang_System_nanoTime(const u4* args, JValue* pResult)
 {
     UNUSED_PARAMETER(args);
@@ -326,6 +335,11 @@ static void Dalvik_java_lang_System_nanoTime(const u4* args, JValue* pResult)
  * method would return for "x", even if "x"s class
  * overrides hashCode().
  */
+/*
+ * 对于给定的对象,将使用默认的方法hashCode（）方法返回相同的哈希码
+ * 
+ * 是否重写给定对象的类hashCode（）
+ */
 static void Dalvik_java_lang_System_identityHashCode(const u4* args,
     JValue* pResult)
 {
@@ -333,6 +347,9 @@ static void Dalvik_java_lang_System_identityHashCode(const u4* args,
     RETURN_INT(dvmIdentityHashCode(thisPtr));
 }
 
+/*
+ * 一个Library库名映射到一个特定平台字符串所代表的本地Native Library库
+ */
 static void Dalvik_java_lang_System_mapLibraryName(const u4* args,
     JValue* pResult)
 {
@@ -341,12 +358,15 @@ static void Dalvik_java_lang_System_mapLibraryName(const u4* args,
     char* name;
     char* mappedName;
 
+    /* java/lang/String */
     if (nameObj == NULL) {
         dvmThrowNullPointerException("userLibName == null");
         RETURN_VOID();
     }
 
+   /* 转换java/lang/String对象到C类型的String*/
     name = dvmCreateCstrFromString(nameObj);
+   /* 根据library名字映射的系统依赖项名称;eg. "jpeg"->libjpeg.so*/
     mappedName = dvmCreateSystemLibraryName(name);
     if (mappedName != NULL) {
         result = dvmCreateStringFromCstr(mappedName);

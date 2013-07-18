@@ -1387,7 +1387,7 @@ bool dvmIsClassAnnotationPresent(const ClassObject* clazz,
  * Caller must call dvmReleaseTrackedAlloc().
  */
  /*
-  * 获取签名注解
+  * 获取注解签名
   */
 ArrayObject* dvmGetClassSignatureAnnotation(const ClassObject* clazz)
 {

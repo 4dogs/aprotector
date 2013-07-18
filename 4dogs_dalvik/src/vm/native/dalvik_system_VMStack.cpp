@@ -26,6 +26,9 @@
  *
  * Return the defining class loader of the caller's caller.
  */
+/*
+ * 返回类所对应的加载器
+ */
 static void Dalvik_dalvik_system_VMStack_getCallingClassLoader(const u4* args,
     JValue* pResult)
 {

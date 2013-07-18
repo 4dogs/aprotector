@@ -23,6 +23,9 @@
 /*
  * Return true if the given name ends with ".dex".
  */
+/*
+ * 判断传入的名称是否是以.dex结果
+ */
 static bool hasDexExtension(const char* name) {
     size_t len = strlen(name);
 
@@ -36,7 +39,7 @@ static bool hasDexExtension(const char* name) {
  */
 struct DexOrJar {
     char*       fileName;
-    bool        isDex;
+    bool        isDex; 
     bool        okayToFree;
     RawDexFile* pRawDexFile;
     JarFile*    pJarFile;
@@ -45,6 +48,9 @@ struct DexOrJar {
 
 /*
  * (This is a dvmHashTableFree callback.)
+ */
+/*
+ * 释放DexOrJar结构体占用的内存
  */
 void dvmFreeDexOrJar(void* vptr)
 {
@@ -104,6 +110,9 @@ static bool validateCookie(int cookie)
 /*
  * Add given DexOrJar to the hash table of user-loaded dex files.
  */
+/*
+ * 添加特定的DexOrJar到hash表中
+ */
 static void addToDexFileTable(DexOrJar* pDexOrJar) {
     /*
      * Later on, we will receive this pointer as an argument and need
@@ -117,6 +126,7 @@ static void addToDexFileTable(DexOrJar* pDexOrJar) {
     void* result;
 
     dvmHashTableLock(gDvm.userDexFiles);
+    /* true 代表添加  false 代表不添加*/
     result = dvmHashTableLookup(gDvm.userDexFiles, hash, pDexOrJar,
             hashcmpDexOrJar, true);
     dvmHashTableUnlock(gDvm.userDexFiles);
@@ -134,8 +144,9 @@ static void addToDexFileTable(DexOrJar* pDexOrJar) {
  *     int flags) throws IOException
  *
  * Open a DEX file, returning a pointer to our internal data structure.
- *
+ * 打开一个DEX文件,返回一个指向我们内部数据结构体
  * "sourceName" should point to the "source" jar or DEX file.
+ * 'sourceName'应该是指jar或dex文件
  *
  * If "outputName" is NULL, the DEX code will automatically find the
  * "optimized" version in the cache directory, creating it if necessary.
@@ -164,6 +175,7 @@ static void Dalvik_dalvik_system_DexFile_openDexFile(const u4* args,
         RETURN_VOID();
     }
 
+   /*转换java数据类型成为c数据类型*/
     sourceName = dvmCreateCstrFromString(sourceNameObj);
     if (outputNameObj != NULL)
         outputName = dvmCreateCstrFromString(outputNameObj);
@@ -205,6 +217,7 @@ static void Dalvik_dalvik_system_DexFile_openDexFile(const u4* args,
      * If that fails (or isn't tried in the first place), try it as a
      * Zip with a "classes.dex" inside.
      */
+    /*判断扩展后缀名.eg .dex或.jar*/
     if (hasDexExtension(sourceName)
             && dvmRawDexFileOpen(sourceName, outputName, &pRawDexFile, false) == 0) {
         ALOGV("Opening DEX file '%s' (DEX)", sourceName);
@@ -293,6 +306,9 @@ static void Dalvik_dalvik_system_DexFile_openDexFile_bytearray(const u4* args,
  *
  * Release resources associated with a user-loaded DEX file.
  */
+/*
+ * 从hash表中移除一条dexFile
+ */
 static void Dalvik_dalvik_system_DexFile_closeDexFile(const u4* args,
     JValue* pResult)
 {
@@ -317,6 +333,7 @@ static void Dalvik_dalvik_system_DexFile_closeDexFile(const u4* args,
     if (pDexOrJar->okayToFree) {
         u4 hash = (u4) pDexOrJar;
         dvmHashTableLock(gDvm.userDexFiles);
+	/*从表中移除*/
         if (!dvmHashTableRemove(gDvm.userDexFiles, hash, pDexOrJar)) {
             ALOGW("WARNING: could not remove '%s' from DEX hash table",
                 pDexOrJar->fileName);
@@ -339,11 +356,16 @@ static void Dalvik_dalvik_system_DexFile_closeDexFile(const u4* args,
  * in a regular VM -- it's invoked by the class loader to cause the
  * creation of a specific class.  The difference is that the search for and
  * reading of the bytes is done within the VM.
+ * 从Dex文件中加载一个类. 在常规的VM中，它大体上等价于defineClass()，它通过调用
+ * 类加载器去创建一个特定的类.不同的是，在VM内完成搜索和读取的字节。
  *
  * The class name is a "binary name", e.g. "java.lang.String".
  *
  * Returns a null pointer with no exception if the class was not found.
  * Throws an exception on other failures.
+ */
+/*
+ * 从指定的DEX文件中加载一个类，使用类加载器去初始化一个类对象
  */
 static void Dalvik_dalvik_system_DexFile_defineClass(const u4* args,
     JValue* pResult)
@@ -402,6 +424,7 @@ static void Dalvik_dalvik_system_DexFile_defineClass(const u4* args,
  *
  * Returns a String array that holds the names of all classes in the
  * specified DEX file.
+ * 在指定的DEX文件中，返回一个持有所有类名字的String数组
  */
 static void Dalvik_dalvik_system_DexFile_getClassNameList(const u4* args,
     JValue* pResult)
