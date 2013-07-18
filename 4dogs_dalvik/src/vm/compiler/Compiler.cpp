@@ -410,7 +410,7 @@ static void resetCodeCache(void)
 
     /* Reset the current mark of used bytes to the end of template code */
     gDvmJit.codeCacheByteUsed = gDvmJit.templateSize;
-    gDvmJit.numCompilations = 0;
+    gDvmJit.numCompilations = 0;	/* 当前编译的数量归0 */
 
     /* Reset the work queue */
 	/* 重设订单队列 */
@@ -1010,8 +1010,8 @@ void dvmCompilerUpdateGlobalState()
         dvmLockMutex(&gDvmJit.compilerLock);
 		/* 增加缓冲版本 */
         gDvmJit.cacheVersion++; // invalidate compilations in flight
-        gDvmJit.methodTraceSupport = true;
-        resetRequired = (gDvmJit.numCompilations != 0);
+        gDvmJit.methodTraceSupport = true;	/* 开启 */
+        resetRequired = (gDvmJit.numCompilations != 0);	/* 检测是否重设代码缓冲区*/
         dvmUnlockMutex(&gDvmJit.compilerLock);
         if (resetRequired) {
             dvmSuspendAllThreads(SUSPEND_FOR_CC_RESET);
@@ -1028,13 +1028,13 @@ void dvmCompilerUpdateGlobalState()
 	/* jitActivate为TRUE表明处于调试阶段 */
     if (jitActivate && !jitActive) {
         gDvmJit.pProfTable = gDvmJit.pProfTableCopy;	/* 处于调试获取副本 */
-    } else if (!jitActivate && jitActive) {
+    } else if (!jitActivate && jitActive) {				/* 处于正常运行 */
         gDvmJit.pProfTable = NULL;
-        needUnchain = true;
+        needUnchain = true;/* 需要解链操作 */
     }
     dvmUnlockMutex(&gDvmJit.tableLock);
     if (needUnchain)				/* 不再调试模式下为TRUE */
-        dvmJitUnchainAll();
+        dvmJitUnchainAll();			
     // Make sure all threads have current values
 	/* 对所有线程设置JitTable表 */
     dvmJitUpdateThreadStateAll();

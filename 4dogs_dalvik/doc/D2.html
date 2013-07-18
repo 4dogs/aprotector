@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>Aprotector文档格式</title>
-<!-- 2013-06-28 五 00:23 -->
+<!-- 2013-07-18 四 11:35 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
 <meta name="generator" content="Org-mode"/>
 <meta name="author" content="四维创智"/>
@@ -143,8 +143,10 @@ for the JavaScript code in this tag.
 <li><a href="#sec-2">2. 源文件功能介绍文档</a>
 <ul>
 <li><a href="#sec-2-1">2.1. 内容</a></li>
-<li><a href="#sec-2-2">2.2. 文档格式</a></li>
-<li><a href="#sec-2-3">2.3. 文件名实例</a></li>
+<li><a href="#sec-2-2">2.2. 编码格式</a></li>
+<li><a href="#sec-2-3">2.3. 文档格式</a></li>
+<li><a href="#sec-2-4">2.4. 文件名实例</a></li>
+<li><a href="#sec-2-5">2.5. 格式转换</a></li>
 </ul>
 </li>
 </ul>
@@ -178,29 +180,41 @@ for the JavaScript code in this tag.
 </p>
 
 <p>
-2.每个源文件的具体功能
+2.单个源文件使用"vm_"做为前缀后跟源文件名作为文档的名称
 </p>
 
 <p>
-3.如果一个源文件分析完成，要有标记
+3.每个源文件的具体功能
 </p>
 
 <p>
-4.文档中拥有两种标签一种是内容标签，一种是源文件标签
+4.如果一个源文件分析完成，要有标记
 </p>
 
 <p>
-5.内容标签使用[]号定义，标题可以随意填写，其标签以下是其内容
+5.文档中拥有两种标签一种是内容标签，一种是源文件标签
 </p>
 
 <p>
-6.源代码标签在未完成分析之前使用&lt;&gt;括住源文件名称，当分析完毕后用[]括住源文件名称
+6.内容标签使用[]号定义，标题可以随意填写，其标签以下是其内容
+</p>
+
+<p>
+7.源代码标签在未完成分析之前使用&lt;&gt;括住源文件名称，当分析完毕后用[]括住源文件名称
 </p>
 </div>
 </div>
 <div id="outline-container-2-2" class="outline-3">
-<h3 id="sec-2-2"><span class="section-number-3">2.2</span> 文档格式</h3>
+<h3 id="sec-2-2"><span class="section-number-3">2.2</span> 编码格式</h3>
 <div class="outline-text-3" id="text-2-2">
+<p>
+最终的文档必须以UTF-8编码进行保存
+</p>
+</div>
+</div>
+<div id="outline-container-2-3" class="outline-3">
+<h3 id="sec-2-3"><span class="section-number-3">2.3</span> 文档格式</h3>
+<div class="outline-text-3" id="text-2-3">
 <p>
 [整体介绍]
 </p>
@@ -242,11 +256,31 @@ for the JavaScript code in this tag.
 </p>
 </div>
 </div>
-<div id="outline-container-2-3" class="outline-3">
-<h3 id="sec-2-3"><span class="section-number-3">2.3</span> 文件名实例</h3>
-<div class="outline-text-3" id="text-2-3">
+<div id="outline-container-2-4" class="outline-3">
+<h3 id="sec-2-4"><span class="section-number-3">2.4</span> 文件名实例</h3>
+<div class="outline-text-3" id="text-2-4">
 <p>
 例如，做alloc目录里的分析。只要取目录名称alloc.txt即可，直接把此文件放置到文档目录(doc)的根目录即可。
+</p>
+
+<p>
+例如，做AllocTracker.cpp。要是用vm<sub>AllocTracker</sub>.txt作为文档名称。
+</p>
+</div>
+</div>
+<div id="outline-container-2-5" class="outline-3">
+<h3 id="sec-2-5"><span class="section-number-3">2.5</span> 格式转换</h3>
+<div class="outline-text-3" id="text-2-5">
+<p>
+使用enca file确定编码形式
+</p>
+
+<p>
+使用iconv -f XXX -t UTF-8 -o file.new file.old 来转换编码
+</p>
+
+<p>
+使用iconv -l 可以列出当前iconv可以转换的编码
 </p>
 </div>
 </div>
@@ -255,7 +289,7 @@ for the JavaScript code in this tag.
 <div id="postamble" class="status">
 <p class="date">Date: 13/6/2013</p>
 <p class="author">Author: 四维创智</p>
-<p class="date">Created: 2013-06-28 五 00:23</p>
+<p class="date">Created: 2013-07-18 四 11:35</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 23.4.1 (<a href="http://orgmode.org">Org</a> mode 8.0-pre)</p>
 <p class="xhtml-validation"><a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a></p>
 </div>

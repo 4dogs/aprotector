@@ -540,7 +540,16 @@ compilerThreadStartup
 compilerThreadStart
 dvmCompilerStartup
 dvmCompilerShutdown
-dvmCompilerUpdateGlobalState
+
+dvmCompilerUpdateGlobalState 此函数是针对于Profiling而言的。由
+"dalvik/vm/Profiler.cpp"中的updateActiveProfilers函数调用。在解释器解释每条
+指令时进行调用。此函数流程如下：
+1.判断是否开启了Profilers这个主要是通过gDvm.activeProfilers变量查看数是否为
+0来判断的。
+2.如果gDvmJit.numCompilations不为0,也就是说有编译订单则调用resetCodeCache
+重新设置代码缓冲区
+3.如果是处于正式运行阶段则调用dvmJitUnchainAll接链
+4.将当前的JitTable设定给所有线程
 
 <dalvik/vm/compiler/codegen/arm/CodegenDriver.cpp>
 这个模块的主要功能是编译在arm平台下的代码
@@ -576,10 +585,10 @@ dvmCompileMethod函数与之类似。
 
 <dalvik/vm/compiler/InlineTransformation.cpp>
 
-<dalvik/vm/Profile.cpp>
+[dalvik/vm/Profile.cpp]
 此模块用于Profile的测试
-使用dvmProfilingStartup进行trace内存记录的分配对应的dvmProfilingShutdown
-为释放Profiling的内存状态。
+使用dvmProfilingStartup(仅在Init.cpp中调用)进行trace内存记录的分配对应的
+dvmProfilingShutdown为释放Profiling的内存状态。
 
 有三个宏用于当函数进入，函数退出，函数回卷三种情况下增加对Profiling的使用
 TRACE_METHOD_ENTER
@@ -590,9 +599,7 @@ TRACE_METHOD_UNROLL
 使用这三个宏时，dvmMethodTraceAdd函数会把这个函数 + 以上三个宏的值
 记录到Profiling的内存中。这三个宏表示了函数当前的三种状态。这样与当前函数的结构
 体(Method)做结合，那么此值就可以当作此时的唯一标识来使用。
-
-在要trace profiling时，调用dvmMethodTraceStart,当然这是由上层解释器调用的。在
-适当的位置。则会获取当前的相对时间，并且在Profiling内存状态结构中分配记录内存，
+调用dvmMethodTraceStart(仅在native/dalvik_system_VMDebug.cpp调用),当然这是由上层解释器调用的。在适当的位置。则会获取当前的相对时间，并且在Profiling内存状态结构中分配记录内存，
 当完成时则dvmMethodTraceStop被调用也是由解释器调用的。它从内存中获取信息然后
 获取当前的相对时间，计算出当前线程运行的Profiling时间，并且输出到DDMS（如果开启）获取文件中。
 
@@ -602,4 +609,19 @@ dvmStopInstructionCounting	用于停止指令计数的个数
 dvmStartAllocCounting 用于开启内存分配的Profiling
 dvmStopAllocCounting 用于停止内存分配的Profiling
 
+如果按照我的分析没错的话，首先在初始化话时调用dvmProfilingStartup进行对一些
+线程同步的变量进行初始化，随后在调用dvmMethodTraceStart获取当前的相对时间作为一个开始时间标准，并且分配记录
+内存，接下来在每个函数入口或者出口等位置调用宏来记录时间。最后通过
+dvmMethodTraceStop函数在停止时，取出消耗时间。
+这个模块还有一个重要的函数updateActiveProfilers，此函数用于更新全局变量
+gDvm.activeProfilers的数量，此变量表明了当前有多少正在运行的Profiler。
+最重要的一点是通过dvmCompilerUpdateGlobalState与JIT编译器相通。
+updateActiveProfilers在以下几个函数中进行引用
+dvmMethodTraceStart(true)
+dvmMethodTraceStop(false)
+dvmEmulatorTraceStart(true)
+dvmEmulatorTraceStop(false)
+dvmStartInstructionCounting(true)
+dvmStopInstructionCounting(false)
+这里的true表示增加Profiler的计数false反之。
 

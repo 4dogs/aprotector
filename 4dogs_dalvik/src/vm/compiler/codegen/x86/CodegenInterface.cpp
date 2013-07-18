@@ -496,19 +496,31 @@ done:
 u4* dvmJitUnchain(void* codeAddr)
 {
     /* codeAddr is 4-byte aligned, so is chain cell count offset */
+	/* 这是一个数据结构 */
+
+	/*
+	 * struct {
+	 *	  u2* ChainCellCountOffset
+	 *	  u4* codeAddress
+	 * }
+	 */
     u2* pChainCellCountOffset = (u2*)((char*)codeAddr - 4);
     u2 chainCellCountOffset = *pChainCellCountOffset;
     /* chain cell counts information is 4-byte aligned */
+	/* 得到链接单元的计数 */
     ChainCellCounts *pChainCellCounts =
           (ChainCellCounts*)((char*)codeAddr + chainCellCountOffset);
+
     u2* pChainCellOffset = (u2*)((char*)codeAddr - 2);
     u2 chainCellOffset = *pChainCellOffset;
+
     u1* pChainCells;
     int i,j;
     PredictedChainingCell *predChainCell;
     int padding;
 
     /* Locate the beginning of the chain cell region */
+	/* 确定链接节点范围的开始 */
     pChainCells = (u1 *)((char*)codeAddr + chainCellOffset);
 
     /* The cells are sorted in order - walk through them and reset */
@@ -577,7 +589,7 @@ u4* dvmJitUnchain(void* codeAddr)
             COMPILER_TRACE_CHAINING(
                 ALOGI("Jit Runtime: unchaining 0x%x", (int)pChainCells));
             pChainCells += elemSize;  /* Advance by a fixed number of bytes */
-        }
+        }/* end for */
     }
     return NULL;
 }
@@ -589,17 +601,19 @@ u4* dvmJitUnchain(void* codeAddr)
 void dvmJitUnchainAll()
 {
     ALOGV("Jit Runtime: unchaining all");
+	/* JitTable不为空 */
     if (gDvmJit.pJitEntryTable != NULL) {
         COMPILER_TRACE_CHAINING(ALOGI("Jit Runtime: unchaining all"));
         dvmLockMutex(&gDvmJit.tableLock);
 
+		/* 接触代码缓冲保护 */
         UNPROTECT_CODE_CACHE(gDvmJit.codeCache, gDvmJit.codeCacheByteUsed);
 
 		/* 遍历JIT表 */
         for (size_t i = 0; i < gDvmJit.jitTableSize; i++) {
             if (gDvmJit.pJitEntryTable[i].dPC &&
-                !gDvmJit.pJitEntryTable[i].u.info.isMethodEntry &&
-                gDvmJit.pJitEntryTable[i].codeAddress) {
+                !gDvmJit.pJitEntryTable[i].u.info.isMethodEntry &&		/* 此JIT代码段非函数入口 */
+                gDvmJit.pJitEntryTable[i].codeAddress) {				/* 编译后的代码指针有效 */
                       dvmJitUnchain(gDvmJit.pJitEntryTable[i].codeAddress);
             }
         }
@@ -609,7 +623,7 @@ void dvmJitUnchainAll()
         dvmUnlockMutex(&gDvmJit.tableLock);
         gDvmJit.translationChains = 0;
     }
-    gDvmJit.hasNewChain = false;
+    gDvmJit.hasNewChain = false;			/* 表明没有新的节点 */
 }
 
 #define P_GPR_1 PhysicalReg_EBX

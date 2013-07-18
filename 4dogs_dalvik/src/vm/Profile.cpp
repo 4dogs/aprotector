@@ -299,7 +299,7 @@ static void updateActiveProfilers(ExecutionSubModes newMode, bool enable)
         dvmDisableAllSubMode(newMode);
     }
 
-#if defined(WITH_JIT)
+if defined(WITH_JIT)
 	/* 更新编译器状态 */
     dvmCompilerUpdateGlobalState();
 #endif
