@@ -1,4 +1,4 @@
-/*
+ï»¿/*
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +15,7 @@
  */
 /*
  * Command-line invocation of the Dalvik VM.
+ * »ùÓÚÃüÁîĞĞµÄdalvikĞéÄâ»ú
  */
 #include "jni.h"
 
@@ -34,12 +35,16 @@ static void blockSigpipe()
 
     sigemptyset(&mask);
     sigaddset(&mask, SIGPIPE);
+
+	
+    //sigprocmask()¿ÉÒÔÓÃÀ´¼ì²â»ò¸Ä±äÄ¿Ç°µÄĞÅºÅÆÁ±Î×Ö
     if (sigprocmask(SIG_BLOCK, &mask, NULL) != 0)
         fprintf(stderr, "WARNING: SIGPIPE not blocked\n");
 }
 
 /*
  * Create a String[] and populate it with the contents of argv.
+ * ´´½¨×Ö·û´®Êı×éÀàĞÍ£¬Ö÷ÒªÕâÀïÓÃÀ´´æ·ÅÃüÁîĞĞ²ÎÊı-- ¸¨Öú¹¦ÄÜ¶øÒÑ
  */
 static jobjectArray createStringArray(JNIEnv* env, char* const argv[], int argc)
 {
@@ -88,6 +93,7 @@ bail:
  * Determine whether or not the specified method is public.
  *
  * Returns JNI_TRUE on success, JNI_FALSE on failure.
+ * ÅĞ¶ÏÄ³¸ö·½·¨ÊÇ²»ÊÇ¾ßÓĞpublicÊôĞÔ
  */
 static int methodIsPublic(JNIEnv* env, jclass clazz, jmethodID methodId)
 {
@@ -172,6 +178,7 @@ int main(int argc, char* const argv[])
      * with a '-' (the function hook stuff is strictly internal).
      *
      * [Do we need to catch & handle "-jar" here?]
+     * »ñÈ¡Æô¶¯Ñ¡Ïî
      */
     for (curOpt = argIdx = 0; argIdx < argc; argIdx++) {
         if (argv[argIdx][0] != '-' && !needExtra)
@@ -197,6 +204,7 @@ int main(int argc, char* const argv[])
 
     assert(curOpt <= optionCount);
 
+    //Ìî³ä³õÊ¼»¯²ÎÊı
     initArgs.version = JNI_VERSION_1_4;
     initArgs.options = options;
     initArgs.nOptions = curOpt;
@@ -208,6 +216,7 @@ int main(int argc, char* const argv[])
 
     /*
      * Start VM.  The current thread becomes the main thread of the VM.
+     * Æô¶¯ĞéÄâ»ú
      */
     if (JNI_CreateJavaVM(&vm, &env, &initArgs) < 0) {
         fprintf(stderr, "Dalvik VM init failed (check log file)\n");
@@ -252,6 +261,7 @@ int main(int argc, char* const argv[])
         goto bail;
     }
 
+    //ÕÒµ½mainº¯Êı
     startMeth = env->GetStaticMethodID(startClass,
                     "main", "([Ljava/lang/String;)V");
     if (startMeth == NULL) {
@@ -268,7 +278,7 @@ int main(int argc, char* const argv[])
         goto bail;
 
     /*
-     * Invoke main().
+     * Invoke main(). ½âÊÍÖ´ĞĞmainº¯Êı
      */
     env->CallStaticVoidMethod(startClass, startMeth, strArray);
 
@@ -287,6 +297,7 @@ bail:
             result = 1;
         }
 
+        // Ïú»ÙĞéÄâ»ú
         if (vm->DestroyJavaVM() != 0)
             fprintf(stderr, "Warning: Dalvik VM did not shut down cleanly\n");
         /*printf("\nDalvik VM has exited\n");*/
