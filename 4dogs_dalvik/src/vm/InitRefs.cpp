@@ -21,6 +21,7 @@
 
 #include "Dalvik.h"
 
+//根据名称查找并获取指定类型的类对象
 static bool initClassReference(ClassObject** pClass, const char* name) {
     ClassObject* result;
 
@@ -41,6 +42,7 @@ static bool initClassReference(ClassObject** pClass, const char* name) {
     return true;
 }
 
+//初始化并定义一些类
 static bool initClassReferences() {
     static struct { ClassObject** ref; const char* name; } classes[] = {
         /*
@@ -152,6 +154,7 @@ static bool initClassReferences() {
     return true;
 }
 
+//查找指定类的与偏移
 static bool initFieldOffset(ClassObject* clazz, int *pOffset,
         const char* name, const char* type) {
     int offset = dvmFindFieldOffset(clazz, name, type);
@@ -164,11 +167,12 @@ static bool initFieldOffset(ClassObject* clazz, int *pOffset,
     return true;
 }
 
+// 初始化要用到的域信息
 static bool initFieldOffsets() {
     struct FieldInfo {
-        int* offset;
-        const char* name;
-        const char* type;
+        int* offset; //偏移
+        const char* name; // 描述名称
+        const char* type; // 类型
     };
 
     static struct FieldInfo infoDdmcChunk[] = {
@@ -294,6 +298,7 @@ static bool initFieldOffsets() {
     return true;
 }
 
+// 初始化直接方法引用
 static bool initDirectMethodReferenceByClass(Method** pMethod, ClassObject* clazz,
         const char* name, const char* descriptor) {
     Method* method = dvmFindDirectMethodByDescriptor(clazz, name, descriptor);
@@ -320,6 +325,7 @@ static bool initDirectMethodReference(Method** pMethod, const char* className,
     return initDirectMethodReferenceByClass(pMethod, clazz, name, descriptor);
 }
 
+//初始化构造函数
 static bool initConstructorReferences() {
     static struct { Method** method; const char* name; const char* descriptor; } constructors[] = {
         { &gDvm.methJavaLangStackTraceElement_init, "Ljava/lang/StackTraceElement;",
@@ -352,10 +358,10 @@ static bool initConstructorReferences() {
 
 static bool initDirectMethodReferences() {
     static struct {
-        Method** method;
-        const char* className;
-        const char* name;
-        const char* descriptor;
+        Method** method; // 方法代码
+        const char* className; //所属类名
+        const char* name;  //方法名
+        const char* descriptor;  //方法描述
     } methods[] = {
         { &gDvm.methJavaLangClassLoader_getSystemClassLoader, "Ljava/lang/ClassLoader;",
           "getSystemClassLoader", "()Ljava/lang/ClassLoader;" },
@@ -412,6 +418,7 @@ static bool initVirtualMethodOffset(int* pOffset, const char* className,
     return true;
 }
 
+//初始化虚方法
 static bool initVirtualMethodOffsets() {
     static struct {
         int* offset;

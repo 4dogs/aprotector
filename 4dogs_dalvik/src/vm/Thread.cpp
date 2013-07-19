@@ -1,4 +1,4 @@
-/*
+ï»¿/*
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -248,6 +248,7 @@ static void waitForThreadSuspend(Thread* self, Thread* thread);
  * Initialize thread list and main thread's environment.  We need to set
  * up some basic stuff so that dvmThreadSelf() will work when we start
  * loading classes (e.g. to check for exceptions).
+ * åˆå§‹åŒ–çº¿ç¨‹åˆ—è¡¨å’Œä¸»çº¿ç¨‹ç¯å¢ƒ
  */
 bool dvmThreadStartup()
 {
@@ -305,6 +306,7 @@ bool dvmThreadStartup()
 
 /*
  * All threads should be stopped by now.  Clean up some thread globals.
+ * åœæ­¢çº¿ç¨‹ï¼Œæ¸…ç†çº¿ç¨‹ç›¸å…³
  */
 void dvmThreadShutdown()
 {
@@ -353,7 +355,7 @@ static inline void unlockThreadSuspendCount()
 
 /*
  * Grab the thread list global lock.
- * »ñÈ¡Ïß³ÌÁĞ±íµÄÈ«¾ÖËø
+ * è·å–çº¿ç¨‹åˆ—è¡¨çš„å…¨å±€é”
  * This is held while "suspend all" is trying to make everybody stop.  If
  * the shutdown is in progress, and somebody tries to grab the lock, they'll
  * have to wait for the GC to finish.  Therefore it's important that the
@@ -381,8 +383,8 @@ void dvmLockThreadList(Thread* self)
         self = dvmThreadSelf();
 
     if (self != NULL) {
-        oldStatus = self->status;//±£´æÔ­Ê¼µÄ×´Ì¬
-        self->status = THREAD_VMWAIT;//ÉèÖÃµ±Ç°µÄ×´Ì¬ÎªµÈ´ı
+        oldStatus = self->status;//ä¿å­˜åŸå§‹çš„çŠ¶æ€
+        self->status = THREAD_VMWAIT;//è®¾ç½®å½“å‰çš„çŠ¶æ€ä¸ºç­‰å¾…
     } else {
         /* happens during VM shutdown */
         oldStatus = THREAD_UNDEFINED;  // shut up gcc
@@ -396,7 +398,7 @@ void dvmLockThreadList(Thread* self)
 
 /*
  * Try to lock the thread list.
- *
+ * é”å®šçº¿ç¨‹é˜Ÿåˆ—
  * Returns "true" if we locked it.  This is a "fast" mutex, so if the
  * current thread holds the lock this will fail.
  */
@@ -407,6 +409,7 @@ bool dvmTryLockThreadList()
 
 /*
  * Release the thread list global lock.
+ * è§£é”çº¿ç¨‹é˜Ÿåˆ—
  */
 void dvmUnlockThreadList()
 {
@@ -652,6 +655,7 @@ void dvmSlayDaemons()
 /*
  * Finish preparing the parts of the Thread struct required to support
  * JNI registration.
+ * ä¸ºJNIæ³¨å†Œå‡†å¤‡ä¸€äº›çº¿ç¨‹ç›¸å…³çš„æ•°æ®ç»“æ„
  */
 bool dvmPrepMainForJni(JNIEnv* pEnv)
 {
@@ -677,8 +681,8 @@ bool dvmPrepMainForJni(JNIEnv* pEnv)
  * Finish preparing the main thread, allocating some objects to represent
  * it.  As part of doing so, we finish initializing Thread and ThreadGroup.
  * This will execute some interpreted code (e.g. class initializers).
- * Íê³ÉÖ÷Ïß³ÌµÄ³õÊ¼»¯£¬·ÖÅäÏß³Ì¶ÔÏó¼°³õÊ¼»¯£¬Í¬Ê±ÔÚÕâ¸öÊ±ºò»áµ÷ÓÃ
- * ½âÊÍÆ÷À´Ö´ĞĞÒ»²¿·Ö´úÂë¡£
+ * å®Œæˆä¸»çº¿ç¨‹çš„åˆå§‹åŒ–ï¼Œåˆ†é…çº¿ç¨‹å¯¹è±¡åŠåˆå§‹åŒ–ï¼ŒåŒæ—¶åœ¨è¿™ä¸ªæ—¶å€™ä¼šè°ƒç”¨
+ * è§£é‡Šå™¨æ¥æ‰§è¡Œä¸€éƒ¨åˆ†ä»£ç ã€‚
  */
 bool dvmPrepMainThread()
 {
@@ -699,7 +703,7 @@ bool dvmPrepMainThread()
     /*
      * Make sure the classes are initialized.  We have to do this before
      * we create an instance of them.
-     * ³õÊ¼»¯Ò»Ğ©Ïß³ÌÏà¹ØµÄÀà
+     * åˆå§‹åŒ–ä¸€äº›çº¿ç¨‹ç›¸å…³çš„ç±»
      */
     if (!dvmInitClass(gDvm.classJavaLangClass)) {
         ALOGE("'Class' class failed to initialize");
@@ -804,7 +808,7 @@ bool dvmPrepMainThread()
  * Alloc and initialize a Thread struct.
  *
  * Does not create any objects, just stuff on the system (malloc) heap.
- * ·ÖÅäºÍ³õÊ¼»¯Ïß³Ì½á¹¹Ìå
+ * åˆ†é…å’Œåˆå§‹åŒ–çº¿ç¨‹ç»“æ„ä½“
  */
 static Thread* allocThread(int interpStackSize)
 {
@@ -815,7 +819,7 @@ static Thread* allocThread(int interpStackSize)
     if (thread == NULL)
         return NULL;
 
-    /* Check sizes and alignment ¼ì²é´óĞ¡ºÍ¶ÔÆë*/
+    /* Check sizes and alignment æ£€æŸ¥å¤§å°å’Œå¯¹é½*/
     assert((((uintptr_t)&thread->interpBreak.all) & 0x7) == 0);
     assert(sizeof(thread->interpBreak) == sizeof(thread->interpBreak.all));
 
@@ -837,8 +841,8 @@ static Thread* allocThread(int interpStackSize)
      * The stack must be aligned on a 4-byte boundary.
      */
 #ifdef MALLOC_INTERP_STACK
-    /* ·ÖÅäÕ»Ö¡¿Õ¼ä,±ØĞë4×Ö½Ú±ß½ç¶ÔÆë*/
-    /*Ö±½ÓÉêÇë¿Õ¼ä*/
+    /* åˆ†é…æ ˆå¸§ç©ºé—´,å¿…é¡»4å­—èŠ‚è¾¹ç•Œå¯¹é½*/
+    /*ç›´æ¥ç”³è¯·ç©ºé—´*/
     stackBottom = (u1*) malloc(interpStackSize);
     if (stackBottom == NULL) {
 #if defined(WITH_SELF_VERIFICATION)
@@ -847,47 +851,47 @@ static Thread* allocThread(int interpStackSize)
         free(thread);
         return NULL;
     }
-    /*Ìî³äÎª0xc5*/
+    /*å¡«å……ä¸º0xc5*/
     memset(stackBottom, 0xc5, interpStackSize);     // stop valgrind complaints
 #else
     /*
-    * º¯Êı£ºvoid *mmap(void *start,size_t length,int prot,int flags,int fd,off_t offsize);
+    * å‡½æ•°ï¼švoid *mmap(void *start,size_t length,int prot,int flags,int fd,off_t offsize);
 
-	²ÎÊıstart£ºÖ¸ÏòÓûÓ³ÉäµÄÄÚ´æÆğÊ¼µØÖ·£¬Í¨³£ÉèÎª NULL£¬´ú±íÈÃÏµÍ³×Ô¶¯Ñ¡¶¨µØÖ·£¬Ó³Éä³É¹¦ºó·µ»Ø¸ÃµØÖ·¡£
+	å‚æ•°startï¼šæŒ‡å‘æ¬²æ˜ å°„çš„å†…å­˜èµ·å§‹åœ°å€ï¼Œé€šå¸¸è®¾ä¸º NULLï¼Œä»£è¡¨è®©ç³»ç»Ÿè‡ªåŠ¨é€‰å®šåœ°å€ï¼Œæ˜ å°„æˆåŠŸåè¿”å›è¯¥åœ°å€ã€‚
 
-	²ÎÊılength£º´ú±í½«ÎÄ¼şÖĞ¶à´óµÄ²¿·ÖÓ³Éäµ½ÄÚ´æ¡£
+	å‚æ•°lengthï¼šä»£è¡¨å°†æ–‡ä»¶ä¸­å¤šå¤§çš„éƒ¨åˆ†æ˜ å°„åˆ°å†…å­˜ã€‚
 
-	²ÎÊıprot£ºÓ³ÉäÇøÓòµÄ±£»¤·½Ê½¡£¿ÉÒÔÎªÒÔÏÂ¼¸ÖÖ·½Ê½µÄ×éºÏ£º
-	PROT_EXEC Ó³ÉäÇøÓò¿É±»Ö´ĞĞ
-	PROT_READ Ó³ÉäÇøÓò¿É±»¶ÁÈ¡
-	PROT_WRITE Ó³ÉäÇøÓò¿É±»Ğ´Èë
-	PROT_NONE Ó³ÉäÇøÓò²»ÄÜ´æÈ¡
+	å‚æ•°protï¼šæ˜ å°„åŒºåŸŸçš„ä¿æŠ¤æ–¹å¼ã€‚å¯ä»¥ä¸ºä»¥ä¸‹å‡ ç§æ–¹å¼çš„ç»„åˆï¼š
+	PROT_EXEC æ˜ å°„åŒºåŸŸå¯è¢«æ‰§è¡Œ
+	PROT_READ æ˜ å°„åŒºåŸŸå¯è¢«è¯»å–
+	PROT_WRITE æ˜ å°„åŒºåŸŸå¯è¢«å†™å…¥
+	PROT_NONE æ˜ å°„åŒºåŸŸä¸èƒ½å­˜å–
 
-	²ÎÊıflags£ºÓ°ÏìÓ³ÉäÇøÓòµÄ¸÷ÖÖÌØĞÔ¡£ÔÚµ÷ÓÃmmap()Ê±±ØĞëÒªÖ¸¶¨MAP_SHARED »òMAP_PRIVATE¡£
-	MAP_FIXED Èç¹û²ÎÊıstartËùÖ¸µÄµØÖ·ÎŞ·¨³É¹¦½¨Á¢Ó³ÉäÊ±£¬Ôò·ÅÆúÓ³Éä£¬²»¶ÔµØÖ·×öĞŞÕı¡£Í¨³£²»¹ÄÀøÓÃ´ËÆì±ê¡£
-	MAP_SHARED¶ÔÓ³ÉäÇøÓòµÄĞ´ÈëÊı¾İ»á¸´ÖÆ»ØÎÄ¼şÄÚ£¬¶øÇÒÔÊĞíÆäËûÓ³Éä¸ÃÎÄ¼şµÄ½ø³Ì¹²Ïí¡£
-	MAP_PRIVATE ¶ÔÓ³ÉäÇøÓòµÄĞ´Èë²Ù×÷»á²úÉúÒ»¸öÓ³ÉäÎÄ¼şµÄ¸´ÖÆ£¬¼´Ë½ÈËµÄ¡°Ğ´ÈëÊ±¸´ÖÆ¡±£¨copy on write£©¶Ô´ËÇøÓò×÷µÄÈÎºÎĞŞ¸Ä¶¼²»»áĞ´»ØÔ­À´µÄÎÄ¼şÄÚÈİ¡£
-	MAP_ANONYMOUS½¨Á¢ÄäÃûÓ³Éä¡£´ËÊ±»áºöÂÔ²ÎÊıfd£¬²»Éæ¼°ÎÄ¼ş£¬¶øÇÒÓ³ÉäÇøÓòÎŞ·¨ºÍÆäËû½ø³Ì¹²Ïí¡£
-	MAP_DENYWRITEÖ»ÔÊĞí¶ÔÓ³ÉäÇøÓòµÄĞ´Èë²Ù×÷£¬ÆäËû¶ÔÎÄ¼şÖ±½ÓĞ´ÈëµÄ²Ù×÷½«»á±»¾Ü¾ø¡£
-	MAP_LOCKED ½«Ó³ÉäÇøÓòËø¶¨×¡£¬Õâ±íÊ¾¸ÃÇøÓò²»»á±»ÖÃ»»£¨swap£©¡£
+	å‚æ•°flagsï¼šå½±å“æ˜ å°„åŒºåŸŸçš„å„ç§ç‰¹æ€§ã€‚åœ¨è°ƒç”¨mmap()æ—¶å¿…é¡»è¦æŒ‡å®šMAP_SHARED æˆ–MAP_PRIVATEã€‚
+	MAP_FIXED å¦‚æœå‚æ•°startæ‰€æŒ‡çš„åœ°å€æ— æ³•æˆåŠŸå»ºç«‹æ˜ å°„æ—¶ï¼Œåˆ™æ”¾å¼ƒæ˜ å°„ï¼Œä¸å¯¹åœ°å€åšä¿®æ­£ã€‚é€šå¸¸ä¸é¼“åŠ±ç”¨æ­¤æ——æ ‡ã€‚
+	MAP_SHAREDå¯¹æ˜ å°„åŒºåŸŸçš„å†™å…¥æ•°æ®ä¼šå¤åˆ¶å›æ–‡ä»¶å†…ï¼Œè€Œä¸”å…è®¸å…¶ä»–æ˜ å°„è¯¥æ–‡ä»¶çš„è¿›ç¨‹å…±äº«ã€‚
+	MAP_PRIVATE å¯¹æ˜ å°„åŒºåŸŸçš„å†™å…¥æ“ä½œä¼šäº§ç”Ÿä¸€ä¸ªæ˜ å°„æ–‡ä»¶çš„å¤åˆ¶ï¼Œå³ç§äººçš„â€œå†™å…¥æ—¶å¤åˆ¶â€ï¼ˆcopy on writeï¼‰å¯¹æ­¤åŒºåŸŸä½œçš„ä»»ä½•ä¿®æ”¹éƒ½ä¸ä¼šå†™å›åŸæ¥çš„æ–‡ä»¶å†…å®¹ã€‚
+	MAP_ANONYMOUSå»ºç«‹åŒ¿åæ˜ å°„ã€‚æ­¤æ—¶ä¼šå¿½ç•¥å‚æ•°fdï¼Œä¸æ¶‰åŠæ–‡ä»¶ï¼Œè€Œä¸”æ˜ å°„åŒºåŸŸæ— æ³•å’Œå…¶ä»–è¿›ç¨‹å…±äº«ã€‚
+	MAP_DENYWRITEåªå…è®¸å¯¹æ˜ å°„åŒºåŸŸçš„å†™å…¥æ“ä½œï¼Œå…¶ä»–å¯¹æ–‡ä»¶ç›´æ¥å†™å…¥çš„æ“ä½œå°†ä¼šè¢«æ‹’ç»ã€‚
+	MAP_LOCKED å°†æ˜ å°„åŒºåŸŸé”å®šä½ï¼Œè¿™è¡¨ç¤ºè¯¥åŒºåŸŸä¸ä¼šè¢«ç½®æ¢ï¼ˆswapï¼‰ã€‚
 
-	²ÎÊıfd£ºÒªÓ³Éäµ½ÄÚ´æÖĞµÄÎÄ¼şÃèÊö·û¡£Èç¹ûÊ¹ÓÃÄäÃûÄÚ´æÓ³ÉäÊ±£¬¼´flagsÖĞÉèÖÃÁËMAP_ANONYMOUS£¬fdÉèÎª-1¡£ÓĞĞ©ÏµÍ³²»Ö§³ÖÄäÃûÄÚ´æÓ³Éä£¬Ôò¿ÉÒÔÊ¹ÓÃfopen´ò¿ª/dev/zeroÎÄ¼ş£¬È»ºó¶Ô¸ÃÎÄ¼ş½øĞĞÓ³Éä£¬¿ÉÒÔÍ¬Ñù´ïµ½ÄäÃûÄÚ´æÓ³ÉäµÄĞ§¹û¡£
+	å‚æ•°fdï¼šè¦æ˜ å°„åˆ°å†…å­˜ä¸­çš„æ–‡ä»¶æè¿°ç¬¦ã€‚å¦‚æœä½¿ç”¨åŒ¿åå†…å­˜æ˜ å°„æ—¶ï¼Œå³flagsä¸­è®¾ç½®äº†MAP_ANONYMOUSï¼Œfdè®¾ä¸º-1ã€‚æœ‰äº›ç³»ç»Ÿä¸æ”¯æŒåŒ¿åå†…å­˜æ˜ å°„ï¼Œåˆ™å¯ä»¥ä½¿ç”¨fopenæ‰“å¼€/dev/zeroæ–‡ä»¶ï¼Œç„¶åå¯¹è¯¥æ–‡ä»¶è¿›è¡Œæ˜ å°„ï¼Œå¯ä»¥åŒæ ·è¾¾åˆ°åŒ¿åå†…å­˜æ˜ å°„çš„æ•ˆæœã€‚
 
-	²ÎÊıoffset£ºÎÄ¼şÓ³ÉäµÄÆ«ÒÆÁ¿£¬Í¨³£ÉèÖÃÎª0£¬´ú±í´ÓÎÄ¼ş×îÇ°·½¿ªÊ¼¶ÔÓ¦£¬offset±ØĞëÊÇ·ÖÒ³´óĞ¡µÄÕûÊı±¶¡£
+	å‚æ•°offsetï¼šæ–‡ä»¶æ˜ å°„çš„åç§»é‡ï¼Œé€šå¸¸è®¾ç½®ä¸º0ï¼Œä»£è¡¨ä»æ–‡ä»¶æœ€å‰æ–¹å¼€å§‹å¯¹åº”ï¼Œoffsetå¿…é¡»æ˜¯åˆ†é¡µå¤§å°çš„æ•´æ•°å€ã€‚
 
-	·µ»ØÖµ£º
+	è¿”å›å€¼ï¼š
 
-	ÈôÓ³Éä³É¹¦Ôò·µ»ØÓ³ÉäÇøµÄÄÚ´æÆğÊ¼µØÖ·£¬·ñÔò·µ»ØMAP_FAILED(£­1)£¬´íÎóÔ­Òò´æÓÚerrno ÖĞ¡£
+	è‹¥æ˜ å°„æˆåŠŸåˆ™è¿”å›æ˜ å°„åŒºçš„å†…å­˜èµ·å§‹åœ°å€ï¼Œå¦åˆ™è¿”å›MAP_FAILED(ï¼1)ï¼Œé”™è¯¯åŸå› å­˜äºerrno ä¸­ã€‚
 
-	´íÎó´úÂë£º
+	é”™è¯¯ä»£ç ï¼š
 
-	EBADF ²ÎÊıfd ²»ÊÇÓĞĞ§µÄÎÄ¼şÃèÊö´Ê
-	EACCES ´æÈ¡È¨ÏŞÓĞÎó¡£Èç¹ûÊÇMAP_PRIVATE Çé¿öÏÂÎÄ¼ş±ØĞë¿É¶Á£¬Ê¹ÓÃMAP_SHAREDÔòÒªÓĞPROT_WRITEÒÔ¼°¸ÃÎÄ¼şÒªÄÜĞ´Èë¡£
-	EINVAL ²ÎÊıstart¡¢length »òoffsetÓĞÒ»¸ö²»ºÏ·¨¡£
-	EAGAIN ÎÄ¼ş±»Ëø×¡£¬»òÊÇÓĞÌ«¶àÄÚ´æ±»Ëø×¡¡£
-	ENOMEM ÄÚ´æ²»×ã¡£
+	EBADF å‚æ•°fd ä¸æ˜¯æœ‰æ•ˆçš„æ–‡ä»¶æè¿°è¯
+	EACCES å­˜å–æƒé™æœ‰è¯¯ã€‚å¦‚æœæ˜¯MAP_PRIVATE æƒ…å†µä¸‹æ–‡ä»¶å¿…é¡»å¯è¯»ï¼Œä½¿ç”¨MAP_SHAREDåˆ™è¦æœ‰PROT_WRITEä»¥åŠè¯¥æ–‡ä»¶è¦èƒ½å†™å…¥ã€‚
+	EINVAL å‚æ•°startã€length æˆ–offsetæœ‰ä¸€ä¸ªä¸åˆæ³•ã€‚
+	EAGAIN æ–‡ä»¶è¢«é”ä½ï¼Œæˆ–æ˜¯æœ‰å¤ªå¤šå†…å­˜è¢«é”ä½ã€‚
+	ENOMEM å†…å­˜ä¸è¶³ã€‚
     */
-    /*ÄäÃûÒşÉäµ½¸Ã½ø³ÌµÄµØÖ·¿Õ¼ä(ÕâÑùµÄ×ö·¨ÔÚĞ´Èë²Ù×÷Ê±ºòÓĞÓÅÊÆ)*/
+    /*åŒ¿åéšå°„åˆ°è¯¥è¿›ç¨‹çš„åœ°å€ç©ºé—´(è¿™æ ·çš„åšæ³•åœ¨å†™å…¥æ“ä½œæ—¶å€™æœ‰ä¼˜åŠ¿)*/
     stackBottom = (u1*) mmap(NULL, interpStackSize, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANON, -1, 0);
     if (stackBottom == MAP_FAILED) {
@@ -900,15 +904,15 @@ static Thread* allocThread(int interpStackSize)
 #endif
 
     assert(((u4)stackBottom & 0x03) == 0); // looks like our malloc ensures this
-    // Ìî³äÒ»Ğ©ĞÅÏ¢
+    // å¡«å……ä¸€äº›ä¿¡æ¯
     thread->interpStackSize = interpStackSize;
     thread->interpStackStart = stackBottom + interpStackSize;
     thread->interpStackEnd = stackBottom + STACK_OVERFLOW_RESERVE;
 
 #ifndef DVM_NO_ASM_INTERP
-    // Á½ÖÖÀàĞÍµÄtable£¬¾ßÌåÓÃÄÄ¸öÓÉInterpBreakÖĞµÄbreakFlagµÄÖµÀ´È·¶¨
-    // ÕâÁ½¸öÊ×µØÖ·ÔÚ¶ÔÓ¦µÄ»ã±àÎÄ¼şÀïÃæ¶¼ÄÜÕÒµ½
-    // ËûÃÇµÄ¶¨ÒåÀàËÆÈçÏÂ:
+    // ä¸¤ç§ç±»å‹çš„tableï¼Œå…·ä½“ç”¨å“ªä¸ªç”±InterpBreakä¸­çš„breakFlagçš„å€¼æ¥ç¡®å®š
+    // è¿™ä¸¤ä¸ªé¦–åœ°å€åœ¨å¯¹åº”çš„æ±‡ç¼–æ–‡ä»¶é‡Œé¢éƒ½èƒ½æ‰¾åˆ°
+    // ä»–ä»¬çš„å®šä¹‰ç±»ä¼¼å¦‚ä¸‹:
     //.global dvmAsmInstructionStart
     //.text
     //dvmAsmInstructionStart:
@@ -922,14 +926,14 @@ static Thread* allocThread(int interpStackSize)
     //....
     thread->mainHandlerTable = dvmAsmInstructionStart;
     thread->altHandlerTable = dvmAsmAltInstructionStart;
-    thread->interpBreak.ctl.curHandlerTable = thread->mainHandlerTable;//Ä¬ÈÏµÄ±í
+    thread->interpBreak.ctl.curHandlerTable = thread->mainHandlerTable;//é»˜è®¤çš„è¡¨
 #endif
 
     /* give the thread code a chance to set things up */
     dvmInitInterpStack(thread, interpStackSize);
 
     /* One-time setup for interpreter/JIT state */
-    // ³õÊ¼»¯½âÊÍÆ÷»òÕßJITµÄ×´Ì¬
+    // åˆå§‹åŒ–è§£é‡Šå™¨æˆ–è€…JITçš„çŠ¶æ€
     dvmInitInterpreterState(thread);
 
     return thread;
@@ -957,7 +961,7 @@ pid_t dvmGetSysThreadId()
  *
  * NOTE: The threadListLock must be held by the caller (needed for
  * assignThreadId()).
- * ¶Ô²ÎÊıthreadËùÃèÊöµÄÒ»¸öDalvikĞéÄâ»úÏß³ÌµÄÈı¸öÒıÓÃ±í½øĞĞ³õÊ¼»¯
+ * å¯¹å‚æ•°threadæ‰€æè¿°çš„ä¸€ä¸ªDalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„ä¸‰ä¸ªå¼•ç”¨è¡¨è¿›è¡Œåˆå§‹åŒ–
  */
 static bool prepareThread(Thread* thread)
 {
@@ -989,28 +993,28 @@ static bool prepareThread(Thread* thread)
      * Most threads won't use jniMonitorRefTable, so we clear out the
      * structure but don't call the init function (which allocs storage).
      */
-    // ³õÊ¼»¯JNI±¾µØÒıÓÃ±í¡£
-    // Ò»¸öDalvikĞéÄâ»úÏß³ÌÔÚÖ´ĞĞJNI·½·¨µÄÊ±ºò£¬¿ÉÄÜ»áĞèÒª·ÃÎÊJava²ãµÄ¶ÔÏó¡£
-    // ÕâĞ©Java²ã¶ÔÏóÔÚ±»JNI·½·¨·ÃÎÊÖ®Ç°£¬ĞèÒªÍùµ±Ç°DalvikĞéÄâ»úÏß³ÌµÄJNI·½·¨±¾µØÒıÓÃ±íÌí¼ÓÒ»¸öÒıÓÃ£¬ÒÔ±ãËüÃÇ²»»á±»GC»ØÊÕ¡£
-    // JNI·½·¨±¾µØÒıÓÃ±íÓĞÁ½ÖÖÊµÏÖ·½Ê½£¬Ò»ÖÖÊÇÌí¼Óµ½ËüÀïÃæµÄÊÇ¼ä½ÓÒıÓÃ£¬ÁíÒ»ÖÖÊÇÖ±½ÓÒıÓÃ¡£
-    // Á½ÕßµÄÇø±ğÔÚÓÚ£¬ÔÚ½øĞĞGCµÄÊ±ºò£¬¼ä½ÓÒıÓÃµÄJava¶ÔÏó¿ÉÒÔÒÆ¶¯£¬¶øÖ±½ÓÒıÓÃµÄJava¶ÔÏó²»¿ÉÒÔÒÆ¶¯¡£
-    // ÔÚ±àÒëDalvikĞéÄâ»úµÄÊ±ºò£¬¿ÉÒÔÍ¨¹ıºêUSE_INDIRECT_REFÀ´¾ö¶¨Ê¹ÓÃÖ±½ÓÒıÓÃ±í£¬»¹ÊÇ¼ä½ÓÒıÓÃ±í¡£
+    // åˆå§‹åŒ–JNIæœ¬åœ°å¼•ç”¨è¡¨ã€‚
+    // ä¸€ä¸ªDalvikè™šæ‹Ÿæœºçº¿ç¨‹åœ¨æ‰§è¡ŒJNIæ–¹æ³•çš„æ—¶å€™ï¼Œå¯èƒ½ä¼šéœ€è¦è®¿é—®Javaå±‚çš„å¯¹è±¡ã€‚
+    // è¿™äº›Javaå±‚å¯¹è±¡åœ¨è¢«JNIæ–¹æ³•è®¿é—®ä¹‹å‰ï¼Œéœ€è¦å¾€å½“å‰Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„JNIæ–¹æ³•æœ¬åœ°å¼•ç”¨è¡¨æ·»åŠ ä¸€ä¸ªå¼•ç”¨ï¼Œä»¥ä¾¿å®ƒä»¬ä¸ä¼šè¢«GCå›æ”¶ã€‚
+    // JNIæ–¹æ³•æœ¬åœ°å¼•ç”¨è¡¨æœ‰ä¸¤ç§å®ç°æ–¹å¼ï¼Œä¸€ç§æ˜¯æ·»åŠ åˆ°å®ƒé‡Œé¢çš„æ˜¯é—´æ¥å¼•ç”¨ï¼Œå¦ä¸€ç§æ˜¯ç›´æ¥å¼•ç”¨ã€‚
+    // ä¸¤è€…çš„åŒºåˆ«åœ¨äºï¼Œåœ¨è¿›è¡ŒGCçš„æ—¶å€™ï¼Œé—´æ¥å¼•ç”¨çš„Javaå¯¹è±¡å¯ä»¥ç§»åŠ¨ï¼Œè€Œç›´æ¥å¼•ç”¨çš„Javaå¯¹è±¡ä¸å¯ä»¥ç§»åŠ¨ã€‚
+    // åœ¨ç¼–è¯‘Dalvikè™šæ‹Ÿæœºçš„æ—¶å€™ï¼Œå¯ä»¥é€šè¿‡å®USE_INDIRECT_REFæ¥å†³å®šä½¿ç”¨ç›´æ¥å¼•ç”¨è¡¨ï¼Œè¿˜æ˜¯é—´æ¥å¼•ç”¨è¡¨ã€‚
     if (!thread->jniLocalRefTable.init(kJniLocalRefMin,
             kJniLocalRefMax, kIndirectKindLocal)) {
         return false;
     }
 
-    // ³õÊ¼»¯DalvikĞéÄâ»úÄÚ²¿ÒıÓÃ±í¡£
-    // ÓĞÊ±ºò£¬ÎÒÃÇĞèÒªÔÚDalvikĞéÄâ»úÄÚ²¿ÎªÏß³Ì´´½¨Ò»Ğ©¶ÔÏó£¬
-    // ÕâĞ©¶ÔÏóĞèÒªÌí¼Óµ½Ò»¸öDalvikĞéÄâ»úÄÚ²¿ÒıÓÃ±íÖĞÈ¥£¬ÒÔ±ãÔÚÏß³ÌÍË³öÊ±£¬¿ÉÒÔ¶ÔËüÃÇ½øĞĞÇåÀí¡£
+    // åˆå§‹åŒ–Dalvikè™šæ‹Ÿæœºå†…éƒ¨å¼•ç”¨è¡¨ã€‚
+    // æœ‰æ—¶å€™ï¼Œæˆ‘ä»¬éœ€è¦åœ¨Dalvikè™šæ‹Ÿæœºå†…éƒ¨ä¸ºçº¿ç¨‹åˆ›å»ºä¸€äº›å¯¹è±¡ï¼Œ
+    // è¿™äº›å¯¹è±¡éœ€è¦æ·»åŠ åˆ°ä¸€ä¸ªDalvikè™šæ‹Ÿæœºå†…éƒ¨å¼•ç”¨è¡¨ä¸­å»ï¼Œä»¥ä¾¿åœ¨çº¿ç¨‹é€€å‡ºæ—¶ï¼Œå¯ä»¥å¯¹å®ƒä»¬è¿›è¡Œæ¸…ç†ã€‚
     if (!dvmInitReferenceTable(&thread->internalLocalRefTable,
             kInternalRefDefault, kInternalRefMax))
         return false;
 
-    // ³õÊ¼»¯MonitorÒıÓÃ±í(Êµ¼ÊÉÏÖ»ÊÇÇå¿Õ¶¯×÷,ÕâÊÇÒòÎªÎÒÃÇÒ»°ãºÜÉÙÔÚJNI·½·¨ÖĞÖ´ĞĞÍ¬²½²Ù×÷µÄ£¬Òò´Ë£¬¾Í×îºÃÔÚÊ¹ÓÃµÄÊ±ºòÔÙ½øĞĞ³õÊ¼»¯)¡£
-    // Ò»¸öDalvikĞéÄâ»úÏß³ÌÔÚÖ´ĞĞJNI·½·¨µÄÊ±ºò£¬³ıÁË¿ÉÄÜĞèÒª·ÃÎÊJava²ãµÄ¶ÔÏóÖ®Íâ£¬»¹¿ÉÄÜĞèÒª½øĞĞÒ»Ğ©Í¬²½²Ù×÷£¬Ò²¾ÍÊÇ½øĞĞMonitorEnterºÍMonitorExit²Ù×÷¡£
-    // ×¢Òâ£¬MonitorEnterºÍMonitorExitÊÇJava´úÂëÖĞµÄÍ¬²½Ö¸Áî£¬ÓÃÀ´ÊµÏÖsynchronized´úÂë¿é»òÕßº¯ÊıµÄ¡£
-    // DalvikĞéÄâ»úĞèÒª¸ú×ÙÔÚJNI·½·¨ÖĞËùÖ´ĞĞµÄMonitorEnter²Ù×÷£¬Ò²¾ÍÊÇ½«±»MonitorµÄ¶ÔÏóÌí¼Óµ½MonitorÒıÓÃ±íÖĞÈ¥£¬ÒÔ±ãÔÚJNI·½·¨ÍË³öÊ±£¬¿ÉÒÔÒşÊ½µØ½øĞĞMonitorExit²Ù×÷£¬±ÜÃâ³öÏÖ²»¶Ô³ÆµÄMonitorEnterºÍMonitorExit²Ù×÷¡£
+    // åˆå§‹åŒ–Monitorå¼•ç”¨è¡¨(å®é™…ä¸Šåªæ˜¯æ¸…ç©ºåŠ¨ä½œ,è¿™æ˜¯å› ä¸ºæˆ‘ä»¬ä¸€èˆ¬å¾ˆå°‘åœ¨JNIæ–¹æ³•ä¸­æ‰§è¡ŒåŒæ­¥æ“ä½œçš„ï¼Œå› æ­¤ï¼Œå°±æœ€å¥½åœ¨ä½¿ç”¨çš„æ—¶å€™å†è¿›è¡Œåˆå§‹åŒ–)ã€‚
+    // ä¸€ä¸ªDalvikè™šæ‹Ÿæœºçº¿ç¨‹åœ¨æ‰§è¡ŒJNIæ–¹æ³•çš„æ—¶å€™ï¼Œé™¤äº†å¯èƒ½éœ€è¦è®¿é—®Javaå±‚çš„å¯¹è±¡ä¹‹å¤–ï¼Œè¿˜å¯èƒ½éœ€è¦è¿›è¡Œä¸€äº›åŒæ­¥æ“ä½œï¼Œä¹Ÿå°±æ˜¯è¿›è¡ŒMonitorEnterå’ŒMonitorExitæ“ä½œã€‚
+    // æ³¨æ„ï¼ŒMonitorEnterå’ŒMonitorExitæ˜¯Javaä»£ç ä¸­çš„åŒæ­¥æŒ‡ä»¤ï¼Œç”¨æ¥å®ç°synchronizedä»£ç å—æˆ–è€…å‡½æ•°çš„ã€‚
+    // Dalvikè™šæ‹Ÿæœºéœ€è¦è·Ÿè¸ªåœ¨JNIæ–¹æ³•ä¸­æ‰€æ‰§è¡Œçš„MonitorEnteræ“ä½œï¼Œä¹Ÿå°±æ˜¯å°†è¢«Monitorçš„å¯¹è±¡æ·»åŠ åˆ°Monitorå¼•ç”¨è¡¨ä¸­å»ï¼Œä»¥ä¾¿åœ¨JNIæ–¹æ³•é€€å‡ºæ—¶ï¼Œå¯ä»¥éšå¼åœ°è¿›è¡ŒMonitorExitæ“ä½œï¼Œé¿å…å‡ºç°ä¸å¯¹ç§°çš„MonitorEnterå’ŒMonitorExitæ“ä½œã€‚
     memset(&thread->jniMonitorRefTable, 0, sizeof(thread->jniMonitorRefTable));
 
     pthread_cond_init(&thread->waitCond, NULL);
@@ -1026,6 +1030,7 @@ static bool prepareThread(Thread* thread)
  * Remove a thread from the internal list.
  * Clear out the links to make it obvious that the thread is
  * no longer on the list.  Caller must hold gDvm.threadListLock.
+ * ä»çº¿ç¨‹é˜Ÿåˆ—ä¸­ç§»é™¤ä¸€ä¸ªçº¿ç¨‹
  */
 static void unlinkThread(Thread* thread)
 {
@@ -1044,6 +1049,7 @@ static void unlinkThread(Thread* thread)
 
 /*
  * Free a Thread struct, and all the stuff allocated within.
+ * é‡Šæ”¾ä¸€ä¸ªçº¿ç¨‹ç»“æ„ï¼Œä»¥åŠå…¶å¤šåˆ†é…çš„æ‰€æœ‰æ•°æ®
  */
 static void freeThread(Thread* thread)
 {
@@ -1207,6 +1213,7 @@ static void releaseThreadId(Thread* thread)
  * place to hang JNI local references.  The VM spec says (v2 5.2) that the
  * VM begins by executing "main" in a class, so in a way this brings us
  * closer to the spec.
+ 
  */
 static bool createFakeEntryFrame(Thread* thread)
 {
@@ -1305,19 +1312,19 @@ static void setThreadName(const char *threadName)
  *
  * The "threadObj" reference must be pinned by the caller to prevent the GC
  * from moving it around (e.g. added to the tracked allocation list).
- * ´´½¨Ò»¸ö½âÊÍÆ÷Ïß³Ì£¬Ö¸¶¨ËûµÄjavaÕ»´óĞ¡
- * DalvikĞéÄâ»úÏß³ÌÊµ¼ÊÉÏ¾ßÓĞÁ½¸öÕ»£¬Ò»¸öÊÇJavaÕ»£¬ÁíÒ»¸öÊÇNativeÕ»¡£
- * NativeÕ»ÊÇÔÚµ÷ÓÃNative´úÂëÊ±Ê¹ÓÃµÄ£¬ËüÊÇÓÉ²Ù×÷ÏµÍ³À´¹ÜÀíµÄ£¬¶øJavaÕ»ÊÇÓÉDalvikĞéÄâ»úÀ´¹ÜÀíµÄ¡£
- * DalvikĞéÄâ»ú½âÊÍÆ÷ÔÚÖ´ĞĞJava´úÂë£¬Ã¿µ±Óöµ½º¯Êıµ÷ÓÃÖ¸Áî£¬¾Í»áÔÚµ±Ç°Ïß³ÌµÄJavaÕ»ÉÏ´´½¨Ò»¸öÖ¡£¬ÓÃÀ´±£´æµ±Ç°º¯ÊıµÄÖ´ĞĞ×´Ì¬£¬ÒÔ±ãÒªµ÷ÓÃµÄº¯ÊıÖ´ĞĞÍê³Éºó¿ÉÒÔ·µ»Øµ½µ±Ç°º¯ÊıÀ´¡£
- * Èç¹ûÕ»Ö¡´óĞ¡ÊÇ0µÄ»°¾ÍÊÇÓÃgDvm.stackSizeÖĞµÄÖµ×÷Îª½ÓÏÂÀ´Òª´´½¨µÄÏß³ÌµÄJavaÕ»´óĞ¡¡£
- * ÎÒÃÇ¿ÉÒÔÍ¨¹ıDalvikĞéÄâ»úµÄÆô¶¯Ñ¡Ïî-XssÀ´Ö¸¶¨gDvm.stackSizeµÄÖµ¡£
- * Èç¹ûÃ»ÓĞÖ¸¶¨£¬ÄÇÃ´gDvm.stackSizeµÄÖµ¾ÍÉèÖÃÎªkDefaultStackSize (16*1024) ¸ö×Ö½Ú¡£
+ * åˆ›å»ºä¸€ä¸ªè§£é‡Šå™¨çº¿ç¨‹ï¼ŒæŒ‡å®šä»–çš„javaæ ˆå¤§å°
+ * Dalvikè™šæ‹Ÿæœºçº¿ç¨‹å®é™…ä¸Šå…·æœ‰ä¸¤ä¸ªæ ˆï¼Œä¸€ä¸ªæ˜¯Javaæ ˆï¼Œå¦ä¸€ä¸ªæ˜¯Nativeæ ˆã€‚
+ * Nativeæ ˆæ˜¯åœ¨è°ƒç”¨Nativeä»£ç æ—¶ä½¿ç”¨çš„ï¼Œå®ƒæ˜¯ç”±æ“ä½œç³»ç»Ÿæ¥ç®¡ç†çš„ï¼Œè€ŒJavaæ ˆæ˜¯ç”±Dalvikè™šæ‹Ÿæœºæ¥ç®¡ç†çš„ã€‚
+ * Dalvikè™šæ‹Ÿæœºè§£é‡Šå™¨åœ¨æ‰§è¡ŒJavaä»£ç ï¼Œæ¯å½“é‡åˆ°å‡½æ•°è°ƒç”¨æŒ‡ä»¤ï¼Œå°±ä¼šåœ¨å½“å‰çº¿ç¨‹çš„Javaæ ˆä¸Šåˆ›å»ºä¸€ä¸ªå¸§ï¼Œç”¨æ¥ä¿å­˜å½“å‰å‡½æ•°çš„æ‰§è¡ŒçŠ¶æ€ï¼Œä»¥ä¾¿è¦è°ƒç”¨çš„å‡½æ•°æ‰§è¡Œå®Œæˆåå¯ä»¥è¿”å›åˆ°å½“å‰å‡½æ•°æ¥ã€‚
+ * å¦‚æœæ ˆå¸§å¤§å°æ˜¯0çš„è¯å°±æ˜¯ç”¨gDvm.stackSizeä¸­çš„å€¼ä½œä¸ºæ¥ä¸‹æ¥è¦åˆ›å»ºçš„çº¿ç¨‹çš„Javaæ ˆå¤§å°ã€‚
+ * æˆ‘ä»¬å¯ä»¥é€šè¿‡Dalvikè™šæ‹Ÿæœºçš„å¯åŠ¨é€‰é¡¹-Xssæ¥æŒ‡å®šgDvm.stackSizeçš„å€¼ã€‚
+ * å¦‚æœæ²¡æœ‰æŒ‡å®šï¼Œé‚£ä¹ˆgDvm.stackSizeçš„å€¼å°±è®¾ç½®ä¸ºkDefaultStackSize (16*1024) ä¸ªå­—èŠ‚ã€‚
  */
 bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
 {
     assert(threadObj != NULL);
 
-    /*»ñÈ¡Ïß³Ì×ÔÉí*/
+    /*è·å–çº¿ç¨‹è‡ªèº«*/
     Thread* self = dvmThreadSelf();
     int stackSize;
 
@@ -1327,7 +1334,7 @@ bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
     * #define kMaxStackSize       (256*1024 + STACK_OVERFLOW_RESERVE)
     */
     if (reqStackSize == 0)
-        stackSize = gDvm.stackSize;//Ä¬ÈÏµÄÕ»Ö¡´óĞ¡
+        stackSize = gDvm.stackSize;//é»˜è®¤çš„æ ˆå¸§å¤§å°
     else if (reqStackSize < kMinStackSize)
         stackSize = kMinStackSize;
     else if (reqStackSize > kMaxStackSize)
@@ -1335,26 +1342,26 @@ bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
     else
         stackSize = reqStackSize;
 
-    // ¶¨ÒåÏß³ÌÊôĞÔ
+    // å®šä¹‰çº¿ç¨‹å±æ€§
     pthread_attr_t threadAttr;
-    // ³õÊ¼»¯Ïß³ÌÊôĞÔ
+    // åˆå§‹åŒ–çº¿ç¨‹å±æ€§
     pthread_attr_init(&threadAttr);
-    // ÉèÖÃÏß³ÌÎª·ÖÀë×´Ì¬
+    // è®¾ç½®çº¿ç¨‹ä¸ºåˆ†ç¦»çŠ¶æ€
     pthread_attr_setdetachstate(&threadAttr, PTHREAD_CREATE_DETACHED);
 
     /*
      * To minimize the time spent in the critical section, we allocate the
      * vmThread object here.
-     * ÉêÇëĞéÄâ»úÏß³Ì¶ÔÏó
+     * ç”³è¯·è™šæ‹Ÿæœºçº¿ç¨‹å¯¹è±¡
      */
     Object* vmThreadObj = dvmAllocObject(gDvm.classJavaLangVMThread, ALLOC_DEFAULT);
     if (vmThreadObj == NULL)
         return false;
 
-    // °´Ö¸¶¨µÄÕ»Ö¡´óĞ¡ÉêÇë²¢³õÊ¼»¯Ò»¸öÏß³Ì½á¹¹Ìå
-    //²ÎÊıthreadObjÃèÊöµÄÊÇJava²ãµÄÒ»¸öThread¶ÔÏó£¬ËüÔÚDalvikĞéÄâ»úÖĞ¶ÔÓ¦ÓĞÒ»¸öNative²ãµÄThread¶ÔÏó¡£
-    //Õâ¸öNative²ãµÄThread¶ÔÏóÊÇÍ¨¹ıº¯ÊıallocThreadÀ´·ÖÅäµÄ£¬²¢ÇÒÓëËü¶ÔÓ¦µÄJava²ãµÄThread¶ÔÏó»á±£´æÔÚËüµÄ³ÉÔ±±äÁ¿threadObjÖĞ¡£
-    //ÈçÏÂ¼¸ĞĞËùÊ¾
+    // æŒ‰æŒ‡å®šçš„æ ˆå¸§å¤§å°ç”³è¯·å¹¶åˆå§‹åŒ–ä¸€ä¸ªçº¿ç¨‹ç»“æ„ä½“
+    //å‚æ•°threadObjæè¿°çš„æ˜¯Javaå±‚çš„ä¸€ä¸ªThreadå¯¹è±¡ï¼Œå®ƒåœ¨Dalvikè™šæ‹Ÿæœºä¸­å¯¹åº”æœ‰ä¸€ä¸ªNativeå±‚çš„Threadå¯¹è±¡ã€‚
+    //è¿™ä¸ªNativeå±‚çš„Threadå¯¹è±¡æ˜¯é€šè¿‡å‡½æ•°allocThreadæ¥åˆ†é…çš„ï¼Œå¹¶ä¸”ä¸å®ƒå¯¹åº”çš„Javaå±‚çš„Threadå¯¹è±¡ä¼šä¿å­˜åœ¨å®ƒçš„æˆå‘˜å˜é‡threadObjä¸­ã€‚
+    //å¦‚ä¸‹å‡ è¡Œæ‰€ç¤º
     Thread* newThread = allocThread(stackSize);
     if (newThread == NULL) {
         dvmReleaseTrackedAlloc(vmThreadObj, NULL);
@@ -1398,16 +1405,16 @@ bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
      */
     dvmUnlockThreadList();
 
-    // ¸Ä±ä×´Ì¬
+    // æ”¹å˜çŠ¶æ€
     ThreadStatus oldStatus = dvmChangeStatus(self, THREAD_VMWAIT);
     pthread_t threadHandle;
-    //ÕæÕıµÄ´´½¨Ïß³Ì(µÚÈı¸ö²ÎÊıÊÇÏß³Ìº¯ÊıµÄµØÖ·)
-    //pthread_createÊµ¼ÊÉÏ×îÖÕÊÇÍ¨¹ıÏµÍ³µ÷ÓÃcloneÀ´ÇëÇóÄÚºË´´½¨Ò»¸öÏß³ÌµÄ¡£
-    //ÓÉ´Ë¾Í¿ÉÒÔ¿´³ö£¬DalvikĞéÄâ»úÏß³ÌÊµ¼ÊÉÏ¾ÍÊÇ±¾µØ²Ù×÷ÏµÍ³Ïß³Ì¡£
+    //çœŸæ­£çš„åˆ›å»ºçº¿ç¨‹(ç¬¬ä¸‰ä¸ªå‚æ•°æ˜¯çº¿ç¨‹å‡½æ•°çš„åœ°å€)
+    //pthread_createå®é™…ä¸Šæœ€ç»ˆæ˜¯é€šè¿‡ç³»ç»Ÿè°ƒç”¨cloneæ¥è¯·æ±‚å†…æ ¸åˆ›å»ºä¸€ä¸ªçº¿ç¨‹çš„ã€‚
+    //ç”±æ­¤å°±å¯ä»¥çœ‹å‡ºï¼ŒDalvikè™šæ‹Ÿæœºçº¿ç¨‹å®é™…ä¸Šå°±æ˜¯æœ¬åœ°æ“ä½œç³»ç»Ÿçº¿ç¨‹ã€‚
     int cc = pthread_create(&threadHandle, &threadAttr, interpThreadStart,
                             newThread);
 
-    //»Ö¸´×´Ì¬
+    //æ¢å¤çŠ¶æ€
     dvmChangeStatus(self, oldStatus);
 
     if (cc != 0) {
@@ -1505,17 +1512,17 @@ bool dvmCreateInterpThread(Object* threadObj, int reqStackSize)
      */
     dvmLockThreadList(self);
 
-    // µ½´Ë£¬×ÔÉíµÄÏß³ÌÒÑ¾­Æô¶¯ÆğÀ´ÁË
+    // åˆ°æ­¤ï¼Œè‡ªèº«çš„çº¿ç¨‹å·²ç»å¯åŠ¨èµ·æ¥äº†
     assert(self->status == THREAD_RUNNING);
 
     /*
-    * ĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³ÌÆô¶¯Íê³ÉÖ®ºó£¬¾Í»á½«×Ô¼ºµÄ×´Ì¬ÉèÖÃÎªTHREAD_STARTING£¬
-    * ¶øµ±Ç°Ïß³Ì»áÍ¨¹ıÒ»¸öwhileÑ­»·À´µÈ´ıĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³ÌµÄ×´Ì¬±»ÉèÖÃÎªTHREAD_STARTINGÖ®ºóÔÙ¼ÌĞøÍùÇ°Ö´ĞĞ£¬
-    * Ö÷Òª¾ÍÊÇ£º
+    * æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹å¯åŠ¨å®Œæˆä¹‹åï¼Œå°±ä¼šå°†è‡ªå·±çš„çŠ¶æ€è®¾ç½®ä¸ºTHREAD_STARTINGï¼Œ
+    * è€Œå½“å‰çº¿ç¨‹ä¼šé€šè¿‡ä¸€ä¸ªwhileå¾ªç¯æ¥ç­‰å¾…æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„çŠ¶æ€è¢«è®¾ç½®ä¸ºTHREAD_STARTINGä¹‹åå†ç»§ç»­å¾€å‰æ‰§è¡Œï¼Œ
+    * ä¸»è¦å°±æ˜¯ï¼š
 
-        1. ½«ÓÃÀ´ÃèÊöĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³ÌµÄNative²ãµÄThread¶ÔÏó±£´æÔÚgDvm.threadListËùÃèÊöµÄÒ»¸öÏß³ÌÁĞ±íÖĞ£¬ÕâÊÇÒòÎªµ±Ç°ËùÓĞDalvikĞéÄâ»úÏß³Ì¶¼±£´æÔÚÕâ¸öÁĞ±íÖĞ¡£
+        1. å°†ç”¨æ¥æè¿°æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„Nativeå±‚çš„Threadå¯¹è±¡ä¿å­˜åœ¨gDvm.threadListæ‰€æè¿°çš„ä¸€ä¸ªçº¿ç¨‹åˆ—è¡¨ä¸­ï¼Œè¿™æ˜¯å› ä¸ºå½“å‰æ‰€æœ‰Dalvikè™šæ‹Ÿæœºçº¿ç¨‹éƒ½ä¿å­˜åœ¨è¿™ä¸ªåˆ—è¡¨ä¸­ã€‚
 
-        2. ½«ĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³ÌµÄ×´Ì¬ÉèÖÃÎªTHREAD_VMWAIT£¬Ê¹µÃĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³Ì¼ÌĞøÍùÇ°Ö´ĞĞ£¬ÕâÊÇÒòÎªĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³Ì½«×Ô¼ºµÄ×´Ì¬ÉèÖÃÎªTHREAD_STARTING»½ĞÑ´´½¨ËüµÄÏß³ÌÖ®ºó£¬ÓÖ»áµÈ´ı´´½¨ËüµÄÏß³ÌÍ¨ÖªËü¼ÌĞøÍùÇ°Ö´ĞĞ¡£
+        2. å°†æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„çŠ¶æ€è®¾ç½®ä¸ºTHREAD_VMWAITï¼Œä½¿å¾—æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹ç»§ç»­å¾€å‰æ‰§è¡Œï¼Œè¿™æ˜¯å› ä¸ºæ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹å°†è‡ªå·±çš„çŠ¶æ€è®¾ç½®ä¸ºTHREAD_STARTINGå”¤é†’åˆ›å»ºå®ƒçš„çº¿ç¨‹ä¹‹åï¼Œåˆä¼šç­‰å¾…åˆ›å»ºå®ƒçš„çº¿ç¨‹é€šçŸ¥å®ƒç»§ç»­å¾€å‰æ‰§è¡Œã€‚
     */
     self->status = THREAD_VMWAIT;
     while (newThread->status != THREAD_STARTING)
@@ -1570,13 +1577,13 @@ fail:
 
 /*
  * pthread entry function for threads started from interpreted code.
- * DalvikĞéÄâ»úÏß³ÌµÄÈë¿Úµãº¯Êı
+ * Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„å…¥å£ç‚¹å‡½æ•°
  */
 static void* interpThreadStart(void* arg)
 {
-    // ²ÎÊıargÖ¸ÏòµÄÊÇÒ»¸öNative²ãµÄThread¶ÔÏó£¬
-    // Õâ¸öThread¶ÔÏó×îºó»á±»±£´æÔÚ±äÁ¿self£¬
-    // ÓÃÀ´ÃèÊöĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³Ì£¬Ò²¾ÍÊÇµ±Ç°Ö´ĞĞµÄÏß³Ì¡£
+    // å‚æ•°argæŒ‡å‘çš„æ˜¯ä¸€ä¸ªNativeå±‚çš„Threadå¯¹è±¡ï¼Œ
+    // è¿™ä¸ªThreadå¯¹è±¡æœ€åä¼šè¢«ä¿å­˜åœ¨å˜é‡selfï¼Œ
+    // ç”¨æ¥æè¿°æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹ï¼Œä¹Ÿå°±æ˜¯å½“å‰æ‰§è¡Œçš„çº¿ç¨‹ã€‚
     Thread* self = (Thread*) arg;
 
     std::string threadName(dvmGetThreadName(self));
@@ -1587,7 +1594,7 @@ static void* interpThreadStart(void* arg)
      */
     dvmLockThreadList(self);
 
-    // ³õÊ¼»¯ĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³Ì
+    // åˆå§‹åŒ–æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹
     prepareThread(self);
 
     LOG_THREAD("threadid=%d: created from interp", self->threadId);
@@ -1596,8 +1603,8 @@ static void* interpThreadStart(void* arg)
      * Change our status and wake our parent, who will add us to the
      * thread list and advance our state to VMWAIT.
      */
-    // ½«ĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³ÌµÄ×´Ì¬ÉèÖÃÎªTHREAD_STARTING£¬
-    // ÒÔ±ãÆä¸¸Ïß³Ì£¬Ò²¾ÍÊÇ´´½¨ËüµÄÏß³Ì¿ÉÒÔ¼ÌĞøÍùÇ°Ö´ĞĞ
+    // å°†æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„çŠ¶æ€è®¾ç½®ä¸ºTHREAD_STARTINGï¼Œ
+    // ä»¥ä¾¿å…¶çˆ¶çº¿ç¨‹ï¼Œä¹Ÿå°±æ˜¯åˆ›å»ºå®ƒçš„çº¿ç¨‹å¯ä»¥ç»§ç»­å¾€å‰æ‰§è¡Œ
     self->status = THREAD_STARTING;
     pthread_cond_broadcast(&gDvm.threadStartCond);
 
@@ -1614,8 +1621,8 @@ static void* interpThreadStart(void* arg)
      * wait for us to suspend.  We'll be in the tail end of pthread_cond_wait
      * trying to get the lock.
      */
-    // Í¨¹ıÒ»¸öwhileÑ­»·À´µÈ´ı¸¸Ïß³ÌÍ¨Öª×Ô¼º¼ÌĞøÍùÇ°Ö´ĞĞ£¬
-    // Ò²¾ÍÊÇµÈ´ı¸¸Ïß³Ì½«×Ô¼ºµÄ×´Ì¬ÉèÖÃÎªTHREAD_VMWAIT¡£
+    // é€šè¿‡ä¸€ä¸ªwhileå¾ªç¯æ¥ç­‰å¾…çˆ¶çº¿ç¨‹é€šçŸ¥è‡ªå·±ç»§ç»­å¾€å‰æ‰§è¡Œï¼Œ
+    // ä¹Ÿå°±æ˜¯ç­‰å¾…çˆ¶çº¿ç¨‹å°†è‡ªå·±çš„çŠ¶æ€è®¾ç½®ä¸ºTHREAD_VMWAITã€‚
     while (self->status != THREAD_VMWAIT)
         pthread_cond_wait(&gDvm.threadStartCond, &gDvm.threadListLock);
 
@@ -1624,15 +1631,15 @@ static void* interpThreadStart(void* arg)
     /*
      * Add a JNI context.
      */
-    // µ÷ÓÃº¯ÊıdvmCreateJNIEnvÀ´ÎªĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³Ì´´½¨Ò»¸öJNI»·¾³¡£
+    // è°ƒç”¨å‡½æ•°dvmCreateJNIEnvæ¥ä¸ºæ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹åˆ›å»ºä¸€ä¸ªJNIç¯å¢ƒã€‚
     self->jniEnv = dvmCreateJNIEnv(self);
 
     /*
      * Change our state so the GC will wait for us from now on.  If a GC is
      * in progress this call will suspend us.
      */
-    // µ÷ÓÃº¯ÊıdvmChangeStatus½«ĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³ÌµÄ×´Ì¬ÉèÖÃÎªTHREAD_RUNNING£¬
-    // ±íÊ¾ËüÕıÊ½½øÈëÔËĞĞ×´Ì¬¡£
+    // è°ƒç”¨å‡½æ•°dvmChangeStatuså°†æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„çŠ¶æ€è®¾ç½®ä¸ºTHREAD_RUNNINGï¼Œ
+    // è¡¨ç¤ºå®ƒæ­£å¼è¿›å…¥è¿è¡ŒçŠ¶æ€ã€‚
     dvmChangeStatus(self, THREAD_RUNNING);
 
     /*
@@ -1640,9 +1647,9 @@ static void* interpThreadStart(void* arg)
      * us to suspend ourselves (and others).  The thread state may change
      * to VMWAIT briefly if network packets are sent.
      */
-    // Èç¹û´ËÊ±gDvm.debuggerConnectedµÄÖµµÈÓÚtrue£¬
-    // ÄÇÃ´¾ÍËµÃ÷ÓĞµ÷ÊÔÆ÷Á¬½Óµ½µ±Ç°DalvikĞéÄâ»úÀ´ÁË£¬
-    // ÕâÊ±ºò¾Íµ÷ÓÃº¯ÊıdvmDbgPostThreadStartÀ´Í¨Öªµ÷ÊÔÆ÷ĞÂ´´½¨ÁËÒ»¸öÏß³Ì¡£
+    // å¦‚æœæ­¤æ—¶gDvm.debuggerConnectedçš„å€¼ç­‰äºtrueï¼Œ
+    // é‚£ä¹ˆå°±è¯´æ˜æœ‰è°ƒè¯•å™¨è¿æ¥åˆ°å½“å‰Dalvikè™šæ‹Ÿæœºæ¥äº†ï¼Œ
+    // è¿™æ—¶å€™å°±è°ƒç”¨å‡½æ•°dvmDbgPostThreadStartæ¥é€šçŸ¥è°ƒè¯•å™¨æ–°åˆ›å»ºäº†ä¸€ä¸ªçº¿ç¨‹ã€‚
     if (gDvm.debuggerConnected)
         dvmDbgPostThreadStart(self);
 
@@ -1654,8 +1661,8 @@ static void* interpThreadStart(void* arg)
      * setPriority(), and then starts the thread.  We could manage this with
      * a "needs priority update" flag to avoid the redundant call.
      */
-    // µ÷ÓÃº¯ÊıdvmChangeThreadPriorityÀ´ÉèÖÃĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³ÌµÄÓÅÏÈ¼¶£¬
-    // Õâ¸öÓÅÏÈ¼¶Öµ±£´æÔÚÓÃÀ´ÃèÊöĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³ÌµÄÒ»¸öJava²ãThread¶ÔÏóµÄ³ÉÔ±±äÁ¿priorityÖĞ¡£
+    // è°ƒç”¨å‡½æ•°dvmChangeThreadPriorityæ¥è®¾ç½®æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„ä¼˜å…ˆçº§ï¼Œ
+    // è¿™ä¸ªä¼˜å…ˆçº§å€¼ä¿å­˜åœ¨ç”¨æ¥æè¿°æ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„ä¸€ä¸ªJavaå±‚Threadå¯¹è±¡çš„æˆå‘˜å˜é‡priorityä¸­ã€‚
     int priority = dvmGetFieldInt(self->threadObj,
                         gDvm.offJavaLangThread_priority);
     dvmChangeThreadPriority(self, priority);
@@ -1666,16 +1673,16 @@ static void* interpThreadStart(void* arg)
      * At this point our stack is empty, so somebody who comes looking for
      * stack traces right now won't have much to look at.  This is normal.
      */
-    // ÕÒµ½Java²ãµÄjava.lang.ThreadÀàµÄ³ÉÔ±º¯Êırun£¬
-    //²¢ÇÒÍ¨¹ıº¯ÊıdvmCallMethodÀ´½»¸øDalvikĞéÄâ»ú½âÊÍÆ÷Ö´ĞĞ£¬
-    //Õâ¸öjava.lang.ThreadÀàµÄ³ÉÔ±º¯Êırun¼´ÎªDalvikĞéÄâ»úÏß³ÌµÄJava´úÂëÈë¿Úµãº¯Êı¡£
+    // æ‰¾åˆ°Javaå±‚çš„java.lang.Threadç±»çš„æˆå‘˜å‡½æ•°runï¼Œ
+    //å¹¶ä¸”é€šè¿‡å‡½æ•°dvmCallMethodæ¥äº¤ç»™Dalvikè™šæ‹Ÿæœºè§£é‡Šå™¨æ‰§è¡Œï¼Œ
+    //è¿™ä¸ªjava.lang.Threadç±»çš„æˆå‘˜å‡½æ•°runå³ä¸ºDalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„Javaä»£ç å…¥å£ç‚¹å‡½æ•°ã€‚
     Method* run = self->threadObj->clazz->vtable[gDvm.voffJavaLangThread_run];
     JValue unused;
 
     ALOGV("threadid=%d: calling run()", self->threadId);
     assert(strcmp(run->name, "run") == 0);
 
-    // dvmCallMethodÀ´Í¨ÖªDalvikĞéÄâ»ú½âÊÍÆ÷Ö´ĞĞjava.lang.ThreadÀàµÄ³ÉÔ±º¯Êırun
+    // dvmCallMethodæ¥é€šçŸ¥Dalvikè™šæ‹Ÿæœºè§£é‡Šå™¨æ‰§è¡Œjava.lang.Threadç±»çš„æˆå‘˜å‡½æ•°run
 
     dvmCallMethod(self, run, self->threadObj, &unused);
     ALOGV("threadid=%d: exiting", self->threadId);
@@ -1684,7 +1691,7 @@ static void* interpThreadStart(void* arg)
      * Remove the thread from various lists, report its death, and free
      * its resources.
      */
-    // ´Óº¯ÊıdvmCallMethod·µ»ØÀ´Ö®ºó£¬ĞÂ´´½¨µÄDalvikĞéÄâ»úÏß³Ì¾ÍÍê³É×Ô¼ºµÄÊ¹ÃüÁË£¬ÕâÊ±ºò¾Í¿ÉÒÔµ÷ÓÃº¯ÊıdvmDetachCurrentThreadÀ´Ö´ĞĞÇåÀí¹¤×÷¡£
+    // ä»å‡½æ•°dvmCallMethodè¿”å›æ¥ä¹‹åï¼Œæ–°åˆ›å»ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹å°±å®Œæˆè‡ªå·±çš„ä½¿å‘½äº†ï¼Œè¿™æ—¶å€™å°±å¯ä»¥è°ƒç”¨å‡½æ•°dvmDetachCurrentThreadæ¥æ‰§è¡Œæ¸…ç†å·¥ä½œã€‚
     dvmDetachCurrentThread();
 
     return NULL;
@@ -2136,11 +2143,11 @@ fail:
  * dedicated ThreadObject class for java/lang/Thread and moving all of our
  * state into that.
  */
- // Ö´ĞĞÇåÀí¹¤×÷
+ // æ‰§è¡Œæ¸…ç†å·¥ä½œ
 void dvmDetachCurrentThread()
 {
-    // »ñµÃÓÃÀ´ÃèÊöµ±Ç°¼´½«ÒªÍË³öµÄDalvikĞéÄâ»úÏß³ÌµÄNative²ãµÄThread¶ÔÏóself¡£
-    // ÓĞÁËÕâ¸öNative²ãµÄThread¶ÔÏóselfÖ®ºó£¬¾Í¿ÉÒÔ¿ªÊ¼Ö´ĞĞÏàÓ¦µÄÇåÀí¹¤×÷ÁË¡£
+    // è·å¾—ç”¨æ¥æè¿°å½“å‰å³å°†è¦é€€å‡ºçš„Dalvikè™šæ‹Ÿæœºçº¿ç¨‹çš„Nativeå±‚çš„Threadå¯¹è±¡selfã€‚
+    // æœ‰äº†è¿™ä¸ªNativeå±‚çš„Threadå¯¹è±¡selfä¹‹åï¼Œå°±å¯ä»¥å¼€å§‹æ‰§è¡Œç›¸åº”çš„æ¸…ç†å·¥ä½œäº†ã€‚
     Thread* self = dvmThreadSelf();
 
 
@@ -2184,15 +2191,15 @@ void dvmDetachCurrentThread()
      * frames, the only thing left are the monitors held by JNI MonitorEnter
      * calls.
      */
-    // µ÷ÓÃº¯ÊıdvmReleaseJniMonitorsÀ´ÊÍ·ÅÄÇĞ©ÔÚJNI·½·¨ÖĞ³ÖÓĞµÄMonitor£¬
-    // Ò²¾ÍÊÇMonitorExitÄÇĞ©±»MonitorEnterÁËµÄ¶ÔÏó¡£
+    // è°ƒç”¨å‡½æ•°dvmReleaseJniMonitorsæ¥é‡Šæ”¾é‚£äº›åœ¨JNIæ–¹æ³•ä¸­æŒæœ‰çš„Monitorï¼Œ
+    // ä¹Ÿå°±æ˜¯MonitorExité‚£äº›è¢«MonitorEnteräº†çš„å¯¹è±¡ã€‚
     dvmReleaseJniMonitors(self);
 
     /*
      * Do some thread-exit uncaught exception processing if necessary.
      */
-    // µ÷ÓÃº¯ÊıdvmCheckExceptionÀ´¼ì²éÏß³ÌÊÇ·ñÓĞÎ´´¦ÀíÒì³£¡£
-    // Èç¹ûÓĞµÄ»°£¬ÄÇÃ´¾Íµ÷ÓÃº¯ÊıthreadExitUncaughtException½«ËüÃÇ½»¸øthread-exit-uncaught-exception handler´¦Àí¡£
+    // è°ƒç”¨å‡½æ•°dvmCheckExceptionæ¥æ£€æŸ¥çº¿ç¨‹æ˜¯å¦æœ‰æœªå¤„ç†å¼‚å¸¸ã€‚
+    // å¦‚æœæœ‰çš„è¯ï¼Œé‚£ä¹ˆå°±è°ƒç”¨å‡½æ•°threadExitUncaughtExceptionå°†å®ƒä»¬äº¤ç»™thread-exit-uncaught-exception handlerå¤„ç†ã€‚
     if (dvmCheckException(self))
         threadExitUncaughtException(self, group);
 
@@ -2229,8 +2236,8 @@ void dvmDetachCurrentThread()
      * an "all threads" listing.
      */
 
-    // ¼ì²éµ±Ç°DalvikĞéÄâ»úÊÇ·ñ±»µ÷ÊÔÆ÷Á¬½ÓÁË£¬¼´¼ì²égDvm.debuggerConnectedµÄÖµÊÇ·ñµÈÓÚtrue¡£
-    // Èç¹û±»µ÷ÊÔÆ÷Á¬½ÓÁËµÄ»°£¬ÄÇÃ´¾Íµ÷ÓÃº¯ÊıdvmDbgPostThreadDeathÍ¨Öªµ÷ÊÔÆ÷µ±Ç°Ïß³ÌÒªÍË³öÁË¡£
+    // æ£€æŸ¥å½“å‰Dalvikè™šæ‹Ÿæœºæ˜¯å¦è¢«è°ƒè¯•å™¨è¿æ¥äº†ï¼Œå³æ£€æŸ¥gDvm.debuggerConnectedçš„å€¼æ˜¯å¦ç­‰äºtrueã€‚
+    // å¦‚æœè¢«è°ƒè¯•å™¨è¿æ¥äº†çš„è¯ï¼Œé‚£ä¹ˆå°±è°ƒç”¨å‡½æ•°dvmDbgPostThreadDeathé€šçŸ¥è°ƒè¯•å™¨å½“å‰çº¿ç¨‹è¦é€€å‡ºäº†ã€‚
     if (gDvm.debuggerConnected)
         dvmDbgPostThreadDeath(self);
 
@@ -2238,7 +2245,7 @@ void dvmDetachCurrentThread()
      * Thread.join() is implemented as an Object.wait() on the VMThread
      * object.  Signal anyone who is waiting.
      */
-    // µ÷ÓÃº¯ÊıdvmObjectNotifyAllÀ´ÏòÄÇĞ©µ÷ÓÃÁËThread.joinµÈ´ıµ±Ç°Ïß³Ì½áÊøµÄÏß³Ì·¢ËÍÍ¨Öª¡£
+    // è°ƒç”¨å‡½æ•°dvmObjectNotifyAllæ¥å‘é‚£äº›è°ƒç”¨äº†Thread.joinç­‰å¾…å½“å‰çº¿ç¨‹ç»“æŸçš„çº¿ç¨‹å‘é€é€šçŸ¥ã€‚
     dvmLockObject(self, vmThread);
     dvmObjectNotifyAll(self, vmThread);
     dvmUnlockObject(self, vmThread);
@@ -2285,7 +2292,7 @@ void dvmDetachCurrentThread()
     /*
      * Lose the JNI context.
      */
-    // µ÷ÓÃº¯ÊıdvmDestroyJNIEnvÀ´Ïú»ÙÓÃÀ´ÃèÊöµ±Ç°JNIÉÏÏÂÎÄ»·¾³µÄÒ»¸öJNIEnvExt¶ÔÏó¡£
+    // è°ƒç”¨å‡½æ•°dvmDestroyJNIEnvæ¥é”€æ¯ç”¨æ¥æè¿°å½“å‰JNIä¸Šä¸‹æ–‡ç¯å¢ƒçš„ä¸€ä¸ªJNIEnvExtå¯¹è±¡ã€‚
     dvmDestroyJNIEnv(self->jniEnv);
     self->jniEnv = NULL;
 
@@ -2294,7 +2301,7 @@ void dvmDetachCurrentThread()
     /*
      * Remove ourselves from the internal thread list.
      */
-    // ½«µ±Ç°Ïß³ÌµÄ×´Ì¬ÉèÖÃÎª½©Ê¬×´Ì¬£¨THREAD_ZOMBIE£©£¬²¢ÇÒµ÷ÓÃº¯ÊıunlinkThread½«µ±Ç°Ïß³Ì´ÓDalvikĞéÄâ»úµÄÏß³ÌÁĞ±íÖĞÒÆ³ı¡£
+    // å°†å½“å‰çº¿ç¨‹çš„çŠ¶æ€è®¾ç½®ä¸ºåƒµå°¸çŠ¶æ€ï¼ˆTHREAD_ZOMBIEï¼‰ï¼Œå¹¶ä¸”è°ƒç”¨å‡½æ•°unlinkThreadå°†å½“å‰çº¿ç¨‹ä»Dalvikè™šæ‹Ÿæœºçš„çº¿ç¨‹åˆ—è¡¨ä¸­ç§»é™¤ã€‚
     unlinkThread(self);
 
     /*
@@ -2321,7 +2328,7 @@ void dvmDetachCurrentThread()
 
     setThreadSelf(NULL);
 
-    // µ÷ÓÃº¯ÊıfreeThreadÀ´ÊÍ·Åµ±Ç°Ïß³ÌµÄJavaÕ»ºÍ¸÷¸öÒıÓÃ±í£¨¼´Ç°ÃæStep 5ËùÃèÊöµÄÈı¸öÒıÓÃ±í£©ËùÕ¼ÓÃµÄÄÚ´æ£¬ÒÔ¼°ÊÍ·ÅThread¶ÔÏóselfËùÕ¼ÓÃµÄÄÚ´æ¡£
+    // è°ƒç”¨å‡½æ•°freeThreadæ¥é‡Šæ”¾å½“å‰çº¿ç¨‹çš„Javaæ ˆå’Œå„ä¸ªå¼•ç”¨è¡¨ï¼ˆå³å‰é¢Step 5æ‰€æè¿°çš„ä¸‰ä¸ªå¼•ç”¨è¡¨ï¼‰æ‰€å ç”¨çš„å†…å­˜ï¼Œä»¥åŠé‡Šæ”¾Threadå¯¹è±¡selfæ‰€å ç”¨çš„å†…å­˜ã€‚
     freeThread(self);
 }
 
@@ -3051,6 +3058,7 @@ bool dvmCheckSuspendPending(Thread* self)
  * The "self" argument, which may be NULL, is accepted as an optimization.
  *
  * Returns the old status.
+ * ¸üĞÂÏß³Ì×´Ì¬
  */
 ThreadStatus dvmChangeStatus(Thread* self, ThreadStatus newStatus)
 {
@@ -3180,6 +3188,7 @@ Object* dvmGetMainThreadGroup()
  * NOTE: if the thread detaches, the struct Thread will disappear, and
  * we will be touching invalid data.  For safety, lock the thread list
  * before calling this.
+ * Í¨¹ıĞéÄâ»úÏß³Ì¶ÔÏó»ñÈ¡Êµ¼ÊµÄÏß³Ì
  */
 Thread* dvmGetThreadFromThreadObject(Object* vmThreadObj)
 {
@@ -3211,6 +3220,7 @@ Thread* dvmGetThreadFromThreadObject(Object* vmThreadObj)
  * Caller must hold the thread list lock.
  *
  * Returns NULL if the thread was not found.
+ * Í¨¹ıÏß³Ì¾ä±ú»ñÈ¡Ïß³Ì¶ÔÏó
  */
 Thread* dvmGetThreadByHandle(pthread_t handle)
 {
@@ -3227,6 +3237,7 @@ Thread* dvmGetThreadByHandle(pthread_t handle)
  * Caller must hold the thread list lock.
  *
  * Returns NULL if the thread was not found.
+ * Í¨¹ıtid»ñÈ¡Ïß³Ì¶ÔÏó
  */
 Thread* dvmGetThreadByThreadId(u4 threadId)
 {
@@ -3238,6 +3249,7 @@ Thread* dvmGetThreadByThreadId(u4 threadId)
     return thread;
 }
 
+//ĞŞ¸ÄÏß³ÌÈ¨ÏŞ
 void dvmChangeThreadPriority(Thread* thread, int newPriority)
 {
     os_changeThreadPriority(thread, newPriority);
@@ -3353,6 +3365,7 @@ out_bad_data:
 
 /*
  * Convert ThreadStatus to a string.
+ * »ñÈ¡Ïß³Ì×´Ì¬µÄ¿ÉÊÓ»¯×Ö·û´®ÃèÊö
  */
 const char* dvmGetThreadStatusStr(ThreadStatus status)
 {
@@ -3371,6 +3384,7 @@ const char* dvmGetThreadStatusStr(ThreadStatus status)
     }
 }
 
+// ×ª´¢µ÷¶ÈĞÅÏ¢
 static void dumpSchedStat(const DebugOutputTarget* target, pid_t tid) {
 #ifdef HAVE_ANDROID_OS
     /* get some bits from /proc/self/stat */
@@ -3402,14 +3416,16 @@ static void dumpSchedStat(const DebugOutputTarget* target, pid_t tid) {
 #endif
 }
 
+//´æ´¢Ïß³Ìµ÷¶ÈĞÅÏ¢
 struct SchedulerStats {
-    int policy;
-    int priority;
-    char group[32];
+    int policy; //²ßÂÔ
+    int priority; //È¨ÏŞ
+    char group[32]; //·Ö×é
 };
 
 /*
  * Get scheduler statistics.
+ * »ñÈ¡µ÷¶ÈĞÅÏ¢
  */
 static void getSchedulerStats(SchedulerStats* stats, pid_t tid) {
     struct sched_param sp;
@@ -3529,6 +3545,7 @@ void dvmDumpThreadEx(const DebugOutputTarget* target, Thread* thread,
     free(groupName);
 }
 
+// »ñÈ¡Ïß³ÌÃèÊöÃû³Æ
 std::string dvmGetThreadName(Thread* thread) {
     if (thread->threadObj == NULL) {
         ALOGW("threadObj is NULL, name not available");
@@ -3546,6 +3563,7 @@ std::string dvmGetThreadName(Thread* thread) {
 #ifdef HAVE_ANDROID_OS
 /*
  * Dumps information about a non-Dalvik thread.
+ * ×ª´¢·ÇdalvikÏß³ÌµÄĞÅÏ¢
  */
 static void dumpNativeThread(const DebugOutputTarget* target, pid_t tid) {
     char path[64];
@@ -3585,6 +3603,7 @@ static void dumpNativeThread(const DebugOutputTarget* target, pid_t tid) {
 /*
  * Returns true if the specified tid is a Dalvik thread.
  * Assumes the thread list lock is held.
+ * ÅĞ¶ÏÖ¸¶¨µÄpidÊÇ·ñÊÇÒ»¸öĞéÄâ»úÏß³Ì-- Í¨¹ı²éÑ¯È«¾ÖµÄĞéÄâ»úÏß³ÌÁĞ±í
  */
 static bool isDalvikThread(pid_t tid) {
     for (Thread* thread = gDvm.threadList; thread != NULL; thread = thread->next) {
@@ -3614,6 +3633,7 @@ void dvmDumpAllThreads(bool grabLock)
  *
  * If "grabLock" is true, we grab the thread lock list.  This is important
  * to do unless the caller already holds the lock.
+ * ×ª´¢Ïß³ÌĞÅÏ¢
  */
 void dvmDumpAllThreadsEx(const DebugOutputTarget* target, bool grabLock)
 {
