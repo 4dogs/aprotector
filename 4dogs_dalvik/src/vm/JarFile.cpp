@@ -215,9 +215,10 @@ int dvmJarFileOpen(const char* fileName, const char* odexOutputName,
     int fd = -1;
     int result = -1;
 
-    /* Even if we're not going to look at the archive, we need to
-     * open it so we can stuff it into ppJarFile.
-     */
+    /* 
+   * Even if we're not going to look at the archive, we need to
+   * open it so we can stuff it into ppJarFile.
+   */
     if (dexZipOpenArchive(fileName, &archive) != 0)
         goto bail;
     archiveOpen = true;
@@ -340,6 +341,9 @@ tryArchive:
      * Map the cached version.  This immediately rewinds the fd, so it
      * doesn't have to be seeked anywhere in particular.
      */
+     /*
+   * 给定一个打开的优化过的DEX文件，映射它到只读存储器并且解析其内容
+   */
     if (dvmDexFileOpenFromFd(fd, &pDvmDex) != 0) {
         ALOGI("Unable to map %s in %s", kDexInJarName, fileName);
         goto bail;

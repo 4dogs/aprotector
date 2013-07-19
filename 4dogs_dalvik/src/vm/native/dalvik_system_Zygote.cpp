@@ -490,6 +490,13 @@ static int setSELinuxContext(uid_t uid, bool isSystemServer,
 /*
  * Utility routine to fork zygote and specialize the child process.
  */
+/*
+ * ´´½¨Ò»¸öDalvikĞéÄâ»ú½ø³Ì
+ *
+ * º¯ÊıforkAndSpecializeCommon³ıÁË¿ÉÒÔÓÃÀ´´´½¨ÆÕÍ¨µÄAndroidÓ¦ÓÃ³ÌĞò½ø³ÌÖ®Íâ£¬
+ * »¹ÓÃÀ´´´½¨System½ø³Ì¡£AndroidÏµÍ³ÖĞµÄSystem½ø³ÌºÍÆÕÍ¨µÄAndroidÓ¦ÓÃ³ÌĞò½ø³ÌÒ»Ñù£¬
+ * Ò²ÊÇÓÉZygote½ø³Ì¸ºÔğ´´½¨µÄ
+ */
 static pid_t forkAndSpecializeCommon(const u4* args, bool isSystemServer)
 {
     pid_t pid;
@@ -505,7 +512,27 @@ static pid_t forkAndSpecializeCommon(const u4* args, bool isSystemServer)
     char *seInfo = NULL;
     char *niceName = NULL;
 #endif
-
+    /*
+   * µ±º¯ÊıforkAndSpecializeCommonÊÇµ÷ÓÃÀ´´´½¨System½ø³ÌµÄÊ±ºò£¬²ÎÊıisSystemServerµÄÖµ¾Í
+   * µÈÓÚtrue£¬ÕâÊ±ºòÔÚ²ÎÊıÁĞ±íargs¾Í»á°üº¬Á½¸ö¶îÍâµÄ²ÎÊıpermittedCapabilitiesºÍeffectiveCapabilities¡£
+   * ÆäÖĞ£¬permittedCapabilities±íÊ¾System½ø³ÌÔÊĞíµÄÌØÈ¨£¬¶øeffectiveCapabilities±íÊ¾System½ø³Ìµ±Ç°µÄÓĞĞ§ÌØÈ¨£¬
+   * ÕâÁ½¸ö²ÎÊıµÄ¹ØÏµ¾ÍÀàËÆÓÚ½ø³ÌµÄuidºÍeuidµÄ¹ØÏµÒ»Ñù
+   *
+   * ½ø³ÌµÄÌØÈ¨ÊÇÊ²Ã´¸ÅÄîÄØ£¿´ÓLinux 2.2¿ªÊ¼£¬RootÓÃ»§µÄÈ¨ÏŞ±»»®·Ö³ÉÁËÒ»ÏµÁĞµÄ×ÓÈ¨ÏŞ£¬Ã¿Ò»¸ö×ÓÈ¨ÏŞ¶¼Í¨¹ıÒ»¸öbitÀ´±íÊ¾£¬
+   * ÕâĞ©bitµÄ¶¨Òå¿ÉÒÔ²Î¿¼CAPABILITIES(7)¡£Ã¿Ò»¸ö½ø³Ì¶¼¹ØÁªÓĞÒ»¸öu32ÕûÊı£¬ÓÃÀ´ÃèÊöËüËù¾ßÓĞµÄRootÓÃ»§×ÓÈ¨ÏŞ£¬
+   * ÎÒÃÇ¿ÉÒÔÍ¨¹ıÏµÍ³µ÷ÓÃcapsetÀ´½øĞĞÉèÖÃ¡£
+   * ²Î¿¼Ç°ÃæAndroidÏµÍ³½ø³ÌZygoteÆô¶¯¹ı³ÌµÄÔ´´úÂë·ÖÎöÒ»ÆªÎÄÕÂ¿ÉÒÔÖªµÀ£¬Zygote½ø³ÌÔÚ´´½¨System½ø³ÌµÄÊ±ºò£
+   * ¸øËüÖ¸¶¨µÄpermittedCapabilitiesºÍeffectiveCapabilities¾ùÎª130104352£¬Òò´Ë£¬System½ø³ÌÔÚÔËĞĞµÄÊ±ºò£¬¾Í¿ÉÒÔ»ñµÃÒ»Ğ©RootÓÃ»§ÌØÈ¨¡£
+   * µ±²ÎÊıisSystemServerµÄÖµµÈÓÚfalseµÄÊ±ºò£¬±äÁ¿permittedCapabilitiesºÍeffectiveCapabilitiesµÄÖµ±»ÉèÖÃÎª0£¬Ò²¾ÍÊÇËµ£
+   * ÓÉZygote½ø³Ì´´½¨³öÀ´µÄAndroidÓ¦ÓÃ³ÌĞò½ø³ÌÊÇ²»¾ßÓĞÈÎºÎµÄRootÓÃ»§ÌØÈ¨µÄ
+   *
+   * ³ıÁËÉÏÊöµÄpermittedCapabilitiesºÍeffectiveCapabilitiesÖ®Íâ£¬²ÎÊıÁĞ±íargs»¹°üº¬ÁËÆäËüµÄ²ÎÊı£º
+   * --uid£ºÒª´´½¨µÄ½ø³ÌµÄÓÃ»§ID¡£Ò»°ãÀ´Ëµ£¬Ã¿Ò»¸öÓ¦ÓÃ³ÌĞò½ø³Ì¶¼ÓĞÒ»¸öÎ¨Ò»µÄÓÃ»§ID£¬ÓÃÀ´½«Ó¦ÓÃ³ÌĞò½ø³Ì·â±ÕÔÚÒ»¸öÉ³ÏäÀïÃæÔËĞĞ¡£
+   * --gid£ºÒª´´½¨µÄ½ø³ÌµÄÓÃ»§×éID¡£Ò»°ãÀ´Ëµ£¬Ã¿Ò»¸öÓ¦ÓÃ³ÌĞò½ø³Ì¶¼ÓĞÒ»¸öÎ¨Ò»µÄÓÃ»§×éID£¬Ò²ÊÇÓÃÀ´½«Ó¦ÓÃ³ÌĞò½ø³Ì·â±ÕÔÚÒ»¸öÉ³ÏäÀïÃæÔËĞĞ¡£
+   * --gids£ºÒª´´½¨µÄ½ø³ÌµÄ¶îÍâÓÃ»§×éID¡£Õâ¸ö¶îÍâµÄÓÃ»§×éIDÊµ¼ÊÉÏ¶ÔÓ¦µÄ¾ÍÊÇÓ¦ÓÃ³ÌĞòËùÉêÇëµÄ×ÊÔ´·ÃÈ¨ÏŞ¡£
+   * --debugFlags£ºÒª´´½¨µÄ½ø³ÌÔÚÔËĞĞÊ±µÄµ÷ÊÔÑ¡Ïî¡£ÀıÈç£¬ÎÒÃÇ¿ÉÒÔ½«debugFlagsµÄDEBUG_ENABLE_CHECKJNIÎ»ÉèÖÃÎª1£¬´Ó¶ø´ò¿ª¸Ã½ø³ÌÖĞµÄDalvikĞéÄâ»úµÄJNI¼ì²éÑ¡Ïî¡£
+   * --rlimits£ºÒª´´½¨µÄ½ø³ÌËùÊÜµ½µÄ×ÊÔ´ÏŞÖÆ¡£ÀıÈç£¬¸Ã½ø³ÌËùÄÜ´ò¿ªÎÄ¼şµÄ¸öÊı¡£
+   */
     if (isSystemServer) {
         /*
          * Don't use GET_ARG_LONG here for now.  gcc is generating code
@@ -539,6 +566,7 @@ static pid_t forkAndSpecializeCommon(const u4* args, bool isSystemServer)
 #endif
     }
 
+   
     if (!gDvm.zygote) {
         dvmThrowIllegalStateException(
             "VM instance not started with -Xzygote");
@@ -660,6 +688,9 @@ static pid_t forkAndSpecializeCommon(const u4* args, bool isSystemServer)
 
         unsetSignalHandler();
         gDvm.zygote = false;
+	/*
+	 * ¶ÔÔÚĞÂ´´½¨µÄ½ø³ÌÖĞÔËĞĞµÄDalvikĞéÄâ»ú½øĞĞ³õÊ¼»¯
+	 */
         if (!dvmInitAfterZygote()) {
             ALOGE("error in post-zygote initialization");
             dvmAbort();
@@ -680,11 +711,23 @@ static pid_t forkAndSpecializeCommon(const u4* args, bool isSystemServer)
  *     int[] gids, int debugFlags, int[][] rlimits, int mountExternal,
  *     String seInfo, String niceName);
  */
+/*
+ * AndroidÓ¦ÓÃ³ÌĞò½ø³ÌÊÇÓÉActivityManagerService·şÎñÍ¨¹ıandroid.os.ProcessÀàµÄ¾²Ì¬
+ * ³ÉÔ±º¯ÊıstartÀ´ÇëÇóZygote½ø³Ì´´½¨µÄ£¬¶øZyogte½ø³Ì×îÖÕÓÖÊÇÍ¨¹ıdalvik.system.ZygoteÀàµÄ¾²Ì¬³ÉÔ±
+ * º¯ÊıforkAndSpecializeÀ´´´½¨¸ÃAndroidÓ¦ÓÃ³ÌĞò½ø³ÌµÄ
+ *
+ * ×¢Òâ£¬²ÎÊıargsÖ¸ÏòµÄÊÇÒ»¸öu4Êı×é£¬ËüÀïÃæ°üº¬ÁËËùÓĞ´ÓJava²ã´«µİ½øÀ´µÄ²ÎÊı£¬
+ * ÕâÊÇÓÉDalvikĞéÄâ»ú·â×°µÄ¡£ÁíÍâÒ»¸ö²ÎÊıpResultÓÃÀ´±£´æJNI·½·¨µ÷ÓÃ½á¹û£¬
+ * ÕâÊÇÍ¨¹ıºêRETURN_INTÀ´ÊµÏÖµÄ
+ */
 static void Dalvik_dalvik_system_Zygote_forkAndSpecialize(const u4* args,
     JValue* pResult)
 {
     pid_t pid;
-
+	
+    /*
+   * ´´½¨Ò»¸öDalvikĞéÄâ»ú½ø³Ì
+   */
     pid = forkAndSpecializeCommon(args, false);
 
     RETURN_INT(pid);

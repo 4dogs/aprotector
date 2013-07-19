@@ -41,6 +41,28 @@ SystemÀàµÄ³ÉÔ±º¯ÊıloadLibraryÊ×ÏÈµ÷ÓÃSecurityManagerÀàµÄ³ÉÔ±º¯ÊıcheckLinkÀ´½øĞĞ°
 
 2.11 dvmSetNativeFunc() [dalvik/vm/oo/Class.cpp] Ö´ĞĞÕæÕıµÄJNI·½·¨×¢²á²Ù×÷
 
+[dalvik\vm\native\InternalNative.cpp]
+±¾µØº¯ÊıµÄÀà¿âµÄ³õÊ¼»¯ºÍÒ»Ğ©³£ÓÃµÄ¹¦ÄÜº¯Êı
+
+[dalvik\vm\native\dalvik_system_DexFile.cpp]
+´¦ÀídexÎÄ¼ş£¬È¥´ò¿ªdexÎÄ¼ş£¬»ò´ò¿ª×Ö½ÚÊı×éËù´ú±íµÄdexÎÄ¼şµÈ
+
+[dalvik\vm\native\dalvik_system_Zygote.cpp]
+´´½¨Ò»¸öDalvikĞéÄâ»ú½ø³ÌµÈ
+
+[dalvik\vm\java_lang_Runtime.cpp]
+¼ÓÔØsoÎÄ¼ş´úÂëµ÷ÓÃ£¬¹ØÓÚGC¶ÑµÄ²Ù×÷(eg.·µ»ØGC¶Ñ×ÜµÄÄÚ´æ×Ö½ÚÊı,...)
+
+[dalvik\vm\native\java_lang_VMThread.cpp]
+´´½¨Ò»¸öÏß³Ì,ÅĞ¶ÏÏß³ÌµÄÒ»Ğ©×´Ì¬£¬ÉèÖÃÏß³ÌµÄÓÅÏÈ¼¶£¬ÅĞ¶ÏÏß³Ì¶ÔÏóÊÇ·ñÉÏËø
+
+[dalvik\vm\native\java_lang_VMClassLoader.cpp]
+¼ÓÔØÀàµÄÏà¹Ø²Ù×÷£¬ÀıÈçÍ¨¹ıÀà¼ÓÔØÆ÷²éÕÒ²¢¼ÓÔØÒ»¸öÀà
+
+
+
+
+
 
 
 

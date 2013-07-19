@@ -28,6 +28,9 @@
  *
  * Convert an array of bytes to a Class object.
  */
+/*
+ * 定义一个类，转换字节数组成为一个类对象
+ */
 static void Dalvik_java_lang_VMClassLoader_defineClass(const u4* args,
     JValue* pResult)
 {
@@ -75,6 +78,9 @@ static void Dalvik_java_lang_VMClassLoader_defineClass2(const u4* args,
 /*
  * static Class findLoadedClass(ClassLoader cl, String name)
  */
+/*
+ * 查找已被加载的类
+ */
 static void Dalvik_java_lang_VMClassLoader_findLoadedClass(const u4* args,
     JValue* pResult)
 {
@@ -114,6 +120,9 @@ bail:
  *
  * Get the number of entries in the boot class path.
  */
+/* 
+ * 获取基本路径中的文件总数
+ */
 static void Dalvik_java_lang_VMClassLoader_getBootClassPathSize(const u4* args,
     JValue* pResult)
 {
@@ -127,6 +136,9 @@ static void Dalvik_java_lang_VMClassLoader_getBootClassPathSize(const u4* args,
  * Find a resource with a matching name in a boot class path entry.
  *
  * This mimics the previous VM interface, since we're sharing class libraries.
+ */
+/*
+ * 在boot class path中查找与名称匹配的的资源
  */
 static void Dalvik_java_lang_VMClassLoader_getBootClassPathResource(
     const u4* args, JValue* pResult)
@@ -149,6 +161,9 @@ static void Dalvik_java_lang_VMClassLoader_getBootClassPathResource(
 /*
  * static final Class getPrimitiveClass(char prim_type)
  */
+/*
+ * 获取原生类
+ */
 static void Dalvik_java_lang_VMClassLoader_getPrimitiveClass(const u4* args,
     JValue* pResult)
 {
@@ -167,6 +182,9 @@ static void Dalvik_java_lang_VMClassLoader_getPrimitiveClass(const u4* args,
  * the specified name.
  *
  * "name" is in "binary name" format, e.g. "dalvik.system.Debug$1".
+ */
+/*
+ * 使用引导类加载器加载类
  */
 static void Dalvik_java_lang_VMClassLoader_loadClass(const u4* args,
     JValue* pResult)

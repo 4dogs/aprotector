@@ -82,8 +82,8 @@ static void Dalvik_dalvik_system_VMStack_getClasses(const u4* args,
     dvmFillStackTraceArray(fp, methods.get(), depth);
 
     /*
-     * Run through the array and count up how many elements there are.
-     */
+   * Run through the array and count up how many elements there are.
+   */
     for (size_t i = kSkip; i < depth && size < maxSize; ++i) {
         const Method* meth = methods[i];
 

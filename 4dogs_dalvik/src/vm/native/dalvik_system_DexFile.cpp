@@ -253,6 +253,7 @@ static void Dalvik_dalvik_system_DexFile_openDexFile(const u4* args,
  *
  * Open a DEX file represented in a byte[], returning a pointer to our
  * internal data structure.
+ * 打开一个字节数组表示的DEX文件，返回指针指向的内部数据结构
  *
  * The system will only perform "essential" optimizations on the given file.
  *

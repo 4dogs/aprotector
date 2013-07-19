@@ -28,12 +28,22 @@
  *
  * Throws an exception on failure.
  */
+/*
+ * Thread类的成员函数start接下来就继续调用VMThread类的静态成员函数create来创建一个线程。
+ */
 static void Dalvik_java_lang_VMThread_create(const u4* args, JValue* pResult)
 {
+ 
     Object* threadObj = (Object*) args[0];
+    /*
+   * 将Java层传递过来的参数获取出来
+   */
     s8 stackSize = GET_ARG_LONG(args, 1);
 
     /* copying collector will pin threadObj for us since it was an argument */
+   /*
+  * 执行创建线程的工作
+  */
     dvmCreateInterpThread(threadObj, (int) stackSize);
     RETURN_VOID();
 }
@@ -54,6 +64,9 @@ static void Dalvik_java_lang_VMThread_currentThread(const u4* args,
  *
  * Gets the Thread status. Result is in VM terms, has to be mapped to
  * Thread.State by interpreted code.
+ */
+/*
+ * 获取线程的状态
  */
 static void Dalvik_java_lang_VMThread_getStatus(const u4* args, JValue* pResult)
 {
@@ -77,6 +90,9 @@ static void Dalvik_java_lang_VMThread_getStatus(const u4* args, JValue* pResult)
  *
  * Returns whether the current thread has a monitor lock on the specific
  * object.
+ */
+/*
+ * 判断在当前线程，指定的对象上是否有锁
  */
 static void Dalvik_java_lang_VMThread_holdsLock(const u4* args, JValue* pResult)
 {
@@ -102,6 +118,9 @@ static void Dalvik_java_lang_VMThread_holdsLock(const u4* args, JValue* pResult)
  *
  * Interrupt a thread that is waiting (or is about to wait) on a monitor.
  */
+/*
+ * 中断正在等待的线程
+ */
 static void Dalvik_java_lang_VMThread_interrupt(const u4* args, JValue* pResult)
 {
     Object* thisPtr = (Object*) args[0];
@@ -119,6 +138,9 @@ static void Dalvik_java_lang_VMThread_interrupt(const u4* args, JValue* pResult)
  * static boolean interrupted()
  *
  * Determine if the current thread has been interrupted.  Clears the flag.
+ */
+/*
+ * 判断当前线程是否已经被中断，如中断则清除标志
  */
 static void Dalvik_java_lang_VMThread_interrupted(const u4* args,
     JValue* pResult)
@@ -162,6 +184,9 @@ static void Dalvik_java_lang_VMThread_isInterrupted(const u4* args,
  *
  * The name of the target thread has changed.  We may need to alert DDMS.
  */
+/*
+ * 目标线程的名称已经改变，我们可能需要提醒DDMS
+ */
 static void Dalvik_java_lang_VMThread_nameChanged(const u4* args,
     JValue* pResult)
 {
@@ -192,6 +217,9 @@ static void Dalvik_java_lang_VMThread_nameChanged(const u4* args,
  * from Thread.MIN_PRIORITY to Thread.MAX_PRIORITY (1-10), with "normal"
  * threads at Thread.NORM_PRIORITY (5).
  */
+ /*
+  * 改变指定的线程的优先级
+  */
 static void Dalvik_java_lang_VMThread_setPriority(const u4* args,
     JValue* pResult)
 {
@@ -225,6 +253,9 @@ static void Dalvik_java_lang_VMThread_sleep(const u4* args, JValue* pResult)
  *
  * The exact behavior is poorly defined.  Some discussion here:
  *   http://www.cs.umd.edu/~pugh/java/memoryModel/archive/0944.html
+ */
+/*
+ * 导致线程暂停，并允许其他线程执行
  */
 static void Dalvik_java_lang_VMThread_yield(const u4* args, JValue* pResult)
 {
