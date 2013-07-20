@@ -1,0 +1,15 @@
+ReferenceTable.h定义了ReferenceTable单向链表引用结构，持有引用对象obj的pRef。
+已知的3个引用表结构分别是：
+dalvik/vm/Globals.h->ReferenceTable  jniPinRefTable; 
+dalvik/vm/Thread.h->ReferenceTable  internalLocalRefTable; /* 用于内部引用跟踪 */
+dalvik/vm/Thread.h->ReferenceTable  jniMonitorRefTable; /* JNI本地监控引用，第一次使用已初始化 */
+引用表初始化：
+dalvik/vm/Jni.cpp->dvmJniStartup() {
+    ...
+    if (!dvmInitReferenceTable(&gDvm.jniPinRefTable, kPinTableInitialSize, kPinTableMaxSize)) {
+        return false;
+    }
+    ...
+}
+
+NOTE_TO：

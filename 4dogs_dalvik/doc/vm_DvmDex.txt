@@ -1,0 +1,34 @@
+dalvik/vm/DvmDex.cpp该类是一个辅助类，定义、实现了一些和DEX文件相关的结构、函数方法。
+[流程]
+在analysis.txt中曾介绍过dvmRawDexFileOpen(),该方法与其相关，其具体的实现和dvmRawDexFileOpen()相同,开发人员认为应该被重构refactored。
+dvmDexFileOpenFromFd()方法读取设备流同时调用dvmJarFileOpen或dvmRawDexFileOpen()打开Jar文件或DEX文件，流程如下：
+dalvik/vm/JarFile.cpp->int dvmJarFileOpen(const char* fileName, const char* odexOutputName,
+    							JarFile** ppJarFile, bool isBootstrap)/* 真正打开文件 */
+dalvik/vm/DvmDex.cpp->dvmDexFileOpenFromFd(int fd, DvmDex** ppDvmDex); /* 从一个打开的DEX文件，映射到只读共享内存并且解析内容 */
+dalvik/vm/DvmDex.cpp->dexFileParse((u1*)memMap.addr, memMap.length, parseFlags); /* 解析文件 */
+解析文件做的工作是针对未优化过DEX文件，dexFileParse()将pDexFile->pOptHeader、checksum、dexFile各项结构指针依次赋值，完成DexFile结构体的初始化。
+pDexFile->baseAddr = data;
+pDexFile->pHeader = pHeader;
+pDexFile->pStringIds = (const DexStringId*) (data + pHeader->stringIdsOff);
+pDexFile->pTypeIds = (const DexTypeId*) (data + pHeader->typeIdsOff);
+pDexFile->pFieldIds = (const DexFieldId*) (data + pHeader->fieldIdsOff);
+pDexFile->pMethodIds = (const DexMethodId*) (data + pHeader->methodIdsOff);
+pDexFile->pProtoIds = (const DexProtoId*) (data + pHeader->protoIdsOff);
+pDexFile->pClassDefs = (const DexClassDef*) (data + pHeader->classDefsOff);
+pDexFile->pLinkData = (const DexLink*) (data + pHeader->linkOff);
+
+/* Set up the basic raw data pointers of a DexFile. This function isn't meant for general use. */
+设置基本DexFile二进制数据指针。这个函数不适用于一般使用。这句话的意思是如果真正解析DEX，那么这个恐怕不适用；它只做了对DexFile基本数据项指针的初始化和赋值。
+但DEX文件的结构还不止这些，不过，有了这个结构体映射到内存后，相当于有了一个DEX文件在内存的框架，VM去查找和检索框架内不同区域块的内存会方便许多。
+===========================================================================================================================
+[DvmDex转换]
+static DvmDex* allocateAuxStructures(DexFile* pDexFile); /* 创建一个辅助的数据结构 */
+该方法非常重要，它将DexFile的结构体转换为DvmDex结构体；DvmDex是承接各大组件许多入口参数或间接引用参照的一个数据来源。
+===========================================================================================================================
+/* 以下是一些辅助方法来方便对DEX文件的操作 */
+...
+int dvmDexFileOpenPartial(const void* addr, int len, DvmDex** ppDvmDex); /* 通过地址和长度打开部分DEX文件 */
+void dvmDexFileFree(DvmDex* pDvmDex); /* 释放DEX */
+bool dvmDexChangeDex1(DvmDex* pDvmDex, u1* addr, u1 newVal); /* 在指定位置修改1-byte值 */
+bool dvmDexChangeDex2(DvmDex* pDvmDex, u2* addr, u2 newVal); /* 在指定位置修改2-byte值 */
+...

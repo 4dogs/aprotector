@@ -1,0 +1,11 @@
+RawDexFile.cpp中有2个非常重要的方法：
+int dvmRawDexFileOpen(const char* fileName, const char* odexOutputName, 
+    RawDexFile** ppRawDexFile, bool isBootstrap); /* 全路径打开DEX文件 */
+int dvmRawDexFileOpenArray(u1* pBytes, u4 length, RawDexFile** ppRawDexFile); /* 内存打开DEX文件 */
+[梆梆参考]
+看雪对梆梆这个软件有这样推测分析：
+1.读取dexFileName文件内容并解密到byte数组。
+2.调用dexFileParse函数解析byte数组为DexFile(此处会调用到dvmRawDexFileOpenArray())
+3.调用allocateAuxStructures(这个方法来自于dalvik/vm/DvmDex.cpp)转换DexFile为DvmDex。
+4.添加DvmDex到gDvm.userDexFiles。
+5.修改MyDexClassLoader中的mDexs对象的mCookie值，mCookie主要用于映射底层DvmDex数据DexClassLoader.mDexs[0].mCookie值。
