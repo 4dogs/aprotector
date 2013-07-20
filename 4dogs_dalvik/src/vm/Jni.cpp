@@ -15,8 +15,10 @@
  */
 
 /*
- * Dalvik implementation of JNI interfaces.
- */
+Dalvik implementation of JNI interfaces.
+
+Dalvik JNI接口实现。
+*/
 #include "Dalvik.h"
 #include "JniInternal.h"
 #include "ScopedPthreadMutexLock.h"
@@ -29,10 +31,14 @@
 /*
 Native methods and interaction with the GC
 
+本地方法和垃圾回收交互。
+
 All JNI methods must start by changing their thread status to
 THREAD_RUNNING, and finish by changing it back to THREAD_NATIVE before
 returning to native code.  The switch to "running" triggers a thread
 suspension check.
+
+所有JNI方法必须通过改变它们线程状态到THREAD_RUNNING来启动。
 
 With a rudimentary GC we should be able to skip the status change for
 simple functions, e.g.  IsSameObject, GetJavaVM, GetStringLength, maybe
@@ -139,11 +145,13 @@ The GC will scan all references in the table.
 # define CHECK_STACK_SUM(_self)     checkStackSum(_self);
 
 /*
- * Compute a CRC on the entire interpreted stack.
- *
- * Would be nice to compute it on "self" as well, but there are parts of
- * the Thread that can be altered by other threads (e.g. prev/next pointers).
- */
+Compute a CRC on the entire interpreted stack.
+
+Would be nice to compute it on "self" as well, but there are parts of
+the Thread that can be altered by other threads (e.g. prev/next pointers).
+
+对整个解释栈计算CRC值。
+*/
 static void computeStackSum(Thread* self) {
     const u1* low = (const u1*)SAVEAREA_FROM_FP(self->interpSave.curFrame);
     u4 crc = dvmInitCrc32();
@@ -153,15 +161,17 @@ static void computeStackSum(Thread* self) {
 }
 
 /*
- * Compute a CRC on the entire interpreted stack, and compare it to what
- * we previously computed.
- *
- * We can execute JNI directly from native code without calling in from
- * interpreted code during VM initialization and immediately after JNI
- * thread attachment.  Another opportunity exists during JNI_OnLoad.  Rather
- * than catching these cases we just ignore them here, which is marginally
- * less accurate but reduces the amount of code we have to touch with #ifdefs.
- */
+Compute a CRC on the entire interpreted stack, and compare it to what
+we previously computed.
+
+We can execute JNI directly from native code without calling in from
+interpreted code during VM initialization and immediately after JNI
+thread attachment.  Another opportunity exists during JNI_OnLoad.  Rather
+than catching these cases we just ignore them here, which is marginally
+less accurate but reduces the amount of code we have to touch with #ifdefs.
+
+对整个解释栈计算CRC，并且比较先前的计算值。
+*/
 static void checkStackSum(Thread* self) {
     const u1* low = (const u1*)SAVEAREA_FROM_FP(self->interpSave.curFrame);
     u4 stackCrc = self->stackCrc;
@@ -190,20 +200,24 @@ static void checkStackSum(Thread* self) {
 
 
 /*
- * ===========================================================================
- *      Utility functions
- * ===========================================================================
- */
+===========================================================================
+     Utility functions
+
+		 工具函数
+===========================================================================
+*/
 
 /*
- * Entry/exit processing for all JNI calls.
- *
- * We skip the (curiously expensive) thread-local storage lookup on our Thread*.
- * If the caller has passed the wrong JNIEnv in, we're going to be accessing unsynchronized
- * structures from more than one thread, and things are going to fail
- * in bizarre ways.  This is only sensible if the native code has been
- * fully exercised with CheckJNI enabled.
- */
+Entry/exit processing for all JNI calls.
+
+We skip the (curiously expensive) thread-local storage lookup on our Thread*.
+If the caller has passed the wrong JNIEnv in, we're going to be accessing unsynchronized
+structures from more than one thread, and things are going to fail
+in bizarre ways.  This is only sensible if the native code has been
+fully exercised with CheckJNI enabled.
+
+对所有JNI调用的进入/退出处理。
+*/
 class ScopedJniThreadState {
 public:
     explicit ScopedJniThreadState(JNIEnv* env) {
@@ -251,6 +265,9 @@ private:
 #define kPinTableMaxSize            1024
 #define kPinComplainThreshold       10
 
+/*
+JNI启动初始化
+*/
 bool dvmJniStartup() {
     if (!gDvm.jniGlobalRefTable.init(kGlobalRefsTableInitialSize,
                                  kGlobalRefsTableMaxSize,
@@ -277,6 +294,9 @@ bool dvmJniStartup() {
     return true;
 }
 
+/*
+JNI关闭
+*/
 void dvmJniShutdown() {
     gDvm.jniGlobalRefTable.destroy();
     gDvm.jniWeakGlobalRefTable.destroy();
@@ -284,11 +304,13 @@ void dvmJniShutdown() {
 }
 
 /*
- * Find the JNIEnv associated with the current thread.
- *
- * Currently stored in the Thread struct.  Could also just drop this into
- * thread-local storage.
- */
+Find the JNIEnv associated with the current thread.
+
+Currently stored in the Thread struct.  Could also just drop this into
+thread-local storage.
+
+查找和当前线程相关的JNIEnv。
+*/
 JNIEnvExt* dvmGetJNIEnvForThread() {
     Thread* self = dvmThreadSelf();
     if (self == NULL) {
@@ -298,15 +320,22 @@ JNIEnvExt* dvmGetJNIEnvForThread() {
 }
 
 /*
- * Convert an indirect reference to an Object reference.  The indirect
- * reference may be local, global, or weak-global.
- *
- * If "jobj" is NULL, or is a weak global reference whose reference has
- * been cleared, this returns NULL.  If jobj is an invalid indirect
- * reference, kInvalidIndirectRefObject is returned.
- *
- * Note "env" may be NULL when decoding global references.
- */
+Convert an indirect reference to an Object reference.  The indirect
+reference may be local, global, or weak-global.
+
+If "jobj" is NULL, or is a weak global reference whose reference has
+been cleared, this returns NULL.  If jobj is an invalid indirect
+reference, kInvalidIndirectRefObject is returned.
+
+Note "env" may be NULL when decoding global references.
+
+将一个间接引用一个对象的引用。直接引用可以是本地、全局、或弱全局。
+
+如果“jobj”为NULL，或者是一个已被清除，返回为NULL的弱全局引用。如果jobj是一个无效
+的直接引用，返回kInvalidIndirectRefObject。
+
+注意“env”可以为NULL，当解码全局引用时。
+*/
 Object* dvmDecodeIndirectRef(Thread* self, jobject jobj) {
     if (jobj == NULL) {
         return NULL;
@@ -360,6 +389,9 @@ Object* dvmDecodeIndirectRef(Thread* self, jobject jobj) {
     }
 }
 
+/*
+找到当前native线程对应的JNIEnv。
+*/
 static void AddLocalReferenceFailure(IndirectRefTable* pRefTable) {
     pRefTable->dump("JNI local");
     ALOGE("Failed adding to JNI local ref table (has %zd entries)", pRefTable->capacity());
@@ -368,14 +400,18 @@ static void AddLocalReferenceFailure(IndirectRefTable* pRefTable) {
 }
 
 /*
- * Add a local reference for an object to the current stack frame.  When
- * the native function returns, the reference will be discarded.
- *
- * We need to allow the same reference to be added multiple times.
- *
- * This will be called on otherwise unreferenced objects.  We cannot do
- * GC allocations here, and it's best if we don't grab a mutex.
- */
+Add a local reference for an object to the current stack frame.  When
+the native function returns, the reference will be discarded.
+
+We need to allow the same reference to be added multiple times.
+
+This will be called on otherwise unreferenced objects.  We cannot do
+GC allocations here, and it's best if we don't grab a mutex.
+
+向Local Ref 表中添加表项
+
+对于Local Reference，在Native Method退出时自动删除，或者用户调用deleteLocalReference()删除
+*/
 static inline jobject addLocalReference(Thread* self, Object* obj) {
     if (obj == NULL) {
         return NULL;
@@ -396,9 +432,13 @@ static inline jobject addLocalReference(Thread* self, Object* obj) {
 }
 
 /*
- * Ensure that at least "capacity" references can be held in the local
- * refs table of the current thread.
- */
+Ensure that at least "capacity" references can be held in the local
+refs table of the current thread.
+
+由于Local Ref表的的大小有限制，需要检查大小限制。
+在某些情况下，可能需要在 native method 里面创建大量的 JNI Local Reference。这样可能导致 native memory 的内存泄漏。
+如果在 native method 返回之前 native memory 已经被用光，就会导致 native memory 的 out of memory。
+*/
 static bool ensureLocalCapacity(Thread* self, int capacity) {
     int numEntries = self->jniLocalRefTable.capacity();
     // TODO: this isn't quite right, since "numEntries" includes holes
@@ -406,8 +446,10 @@ static bool ensureLocalCapacity(Thread* self, int capacity) {
 }
 
 /*
- * Explicitly delete a reference from the local list.
- */
+Explicitly delete a reference from the local list.
+
+提供用户删除表项的接口，方便管理Local Ref，防止内存泄露。
+*/
 static void deleteLocalReference(Thread* self, jobject jobj) {
     if (jobj == NULL) {
         return;
@@ -429,11 +471,16 @@ static void deleteLocalReference(Thread* self, jobject jobj) {
 }
 
 /*
- * Add a global reference for an object.
- *
- * We may add the same object more than once.  Add/remove calls are paired,
- * so it needs to appear on the list multiple times.
- */
+Add a global reference for an object.
+
+We may add the same object more than once.  Add/remove calls are paired,
+so it needs to appear on the list multiple times.
+
+向Global Ref表中添加表项。
+需注意的是JVM的garbage不会回收这类变量，需要用户自己进行回收，防止内存泄露。
+由变量kGlobalRefsTableMaxSize指定Gloable表的最大值，必须小于64K。
+函数中提供了对于Global 表使用情况的监控。
+*/
 static jobject addGlobalReference(Object* obj) {
     if (obj == NULL) {
         return NULL;
@@ -517,6 +564,9 @@ static jobject addGlobalReference(Object* obj) {
     return jobj;
 }
 
+/*
+添加弱全局引用。
+*/
 static jobject addWeakGlobalReference(Object* obj) {
     if (obj == NULL) {
         return NULL;
@@ -533,6 +583,9 @@ static jobject addWeakGlobalReference(Object* obj) {
     return jobj;
 }
 
+/*
+删除弱全局引用。
+*/
 static void deleteWeakGlobalReference(jobject jobj) {
     if (jobj == NULL) {
         return;
@@ -546,12 +599,16 @@ static void deleteWeakGlobalReference(jobject jobj) {
 }
 
 /*
- * Remove a global reference.  In most cases it's the entry most recently
- * added, which makes this pretty quick.
- *
- * Thought: if it's not the most recent entry, just null it out.  When we
- * fill up, do a compaction pass before we expand the list.
- */
+Remove a global reference.  In most cases it's the entry most recently
+added, which makes this pretty quick.
+
+Thought: if it's not the most recent entry, just null it out.  When we
+fill up, do a compaction pass before we expand the list.
+
+删除一个全局引用。大部分情况，它是最近添加的条目。
+
+NOTE TODO：
+*/
 static void deleteGlobalReference(jobject jobj) {
     if (jobj == NULL) {
         return;
@@ -575,11 +632,25 @@ static void deleteGlobalReference(jobject jobj) {
 }
 
 /*
- * Objects don't currently move, so we just need to create a reference
- * that will ensure the array object isn't collected.
- *
- * We use a separate reference table, which is part of the GC root set.
- */
+Objects don't currently move, so we just need to create a reference
+that will ensure the array object isn't collected.
+
+We use a separate reference table, which is part of the GC root set.
+                                                                                                                                                                                                                                                                                                                                                                                      
+访问数组时，如果用JNI函数重复调用访问其中的每一个元素，那么消耗是相当大的。                                                                                                                      
+一个解决方案是引入一种“pin”机制，这样JVM就不会再移动数组内容。本地方法接受一个指向这些元素的直接指针。                                                                                         
+但这有两个影响：                                                                                                                                                                                 
+1、 JVM的GC必须支持“pin”。“pin”机制在JVM中并不是一定要实现的，因为它会使GC的算法更复杂，并有可能导致内存碎片。                                                                               
+2、 JVM必须在内存中连续地存放数组。虽然这是大部分基本类型数组的默认实现方式，但是boolean数组是比较特殊的一个。                                                                                   
+Boolean数组有两种方式，packed和unpacked。用packed实现方式时，每个元素用一个bit来存放一个元素，而unpacked使用一个字节来存放一个元素。因此，依赖于boolean数组特定存放方式的本地代码将是不可移植的。
+JNI采用了一个折衷方案来解决上面这两个问题。                                                                                                                                                      
+首先，JNI提供了一系列函数（例如，GetIntArrayRegion、SetIntArrayRegion）把基本类型数组复制到本地的内存缓存。如果本地代码需要访问数组当中的少量元素，或者必须要复制一份的话，请使用这些函数。      
+其次，程序可以使用另外一组函数（例如，GetIntArrayElement）来获取数组被pin后的直接指针。如果VM不支持pin，这组函数会返回数组的复本。                                                               
+                                                                                                                                                                                                 
+当数组使用完后，本地代码会调用另外一组函数（例如，ReleaseInt-ArrayElement）来通知JVM。这时，JVM会unpin数组或者把对复制后的数组的改变反映到原数组上然后释放复制后的数组。                         
+这种方式提供了很大的灵活性。GC算法可以自由决定是复制数组，或者pin数组，还是复制小数组，pin大数组。                                                                                               
+JNI函数必须确保不同线程的本地方法可以同步访问相同的数组。例如，JNI可能会为每一个被pin的数组保持一个计数器，如果数组被两个线程pin的话，其中一个unpin不会影响另一个线程.                           
+*/     
 static void pinPrimitiveArray(ArrayObject* arrayObj) {
     if (arrayObj == NULL) {
         return;
@@ -620,9 +691,11 @@ static void pinPrimitiveArray(ArrayObject* arrayObj) {
 }
 
 /*
- * Un-pin the array object.  If an object was pinned twice, it must be
- * unpinned twice before it's free to move.
- */
+Un-pin the array object.  If an object was pinned twice, it must be
+unpinned twice before it's free to move.
+
+NOTE TODO：
+*/
 static void unpinPrimitiveArray(ArrayObject* arrayObj) {
     if (arrayObj == NULL) {
         return;
@@ -639,10 +712,14 @@ static void unpinPrimitiveArray(ArrayObject* arrayObj) {
 }
 
 /*
- * Dump the contents of the JNI reference tables to the log file.
- *
- * We only dump the local refs associated with the current thread.
- */
+Dump the contents of the JNI reference tables to the log file.
+
+We only dump the local refs associated with the current thread.
+
+转储JNI引用表的内容到日志文件。
+
+我们仅仅转储和当前线程相关的本地引用。
+*/
 void dvmDumpJniReferenceTables() {
     Thread* self = dvmThreadSelf();
     self->jniLocalRefTable.dump("JNI local");
@@ -651,17 +728,23 @@ void dvmDumpJniReferenceTables() {
 }
 
 /*
- * Verify that a reference passed in from native code is one that the
- * code is allowed to have.
- *
- * It's okay for native code to pass us a reference that:
- *  - was passed in as an argument when invoked by native code (and hence
- *    is in the JNI local refs table)
- *  - was returned to it from JNI (and is now in the local refs table)
- *  - is present in the JNI global refs table
- *
- * Used by -Xcheck:jni and GetObjectRefType.
- */
+Verify that a reference passed in from native code is one that the
+code is allowed to have.
+
+It's okay for native code to pass us a reference that:
+ - was passed in as an argument when invoked by native code (and hence
+   is in the JNI local refs table)
+ - was returned to it from JNI (and is now in the local refs table)
+ - is present in the JNI global refs table
+
+Used by -Xcheck:jni and GetObjectRefType.
+
+校验从本地代码传递的引用，代码是允许的。
+
+通过-Xcheck:jni和GetObjectRefType使用。
+
+获取JNI引用类型。
+*/
 jobjectRefType dvmGetJNIRefType(Thread* self, jobject jobj) {
     /*
      * IndirectRefKind is currently defined as an exact match of
@@ -682,6 +765,9 @@ jobjectRefType dvmGetJNIRefType(Thread* self, jobject jobj) {
     }
 }
 
+/*
+转储方法。
+*/
 static void dumpMethods(Method* methods, size_t methodCount, const char* name) {
     size_t i;
     for (i = 0; i < methodCount; ++i) {
@@ -694,6 +780,9 @@ static void dumpMethods(Method* methods, size_t methodCount, const char* name) {
     }
 }
 
+/*
+转储候选的方法。
+*/
 static void dumpCandidateMethods(ClassObject* clazz, const char* methodName, const char* signature) {
     ALOGE("ERROR: couldn't find native method");
     ALOGE("Requested: %s.%s:%s", clazz->descriptor, methodName, signature);
@@ -702,8 +791,16 @@ static void dumpCandidateMethods(ClassObject* clazz, const char* methodName, con
 }
 
 /*
- * Register a method that uses JNI calling conventions.
- */
+Register a method that uses JNI calling conventions.
+
+注册一个使用JNI调用协议的方法。
+
+应用层级的Java类别透过VM而呼叫到本地函数。一般是仰赖VM去寻找*.so里的本地函数。如果需要连续呼叫很多次，每次都需要寻找一遍，会多花许多时间。
+将本地函数直接向VM进行登记
+(1)更有效率去找到函数。　　
+(2)可在执行期间进行抽换。在程序执行时，可多次呼叫registerNativeMethods()函数来更换本地函数之指针，而达到弹性抽换本地函数之目的。
+进行一堆检测之后，调用dvmUseJNIBridge()进行注册。
+*/
 static bool dvmRegisterJNIMethod(ClassObject* clazz, const char* methodName,
     const char* signature, void* fnPtr)
 {
@@ -776,6 +873,9 @@ static const char* builtInPrefixes[] = {
     "Lorg/apache/harmony/",
 };
 
+/*
+是否跟踪方法。
+*/
 static bool shouldTrace(Method* method) {
     const char* className = method->clazz->descriptor;
     // Return true if the -Xjnitrace setting implies we should trace 'method'.
@@ -796,9 +896,12 @@ static bool shouldTrace(Method* method) {
 }
 
 /*
- * Point "method->nativeFunc" at the JNI bridge, and overload "method->insns"
- * to point at the actual function.
- */
+Point "method->nativeFunc" at the JNI bridge, and overload "method->insns"
+to point at the actual function.
+
+将method重的nativeFunc指针指向Bridge。
+VM 不能直接访问函数，只有在native的method被invoked之后，通过bridge执行dvmCallJNIMethod()访问。
+*/
 void dvmUseJNIBridge(Method* method, void* func) {
     method->shouldTrace = shouldTrace(method);
 
@@ -905,6 +1008,9 @@ static void logNativeMethodEntry(const Method* method, const u4* args)
     free(signature);
 }
 
+/*
+记录本地方法退出。
+*/
 static void logNativeMethodExit(const Method* method, Thread* self, const JValue returnValue)
 {
     std::string className(dvmHumanReadableDescriptor(method->clazz->descriptor));
@@ -925,8 +1031,10 @@ static void logNativeMethodExit(const Method* method, Thread* self, const JValue
 }
 
 /*
- * Get the method currently being executed by examining the interp stack.
- */
+Get the method currently being executed by examining the interp stack.
+
+获取通过检查解释栈被执行的当前JNI方法。
+*/
 const Method* dvmGetCurrentJNIMethod() {
     assert(dvmThreadSelf() != NULL);
 
@@ -939,15 +1047,17 @@ const Method* dvmGetCurrentJNIMethod() {
 }
 
 /*
- * Track a JNI MonitorEnter in the current thread.
- *
- * The goal is to be able to "implicitly" release all JNI-held monitors
- * when the thread detaches.
- *
- * Monitors may be entered multiple times, so we add a new entry for each
- * enter call.  It would be more efficient to keep a counter.  At present
- * there's no real motivation to improve this however.
- */
+Track a JNI MonitorEnter in the current thread.
+
+The goal is to be able to "implicitly" release all JNI-held monitors
+when the thread detaches.
+
+Monitors may be entered multiple times, so we add a new entry for each
+enter call.  It would be more efficient to keep a counter.  At present
+there's no real motivation to improve this however.
+
+在当前线程跟踪一个JNI MonitorEnter
+*/
 static void trackMonitorEnter(Thread* self, Object* obj) {
     static const int kInitialSize = 16;
     ReferenceTable* refTable = &self->jniMonitorRefTable;
@@ -972,8 +1082,10 @@ static void trackMonitorEnter(Thread* self, Object* obj) {
 }
 
 /*
- * Track a JNI MonitorExit in the current thread.
- */
+Track a JNI MonitorExit in the current thread.
+
+在当前线程跟踪一个JNI MonitorExit。
+*/
 static void trackMonitorExit(Thread* self, Object* obj) {
     ReferenceTable* pRefTable = &self->jniMonitorRefTable;
 
@@ -986,8 +1098,10 @@ static void trackMonitorExit(Thread* self, Object* obj) {
 }
 
 /*
- * Release all monitors held by the jniMonitorRefTable list.
- */
+Release all monitors held by the jniMonitorRefTable list.
+
+通过jniMonitorRefTable列表释放所有它持有的monitors。
+*/
 void dvmReleaseJniMonitors(Thread* self) {
     ReferenceTable* pRefTable = &self->jniMonitorRefTable;
     Object** top = pRefTable->table;
@@ -1009,12 +1123,14 @@ void dvmReleaseJniMonitors(Thread* self) {
 }
 
 /*
- * Determine if the specified class can be instantiated from JNI.  This
- * is used by AllocObject / NewObject, which are documented as throwing
- * an exception for abstract and interface classes, and not accepting
- * array classes.  We also want to reject attempts to create new Class
- * objects, since only DefineClass should do that.
- */
+Determine if the specified class can be instantiated from JNI.  This
+is used by AllocObject / NewObject, which are documented as throwing
+an exception for abstract and interface classes, and not accepting
+array classes.  We also want to reject attempts to create new Class
+objects, since only DefineClass should do that.
+
+判断如果一个来自JNI的特定的类能否初始化。
+*/
 static bool canAllocClass(ClassObject* clazz) {
     if (dvmIsAbstractClass(clazz) || dvmIsInterfaceClass(clazz)) {
         /* JNI spec defines what this throws */
@@ -1030,52 +1146,56 @@ static bool canAllocClass(ClassObject* clazz) {
 
 
 /*
- * ===========================================================================
- *      JNI call bridge
- * ===========================================================================
- */
+===========================================================================
+     JNI call bridge
+
+		 JNI调用桥
+===========================================================================
+*/
 
 /*
- * The functions here form a bridge between interpreted code and JNI native
- * functions.  The basic task is to convert an array of primitives and
- * references into C-style function arguments.  This is architecture-specific
- * and usually requires help from assembly code.
- *
- * The bridge takes four arguments: the array of parameters, a place to
- * store the function result (if any), the method to call, and a pointer
- * to the current thread.
- *
- * These functions aren't called directly from elsewhere in the VM.
- * A pointer in the Method struct points to one of these, and when a native
- * method is invoked the interpreter jumps to it.
- *
- * (The "internal native" methods are invoked the same way, but instead
- * of calling through a bridge, the target method is called directly.)
- *
- * The "args" array should not be modified, but we do so anyway for
- * performance reasons.  We know that it points to the "outs" area on
- * the current method's interpreted stack.  This area is ignored by the
- * precise GC, because there is no register map for a native method (for
- * an interpreted method the args would be listed in the argument set).
- * We know all of the values exist elsewhere on the interpreted stack,
- * because the method call setup copies them right before making the call,
- * so we don't have to worry about concealing stuff from the GC.
- *
- * If we don't want to modify "args", we either have to create a local
- * copy and modify it before calling dvmPlatformInvoke, or we have to do
- * the local reference replacement within dvmPlatformInvoke.  The latter
- * has some performance advantages, though if we can inline the local
- * reference adds we may win when there's a lot of reference args (unless
- * we want to code up some local ref table manipulation in assembly.
- */
+The functions here form a bridge between interpreted code and JNI native
+functions.  The basic task is to convert an array of primitives and
+references into C-style function arguments.  This is architecture-specific
+and usually requires help from assembly code.
 
-/*
- * If necessary, convert the value in pResult from a local/global reference
- * to an object pointer.
- *
- * If the returned reference is invalid, kInvalidIndirectRefObject will
- * be returned in pResult.
- */
+The bridge takes four arguments: the array of parameters, a place to
+store the function result (if any), the method to call, and a pointer
+to the current thread.
+
+These functions aren't called directly from elsewhere in the VM.
+A pointer in the Method struct points to one of these, and when a native
+method is invoked the interpreter jumps to it.
+
+(The "internal native" methods are invoked the same way, but instead
+of calling through a bridge, the target method is called directly.)
+
+The "args" array should not be modified, but we do so anyway for
+performance reasons.  We know that it points to the "outs" area on
+the current method's interpreted stack.  This area is ignored by the
+precise GC, because there is no register map for a native method (for
+an interpreted method the args would be listed in the argument set).
+We know all of the values exist elsewhere on the interpreted stack,
+because the method call setup copies them right before making the call,
+so we don't have to worry about concealing stuff from the GC.
+
+If we don't want to modify "args", we either have to create a local
+copy and modify it before calling dvmPlatformInvoke, or we have to do
+the local reference replacement within dvmPlatformInvoke.  The latter
+has some performance advantages, though if we can inline the local
+reference adds we may win when there's a lot of reference args (unless
+we want to code up some local ref table manipulation in assembly.
+
+
+
+If necessary, convert the value in pResult from a local/global reference
+to an object pointer.
+
+If the returned reference is invalid, kInvalidIndirectRefObject will
+be returned in pResult.
+
+NOTE TODO：
+*/
 static inline void convertReferenceResult(JNIEnv* env, JValue* pResult,
     const Method* method, Thread* self)
 {
@@ -1085,8 +1205,15 @@ static inline void convertReferenceResult(JNIEnv* env, JValue* pResult,
 }
 
 /*
- * General form, handles all cases.
- */
+General form, handles all cases.
+
+bridge主要实现参数和引用的转换，以实现不同语言的调用。
+第一个参数为传入的参数列表
+第二个为可能有的输出结果
+第三个为被调用的方法
+第四个为指向当前线程的指针
+将参数列表进行转换之后，执行dvmPlatformInvoke(env,……)实现调用
+*/
 void dvmCallJNIMethod(const u4* args, JValue* pResult, const Method* method, Thread* self) {
     u4* modArgs = (u4*) args;
     jclass staticMethodClass = NULL;
@@ -1168,14 +1295,18 @@ void dvmCallJNIMethod(const u4* args, JValue* pResult, const Method* method, Thr
 }
 
 /*
- * ===========================================================================
- *      JNI implementation
- * ===========================================================================
- */
+===========================================================================
+     JNI implementation
+
+     JNI实现
+===========================================================================
+*/
 
 /*
- * Return the version of the native method interface.
- */
+Return the version of the native method interface.
+
+返回本地方法接口版本。
+*/
 static jint GetVersion(JNIEnv* env) {
     /*
      * There is absolutely no need to toggle the mode for correct behavior.
@@ -1187,10 +1318,14 @@ static jint GetVersion(JNIEnv* env) {
 }
 
 /*
- * Create a new class from a bag of bytes.
- *
- * This is not currently supported within Dalvik.
- */
+Create a new class from a bag of bytes.
+
+This is not currently supported within Dalvik.
+
+创建字节标志的新类。它不被Dalvik支持。
+
+定义类。
+*/
 static jclass DefineClass(JNIEnv* env, const char *name, jobject loader,
     const jbyte* buf, jsize bufLen)
 {
@@ -1205,19 +1340,21 @@ static jclass DefineClass(JNIEnv* env, const char *name, jobject loader,
 }
 
 /*
- * Find a class by name.
- *
- * We have to use the "no init" version of FindClass here, because we might
- * be getting the class prior to registering native methods that will be
- * used in <clinit>.
- *
- * We need to get the class loader associated with the current native
- * method.  If there is no native method, e.g. we're calling this from native
- * code right after creating the VM, the spec says we need to use the class
- * loader returned by "ClassLoader.getBaseClassLoader".  There is no such
- * method, but it's likely they meant ClassLoader.getSystemClassLoader.
- * We can't get that until after the VM has initialized though.
- */
+Find a class by name.
+
+We have to use the "no init" version of FindClass here, because we might
+be getting the class prior to registering native methods that will be
+used in <clinit>.
+
+We need to get the class loader associated with the current native
+method.  If there is no native method, e.g. we're calling this from native
+code right after creating the VM, the spec says we need to use the class
+loader returned by "ClassLoader.getBaseClassLoader".  There is no such
+method, but it's likely they meant ClassLoader.getSystemClassLoader.
+We can't get that until after the VM has initialized though.
+
+通过名称查找类，返回jclass。
+*/
 static jclass FindClass(JNIEnv* env, const char* name) {
     ScopedJniThreadState ts(env);
 
@@ -1255,8 +1392,10 @@ static jclass FindClass(JNIEnv* env, const char* name) {
 }
 
 /*
- * Return the superclass of a class.
- */
+Return the superclass of a class.
+
+返回一个类的父类。
+*/
 static jclass GetSuperclass(JNIEnv* env, jclass jclazz) {
     ScopedJniThreadState ts(env);
     ClassObject* clazz = (ClassObject*) dvmDecodeIndirectRef(ts.self(), jclazz);
@@ -1264,10 +1403,12 @@ static jclass GetSuperclass(JNIEnv* env, jclass jclazz) {
 }
 
 /*
- * Determine whether an object of clazz1 can be safely cast to clazz2.
- *
- * Like IsInstanceOf, but with a pair of class objects instead of obj+class.
- */
+Determine whether an object of clazz1 can be safely cast to clazz2.
+
+Like IsInstanceOf, but with a pair of class objects instead of obj+class.
+
+确定clazz1的对象能否安全转型为clazz2。
+*/
 static jboolean IsAssignableFrom(JNIEnv* env, jclass jclazz1, jclass jclazz2) {
     ScopedJniThreadState ts(env);
     ClassObject* clazz1 = (ClassObject*) dvmDecodeIndirectRef(ts.self(), jclazz1);
@@ -1276,8 +1417,10 @@ static jboolean IsAssignableFrom(JNIEnv* env, jclass jclazz1, jclass jclazz2) {
 }
 
 /*
- * Given a java.lang.reflect.Method or .Constructor, return a methodID.
- */
+Given a java.lang.reflect.Method or .Constructor, return a methodID.
+
+通过java.lang.reflect.Method 或 .Constructor返回方法methodID。
+*/
 static jmethodID FromReflectedMethod(JNIEnv* env, jobject jmethod) {
     ScopedJniThreadState ts(env);
     Object* method = dvmDecodeIndirectRef(ts.self(), jmethod);
@@ -1285,8 +1428,10 @@ static jmethodID FromReflectedMethod(JNIEnv* env, jobject jmethod) {
 }
 
 /*
- * Given a java.lang.reflect.Field, return a fieldID.
- */
+Given a java.lang.reflect.Field, return a fieldID.
+
+通过java.lang.reflect.Field返回fieldID。
+*/
 static jfieldID FromReflectedField(JNIEnv* env, jobject jfield) {
     ScopedJniThreadState ts(env);
     Object* field = dvmDecodeIndirectRef(ts.self(), jfield);
@@ -1294,12 +1439,14 @@ static jfieldID FromReflectedField(JNIEnv* env, jobject jfield) {
 }
 
 /*
- * Convert a methodID to a java.lang.reflect.Method or .Constructor.
- *
- * (The "isStatic" field does not appear in the spec.)
- *
- * Throws OutOfMemory and returns NULL on failure.
- */
+Convert a methodID to a java.lang.reflect.Method or .Constructor.
+
+(The "isStatic" field does not appear in the spec.)
+
+Throws OutOfMemory and returns NULL on failure.
+
+转换methodID为ava.lang.reflect.Method 或 .Constructor
+*/
 static jobject ToReflectedMethod(JNIEnv* env, jclass jcls, jmethodID methodID, jboolean isStatic) {
     ScopedJniThreadState ts(env);
     ClassObject* clazz = (ClassObject*) dvmDecodeIndirectRef(ts.self(), jcls);
@@ -1309,12 +1456,14 @@ static jobject ToReflectedMethod(JNIEnv* env, jclass jcls, jmethodID methodID, j
 }
 
 /*
- * Convert a fieldID to a java.lang.reflect.Field.
- *
- * (The "isStatic" field does not appear in the spec.)
- *
- * Throws OutOfMemory and returns NULL on failure.
- */
+Convert a fieldID to a java.lang.reflect.Field.
+
+(The "isStatic" field does not appear in the spec.)
+
+Throws OutOfMemory and returns NULL on failure.
+
+转换fieldID 为 a java.lang.reflect.Field
+*/
 static jobject ToReflectedField(JNIEnv* env, jclass jcls, jfieldID fieldID, jboolean isStatic) {
     ScopedJniThreadState ts(env);
     ClassObject* clazz = (ClassObject*) dvmDecodeIndirectRef(ts.self(), jcls);
@@ -1324,8 +1473,10 @@ static jobject ToReflectedField(JNIEnv* env, jclass jcls, jfieldID fieldID, jboo
 }
 
 /*
- * Take this exception and throw it.
- */
+Take this exception and throw it.
+
+异常抛出。
+*/
 static jint Throw(JNIEnv* env, jthrowable jobj) {
     ScopedJniThreadState ts(env);
     if (jobj != NULL) {
@@ -1337,9 +1488,11 @@ static jint Throw(JNIEnv* env, jthrowable jobj) {
 }
 
 /*
- * Constructs an exception object from the specified class with the message
- * specified by "message", and throws it.
- */
+Constructs an exception object from the specified class with the message
+specified by "message", and throws it.
+
+构造一个来自指定类的具有“message”指定消息的异常对象，并且抛出。
+*/
 static jint ThrowNew(JNIEnv* env, jclass jclazz, const char* message) {
     ScopedJniThreadState ts(env);
     ClassObject* clazz = (ClassObject*) dvmDecodeIndirectRef(ts.self(), jclazz);
@@ -1349,13 +1502,15 @@ static jint ThrowNew(JNIEnv* env, jclass jclazz, const char* message) {
 }
 
 /*
- * If an exception is being thrown, return the exception object.  Otherwise,
- * return NULL.
- *
- * TODO: if there is no pending exception, we should be able to skip the
- * enter/exit checks.  If we find one, we need to enter and then re-fetch
- * the exception (in case it got moved by a compacting GC).
- */
+If an exception is being thrown, return the exception object.  Otherwise,
+return NULL.
+
+TODO: if there is no pending exception, we should be able to skip the
+enter/exit checks.  If we find one, we need to enter and then re-fetch
+the exception (in case it got moved by a compacting GC).
+
+异常发生实现。
+*/
 static jthrowable ExceptionOccurred(JNIEnv* env) {
     ScopedJniThreadState ts(env);
     Object* exception = dvmGetException(ts.self());
@@ -2447,11 +2602,15 @@ PRIMITIVE_ARRAY_FUNCTIONS(jfloat, Float);
 PRIMITIVE_ARRAY_FUNCTIONS(jdouble, Double);
 
 /*
- * Register one or more native functions in one class.
- *
- * This can be called multiple times on the same method, allowing the
- * caller to redefine the method implementation at will.
- */
+Register one or more native functions in one class.
+
+This can be called multiple times on the same method, allowing the
+caller to redefine the method implementation at will.
+
+在一个类中注册一个或多个本地方法。
+
+它可以在相同的方法中调用多次，允许调用者任意重定义方法实现。
+*/
 static jint RegisterNatives(JNIEnv* env, jclass jclazz,
     const JNINativeMethod* methods, jint nMethods)
 {
@@ -2475,31 +2634,37 @@ static jint RegisterNatives(JNIEnv* env, jclass jclazz,
 }
 
 /*
- * Un-register all native methods associated with the class.
- *
- * The JNI docs refer to this as a way to reload/relink native libraries,
- * and say it "should not be used in normal native code".  In particular,
- * there is no need to do this during shutdown, and you do not need to do
- * this before redefining a method implementation with RegisterNatives.
- *
- * It's chiefly useful for a native "plugin"-style library that wasn't
- * loaded with System.loadLibrary() (since there's no way to unload those).
- * For example, the library could upgrade itself by:
- *
- *  1. call UnregisterNatives to unbind the old methods
- *  2. ensure that no code is still executing inside it (somehow)
- *  3. dlclose() the library
- *  4. dlopen() the new library
- *  5. use RegisterNatives to bind the methods from the new library
- *
- * The above can work correctly without the UnregisterNatives call, but
- * creates a window of opportunity in which somebody might try to call a
- * method that is pointing at unmapped memory, crashing the VM.  In theory
- * the same guards that prevent dlclose() from unmapping executing code could
- * prevent that anyway, but with this we can be more thorough and also deal
- * with methods that only exist in the old or new form of the library (maybe
- * the lib wants to try the call and catch the UnsatisfiedLinkError).
- */
+Un-register all native methods associated with the class.
+
+卸妆寄存器所有本地方法相关的类
+
+The JNI docs refer to this as a way to reload/relink native libraries,
+and say it "should not be used in normal native code".  In particular,
+there is no need to do this during shutdown, and you do not need to do
+this before redefining a method implementation with RegisterNatives.
+
+
+
+It's chiefly useful for a native "plugin"-style library that wasn't
+loaded with System.loadLibrary() (since there's no way to unload those).
+For example, the library could upgrade itself by:
+
+ 1. call UnregisterNatives to unbind the old methods
+ 2. ensure that no code is still executing inside it (somehow)
+ 3. dlclose() the library
+ 4. dlopen() the new library
+ 5. use RegisterNatives to bind the methods from the new library
+
+The above can work correctly without the UnregisterNatives call, but
+creates a window of opportunity in which somebody might try to call a
+method that is pointing at unmapped memory, crashing the VM.  In theory
+the same guards that prevent dlclose() from unmapping executing code could
+prevent that anyway, but with this we can be more thorough and also deal
+with methods that only exist in the old or new form of the library (maybe
+the lib wants to try the call and catch the UnsatisfiedLinkError).
+
+
+*/
 static jint UnregisterNatives(JNIEnv* env, jclass jclazz) {
     ScopedJniThreadState ts(env);
 
@@ -2752,24 +2917,30 @@ static jlong GetDirectBufferCapacity(JNIEnv* env, jobject jbuf) {
  */
 
 /*
- * Handle AttachCurrentThread{AsDaemon}.
- *
- * We need to make sure the VM is actually running.  For example, if we start
- * up, issue an Attach, and the VM exits almost immediately, by the time the
- * attaching happens the VM could already be shutting down.
- *
- * It's hard to avoid a race condition here because we don't want to hold
- * a lock across the entire operation.  What we can do is temporarily
- * increment the thread count to prevent a VM exit.
- *
- * This could potentially still have problems if a daemon thread calls here
- * while the VM is shutting down.  dvmThreadSelf() will work, since it just
- * uses pthread TLS, but dereferencing "vm" could fail.  Such is life when
- * you shut down a VM while threads are still running inside it.
- *
- * Remember that some code may call this as a way to find the per-thread
- * JNIEnv pointer.  Don't do excess work for that case.
- */
+Handle AttachCurrentThread{AsDaemon}.
+
+We need to make sure the VM is actually running.  For example, if we start
+up, issue an Attach, and the VM exits almost immediately, by the time the
+attaching happens the VM could already be shutting down.
+
+It's hard to avoid a race condition here because we don't want to hold
+a lock across the entire operation.  What we can do is temporarily
+increment the thread count to prevent a VM exit.
+
+This could potentially still have problems if a daemon thread calls here
+while the VM is shutting down.  dvmThreadSelf() will work, since it just
+uses pthread TLS, but dereferencing "vm" could fail.  Such is life when
+you shut down a VM while threads are still running inside it.
+
+Remember that some code may call this as a way to find the per-thread
+JNIEnv pointer.  Don't do excess work for that case.
+
+所有的线程都是Linux的线程，由内核调度。它们通常由托管代码启动(使用Thread.start)，但是也可以在别的地方创建它们，并把它们 连接到JavaVM上。
+比如，一个由pthread_create方法启动的线程可以用JNI的AttachCurrentThread或者 AttachCurrentThreadAsDaemon函数来连接。                      
+在线程没有被连接到JavaVM之前是不会有JNIEnv的，也无法发起JNI的调用。                                                                     
+一旦一个线程attach到了一个vm上，本地的线程就可以看作一个普通的java线程运行在本地的方法内。                                              
+实际是调用dvmAttachCurrentThread()进行的注册。
+*/
 static jint attachThread(JavaVM* vm, JNIEnv** p_env, void* thr_args, bool isDaemon) {
     JavaVMAttachArgs* args = (JavaVMAttachArgs*) thr_args;
 
@@ -2880,12 +3051,16 @@ static jint DetachCurrentThread(JavaVM* vm) {
 }
 
 /*
- * If current thread is attached to VM, return the associated JNIEnv.
- * Otherwise, stuff NULL in and return JNI_EDETACHED.
- *
- * JVMTI overloads this by specifying a magic value for "version", so we
- * do want to check that here.
- */
+If current thread is attached to VM, return the associated JNIEnv.
+Otherwise, stuff NULL in and return JNI_EDETACHED.
+
+JVMTI overloads this by specifying a magic value for "version", so we
+do want to check that here.
+
+JNIEnv提供了大多数的JNI函数。本地方法都会接收JNIEnv作为第一个参数。
+JNIEnv用于本地线程存储。因此,不能在线程间共享同一个JNIEnv。如果一个代码段没有其他方式获取它自身线程的JNIEnv，可以共享JavaVM，用GetEnv来获取线程的JNIEnv。
+在线程attach成功之后，返回属于这个线程的env。
+*/
 static jint GetEnv(JavaVM* vm, void** env, jint version) {
     Thread* self = dvmThreadSelf();
 
@@ -3417,11 +3592,13 @@ jint JNI_GetCreatedJavaVMs(JavaVM** vmBuf, jsize bufLen, jsize* nVMs) {
 }
 
 /*
- * Create a new VM instance.
- *
- * The current thread becomes the main VM thread.  We return immediately,
- * which effectively means the caller is executing in a native method.
- */
+Create a new VM instance.
+
+The current thread becomes the main VM thread.  We return immediately,
+which effectively means the caller is executing in a native method.
+
+创建一个新的虚拟机实例。
+*/
 jint JNI_CreateJavaVM(JavaVM** p_vm, JNIEnv** p_env, void* vm_args) {
     const JavaVMInitArgs* args = (JavaVMInitArgs*) vm_args;
     if (args->version < JNI_VERSION_1_2) {
@@ -3445,12 +3622,14 @@ jint JNI_CreateJavaVM(JavaVM** p_vm, JNIEnv** p_env, void* vm_args) {
     memset(argv.get(), 0, sizeof(char*) * (args->nOptions));
 
     /*
-     * Convert JNI args to argv.
-     *
-     * We have to pull out vfprintf/exit/abort, because they use the
-     * "extraInfo" field to pass function pointer "hooks" in.  We also
-     * look for the -Xcheck:jni stuff here.
-     */
+    Convert JNI args to argv.
+    
+    We have to pull out vfprintf/exit/abort, because they use the
+    "extraInfo" field to pass function pointer "hooks" in.  We also
+    look for the -Xcheck:jni stuff here.
+    
+    转变JNI参数到argv全局参数
+    */
     int argc = 0;
     for (int i = 0; i < args->nOptions; i++) {
         const char* optStr = args->options[i].optionString;

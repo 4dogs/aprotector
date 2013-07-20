@@ -15,8 +15,10 @@
  */
 
 /*
- * Open an unoptimized DEX file.
- */
+Open an unoptimized DEX file.
+
+打开未优化的DEX文件。
+*/
 
 #include "Dalvik.h"
 #include "libdex/OptInvocation.h"
@@ -27,9 +29,11 @@
 #include <unistd.h>
 
 /*
- * Copy the given number of bytes from one fd to another, first
- * seeking the source fd to the start of the file.
- */
+Copy the given number of bytes from one fd to another, first
+seeking the source fd to the start of the file.
+
+从流中copy文件到文件。
+*/
 static int copyFileToFile(int destFd, int srcFd, size_t size)
 {
     if (lseek(srcFd, 0, SEEK_SET) != 0) {
@@ -41,8 +45,10 @@ static int copyFileToFile(int destFd, int srcFd, size_t size)
 }
 
 /*
- * Get the modification time and size in bytes for the given fd.
- */
+Get the modification time and size in bytes for the given fd.
+
+从字节流中获取修改时间和大小
+*/
 static int getModTimeAndSize(int fd, u4* modTime, size_t* size)
 {
     struct stat buf;
@@ -61,11 +67,13 @@ static int getModTimeAndSize(int fd, u4* modTime, size_t* size)
 }
 
 /*
- * Verify the dex file magic number, and get the adler32 checksum out
- * of the given fd, which is presumed to be a reference to a dex file
- * with the cursor at the start of the file. The fd's cursor is
- * modified by this operation.
- */
+Verify the dex file magic number, and get the adler32 checksum out
+of the given fd, which is presumed to be a reference to a dex file
+with the cursor at the start of the file. The fd's cursor is
+modified by this operation.
+
+校验magic和Adler32
+*/
 static int verifyMagicAndGetAdler32(int fd, u4 *adler32)
 {
     /*
@@ -245,7 +253,11 @@ bail:
     return result;
 }
 
-/* See documentation comment in header. */
+/* 
+See documentation comment in header. 
+
+打开二进制字节数组DEX文件
+*/
 int dvmRawDexFileOpenArray(u1* pBytes, u4 length, RawDexFile** ppRawDexFile)
 {
     DvmDex* pDvmDex = NULL;
@@ -263,8 +275,10 @@ int dvmRawDexFileOpenArray(u1* pBytes, u4 length, RawDexFile** ppRawDexFile)
 }
 
 /*
- * Close a RawDexFile and free the struct.
- */
+Close a RawDexFile and free the struct.
+
+关闭已RawDexFile并且释放结构。
+*/
 void dvmRawDexFileFree(RawDexFile* pRawDexFile)
 {
     if (pRawDexFile == NULL)

@@ -30,8 +30,10 @@
 #include <zlib.h>
 
 /*
- * Abort if we are configured to bail out on JNI warnings.
- */
+Abort if we are configured to bail out on JNI warnings.
+
+JNI警告终止VM处理。
+*/
 static void abortMaybe() {
     if (!gDvmJni.warnOnly) {
         dvmDumpThread(dvmThreadSelf(), false);
@@ -40,33 +42,48 @@ static void abortMaybe() {
 }
 
 /*
- * ===========================================================================
- *      JNI call bridge wrapper
- * ===========================================================================
- */
+===========================================================================
+     JNI call bridge wrapper
+
+     JNI 调用桥封装
+===========================================================================
+*/
 
 /*
- * Check the result of a native method call that returns an object reference.
- *
- * The primary goal here is to verify that native code is returning the
- * correct type of object.  If it's declared to return a String but actually
- * returns a byte array, things will fail in strange ways later on.
- *
- * This can be a fairly expensive operation, since we have to look up the
- * return type class by name in method->clazz' class loader.  We take a
- * shortcut here and allow the call to succeed if the descriptor strings
- * match.  This will allow some false-positives when a class is redefined
- * by a class loader, but that's rare enough that it doesn't seem worth
- * testing for.
- *
- * At this point, pResult->l has already been converted to an object pointer.
- */
+Check the result of a native method call that returns an object reference.
+
+The primary goal here is to verify that native code is returning the
+correct type of object.  If it's declared to return a String but actually
+returns a byte array, things will fail in strange ways later on.
+
+This can be a fairly expensive operation, since we have to look up the
+return type class by name in method->clazz' class loader.  We take a
+shortcut here and allow the call to succeed if the descriptor strings
+match.  This will allow some false-positives when a class is redefined
+by a class loader, but that's rare enough that it doesn't seem worth
+testing for.
+
+At this point, pResult->l has already been converted to an object pointer.
+
+检查返回一个对象引用的本地方法调用的结果。
+
+主要目的是为了验证本地代码返回正确的对象类型。如果声明的是一个字符串，返回的是
+一个字节数组，后面的调用处理将会失败。
+
+这是一个代价高昂的操作，因为我们已经在method-clazz的类加载其中通过名字检索了返回类型类。
+如果描述符字符串匹配，运行调用成功。
+
+当一个类通过类加载器被定义，它将允许一些false-positives，但是这种情况非常罕见，似乎不值得测试。
+
+这个时候，pResult->l已经被转换为一个对象指针。
+*/
 static void checkCallResultCommon(const u4* args, const JValue* pResult,
         const Method* method, Thread* self)
 {
     assert(pResult->l != NULL);
     const Object* resultObj = (const Object*) pResult->l;
-
+    
+    /* 本地代码返回无效引用 */
     if (resultObj == kInvalidIndirectRefObject) {
         ALOGW("JNI WARNING: invalid reference returned from native code");
         const Method* method = dvmGetCurrentJNIMethod();
@@ -80,9 +97,11 @@ static void checkCallResultCommon(const u4* args, const JValue* pResult,
     ClassObject* objClazz = resultObj->clazz;
 
     /*
-     * Make sure that pResult->l is an instance of the type this
-     * method was expected to return.
-     */
+    Make sure that pResult->l is an instance of the type this
+    method was expected to return.
+    
+    确保pResult->l是这个方法期待返回的类型接口。
+    */
     const char* declType = dexProtoGetReturnType(&method->prototype);
     const char* objType = objClazz->descriptor;
     if (strcmp(declType, objType) == 0) {
@@ -91,16 +110,22 @@ static void checkCallResultCommon(const u4* args, const JValue* pResult,
             method->clazz->descriptor, method->name, objType, declType);
     } else {
         /*
-         * Names didn't match.  We need to resolve declType in the context
-         * of method->clazz->classLoader, and compare the class objects
-         * for equality.
-         *
-         * Since we're returning an instance of declType, it's safe to
-         * assume that it has been loaded and initialized (or, for the case
-         * of an array, generated).  However, the current class loader may
-         * not be listed as an initiating loader, so we can't just look for
-         * it in the loaded-classes list.
-         */
+        Names didn't match.  We need to resolve declType in the context
+        of method->clazz->classLoader, and compare the class objects
+        for equality.
+        
+        Since we're returning an instance of declType, it's safe to
+        assume that it has been loaded and initialized (or, for the case
+        of an array, generated).  However, the current class loader may
+        not be listed as an initiating loader, so we can't just look for
+        it in the loaded-classes list.
+        
+        名字不匹配。我们需要在method->clazz->classLoader的上下文中处理声明类型，并且比较class类
+        的相等性。
+        
+        因此我们返回一个声明类型的实例，认为它已经安全加载并初始化。
+        但是，当前类加载器可能没有作为一个初始化加载器被列举，因此我们不能只看加载类的列表。
+        */
         ClassObject* declClazz = dvmFindClassNoInit(declType, method->clazz->classLoader);
         if (declClazz == NULL) {
             ALOGW("JNI WARNING: method declared to return '%s' returned '%s'",
@@ -125,11 +150,13 @@ static void checkCallResultCommon(const u4* args, const JValue* pResult,
 }
 
 /*
- * Determine if we need to check the return type coming out of the call.
- *
- * (We don't simply do this at the top of checkCallResultCommon() because
- * this is on the critical path for native method calls.)
- */
+Determine if we need to check the return type coming out of the call.
+
+(We don't simply do this at the top of checkCallResultCommon() because
+this is on the critical path for native method calls.)
+
+决定我们是否需要检查调用的返回类型。
+*/
 static inline bool callNeedsCheck(const u4* args, JValue* pResult,
     const Method* method, Thread* self)
 {
@@ -137,8 +164,10 @@ static inline bool callNeedsCheck(const u4* args, JValue* pResult,
 }
 
 /*
- * Check a call into native code.
- */
+Check a call into native code.
+
+检查本地代码调用。
+*/
 void dvmCheckCallJNIMethod(const u4* args, JValue* pResult,
     const Method* method, Thread* self)
 {
@@ -149,10 +178,12 @@ void dvmCheckCallJNIMethod(const u4* args, JValue* pResult,
 }
 
 /*
- * ===========================================================================
- *      JNI function helpers
- * ===========================================================================
- */
+===========================================================================
+     JNI function helpers
+
+     JNI工具函数
+===========================================================================
+*/
 
 static inline const JNINativeInterface* baseEnv(JNIEnv* env) {
     return ((JNIEnvExt*) env)->baseFuncTable;
@@ -216,18 +247,20 @@ public:
     }
 
     /*
-     * In some circumstances the VM will screen class names, but it doesn't
-     * for class lookup.  When things get bounced through a class loader, they
-     * can actually get normalized a couple of times; as a result, passing in
-     * a class name like "java.lang.Thread" instead of "java/lang/Thread" will
-     * work in some circumstances.
-     *
-     * This is incorrect and could cause strange behavior or compatibility
-     * problems, so we want to screen that out here.
-     *
-     * We expect "fully-qualified" class names, like "java/lang/Thread" or
-     * "[Ljava/lang/Object;".
-     */
+    In some circumstances the VM will screen class names, but it doesn't
+    for class lookup.  When things get bounced through a class loader, they
+    can actually get normalized a couple of times; as a result, passing in
+    a class name like "java.lang.Thread" instead of "java/lang/Thread" will
+    work in some circumstances.
+    
+    This is incorrect and could cause strange behavior or compatibility
+    problems, so we want to screen that out here.
+    
+    We expect "fully-qualified" class names, like "java/lang/Thread" or
+    "[Ljava/lang/Object;".
+    
+    检查类名
+    */
     void checkClassName(const char* className) {
         if (!dexIsValidClassName(className, false)) {
             ALOGW("JNI WARNING: illegal class name '%s' (%s)", className, mFunctionName);
@@ -236,7 +269,10 @@ public:
             abortMaybe();
         }
     }
-
+		
+		/*
+		检查Get方法的域类型
+		*/
     void checkFieldTypeForGet(jfieldID fid, const char* expectedSignature, bool isStatic) {
         if (fid == NULL) {
             ALOGW("JNI WARNING: null jfieldID");
@@ -275,11 +311,13 @@ public:
     }
 
     /*
-     * Verify that the field is of the appropriate type.  If the field has an
-     * object type, "jobj" is the object we're trying to assign into it.
-     *
-     * Works for both static and instance fields.
-     */
+    Verify that the field is of the appropriate type.  If the field has an
+    object type, "jobj" is the object we're trying to assign into it.
+    
+    Works for both static and instance fields.
+    
+    检查Get方法的域类型
+    */
     void checkFieldTypeForSet(jobject jobj, jfieldID fieldID, PrimitiveType prim, bool isStatic) {
         if (fieldID == NULL) {
             ALOGW("JNI WARNING: null jfieldID");
@@ -334,10 +372,12 @@ public:
     }
 
     /*
-     * Verify that this instance field ID is valid for this object.
-     *
-     * Assumes "jobj" has already been validated.
-     */
+    Verify that this instance field ID is valid for this object.
+    
+    Assumes "jobj" has already been validated.
+    
+    校验对象instance实例field ID。
+    */
     void checkInstanceFieldID(jobject jobj, jfieldID fieldID) {
         ScopedCheckJniThreadState ts(mEnv);
 
@@ -348,9 +388,9 @@ public:
         }
 
         /*
-         * Check this class and all of its superclasses for a matching field.
-         * Don't need to scan interfaces.
-         */
+        Check this class and all of its superclasses for a matching field.
+        Don't need to scan interfaces.  
+        */
         ClassObject* clazz = obj->clazz;
         while (clazz != NULL) {
             if ((InstField*) fieldID >= clazz->ifields &&
@@ -368,8 +408,10 @@ public:
     }
 
     /*
-     * Verify that the pointer value is non-NULL.
-     */
+    Verify that the pointer value is non-NULL.
+    
+    校验非空指针。
+    */
     void checkNonNull(const void* ptr) {
         if (ptr == NULL) {
             ALOGW("JNI WARNING: invalid null pointer (%s)", mFunctionName);
@@ -378,9 +420,12 @@ public:
     }
 
     /*
-     * Verify that the method's return type matches the type of call.
-     * 'expectedType' will be "L" for all objects, including arrays.
-     */
+    Verify that the method's return type matches the type of call.
+    'expectedType' will be "L" for all objects, including arrays.
+    
+    校验方法返回类型匹配是否调用类型。
+    所有对象的“期望类型”是“L”，包含数组。
+    */
     void checkSig(jmethodID methodID, const char* expectedType, bool isStatic) {
         const Method* method = (const Method*) methodID;
         bool printWarn = false;
@@ -407,10 +452,12 @@ public:
     }
 
     /*
-     * Verify that this static field ID is valid for this class.
-     *
-     * Assumes "jclazz" has already been validated.
-     */
+    Verify that this static field ID is valid for this class.
+    
+    Assumes "jclazz" has already been validated.
+    
+    校验这个类型的静态域ID。
+    */
     void checkStaticFieldID(jclass jclazz, jfieldID fieldID) {
         ScopedCheckJniThreadState ts(mEnv);
         ClassObject* clazz = (ClassObject*) dvmDecodeIndirectRef(self(), jclazz);
@@ -426,14 +473,18 @@ public:
     }
 
     /*
-     * Verify that "methodID" is appropriate for "clazz".
-     *
-     * A mismatch isn't dangerous, because the jmethodID defines the class.  In
-     * fact, jclazz is unused in the implementation.  It's best if we don't
-     * allow bad code in the system though.
-     *
-     * Instances of "jclazz" must be instances of the method's declaring class.
-     */
+    Verify that "methodID" is appropriate for "clazz".
+    
+    A mismatch isn't dangerous, because the jmethodID defines the class.  In
+    fact, jclazz is unused in the implementation.  It's best if we don't
+    allow bad code in the system though.
+    
+    Instances of "jclazz" must be instances of the method's declaring class.
+    
+    校验方法“clazz”
+    
+    校验“methodID”是否适合“clazz”。
+    */
     void checkStaticMethod(jclass jclazz, jmethodID methodID) {
         ScopedCheckJniThreadState ts(mEnv);
 
@@ -449,12 +500,18 @@ public:
     }
 
     /*
-     * Verify that "methodID" is appropriate for "jobj".
-     *
-     * Make sure the object is an instance of the method's declaring class.
-     * (Note the methodID might point to a declaration in an interface; this
-     * will be handled automatically by the instanceof check.)
-     */
+    Verify that "methodID" is appropriate for "jobj".
+    
+    Make sure the object is an instance of the method's declaring class.
+    (Note the methodID might point to a declaration in an interface; this
+    will be handled automatically by the instanceof check.)
+    
+    校验“methodID”是否适合“jobj”。
+    
+    确保object对象是method方法声明类的实例。
+    
+    检查虚方法。
+    */
     void checkVirtualMethod(jobject jobj, jmethodID methodID) {
         ScopedCheckJniThreadState ts(mEnv);
 
@@ -470,41 +527,48 @@ public:
     }
 
     /**
-     * The format string is a sequence of the following characters,
-     * and must be followed by arguments of the corresponding types
-     * in the same order.
-     *
-     * Java primitive types:
-     * B - jbyte
-     * C - jchar
-     * D - jdouble
-     * F - jfloat
-     * I - jint
-     * J - jlong
-     * S - jshort
-     * Z - jboolean (shown as true and false)
-     * V - void
-     *
-     * Java reference types:
-     * L - jobject
-     * a - jarray
-     * c - jclass
-     * s - jstring
-     *
-     * JNI types:
-     * b - jboolean (shown as JNI_TRUE and JNI_FALSE)
-     * f - jfieldID
-     * m - jmethodID
-     * p - void*
-     * r - jint (for release mode arguments)
-     * u - const char* (modified UTF-8)
-     * z - jsize (for lengths; use i if negative values are okay)
-     * v - JavaVM*
-     * E - JNIEnv*
-     * . - no argument; just print "..." (used for varargs JNI calls)
-     *
-     * Use the kFlag_NullableUtf flag where 'u' field(s) are nullable.
-     */
+    The format string is a sequence of the following characters,
+    and must be followed by arguments of the corresponding types
+    in the same order.
+    
+    格式化字符串string是一系列的下列字符，并且必须以相同的顺序遵循相应
+    参数类型。
+    
+    Java primitive types:
+    B - jbyte
+    C - jchar
+    D - jdouble
+    F - jfloat
+    I - jint
+    J - jlong
+    S - jshort
+    Z - jboolean (shown as true and false)
+    V - void
+    
+    Java reference types:
+    L - jobject
+    a - jarray
+    c - jclass
+    s - jstring
+    
+    JNI types:
+    b - jboolean (shown as JNI_TRUE and JNI_FALSE)
+    f - jfieldID
+    m - jmethodID
+    p - void*
+    r - jint (for release mode arguments)
+    u - const char* (modified UTF-8)
+    z - jsize (for lengths; use i if negative values are okay)
+    v - JavaVM*
+    E - JNIEnv*
+    . - no argument; just print "..." (used for varargs JNI calls)
+    
+    Use the kFlag_NullableUtf flag where 'u' field(s) are nullable.
+    
+    使用kFlag_NullableUtf标识'u'域field(s)是空的。
+    
+    检查。
+    */
     void check(bool entry, const char* fmt0, ...) {
         va_list ap;
 
@@ -518,14 +582,22 @@ public:
             }
         }
         if (method != NULL) {
-            // If both "-Xcheck:jni" and "-Xjnitrace:" are enabled, we print trace messages
-            // when a native method that matches the Xjnitrace argument calls a JNI function
-            // such as NewByteArray.
+        	  /*
+            If both "-Xcheck:jni" and "-Xjnitrace:" are enabled, we print trace messages
+            when a native method that matches the Xjnitrace argument calls a JNI function
+            such as NewByteArray.
+            
+            如果“-Xcheck:jni”和“-Xjnitrace:”2个选项都被激活，打印跟踪信息，当一个匹配Xjnitrace参数
+            的本地方法调用一个JNI函数，例如：NewByteArray。
+            */
             if (gDvm.jniTrace && strstr(method->clazz->descriptor, gDvm.jniTrace) != NULL) {
                 shouldTrace = true;
             }
-            // If -Xjniopts:logThirdPartyJni is on, we want to log any JNI function calls
-            // made by a third-party native method.
+            /*
+            If -Xjniopts:logThirdPartyJni is on, we want to log any JNI function calls
+            made by a third-party native method.
+            如果-Xjniopts:logThirdPartyJni选项打开，我们想要记录一些JNI函数的调用，通过一个第三方的本地方法。
+            */
             if (gDvmJni.logThirdPartyJni) {
                 shouldTrace |= method->shouldTrace;
             }
@@ -702,7 +774,11 @@ public:
         }
     }
 
-    // Only safe after checkThread returns.
+    /*
+    Only safe after checkThread returns.
+    
+    仅checkThread返回线程安全
+    */
     Thread* self() {
         return ((JNIEnvExt*) mEnv)->self;
     }
@@ -728,10 +804,14 @@ private:
     }
 
     /*
-     * Verify that "array" is non-NULL and points to an Array object.
-     *
-     * Since we're dealing with objects, switch to "running" mode.
-     */
+    Verify that "array" is non-NULL and points to an Array object.
+    
+    Since we're dealing with objects, switch to "running" mode.
+    
+    校验“array”是非空并且指向Array object数组对象。
+    
+    因为我们处理objects，切换到“running”运行模式。
+    */
     void checkArray(jarray jarr) {
         if (jarr == NULL) {
             ALOGW("JNI WARNING: received null array");
@@ -759,11 +839,17 @@ private:
             abortMaybe();
         }
     }
-
+		
+		/*
+		检查类
+		*/
     void checkClass(jclass c) {
         checkInstance(c, gDvm.classJavaLangClass, "jclass");
     }
-
+		
+		/*
+		检查长度
+		*/
     void checkLengthPositive(jsize length) {
         if (length < 0) {
             ALOGW("JNI WARNING: negative jsize (%s)", mFunctionName);
@@ -772,11 +858,15 @@ private:
     }
 
     /*
-     * Verify that "jobj" is a valid object, and that it's an object that JNI
-     * is allowed to know about.  We allow NULL references.
-     *
-     * Switches to "running" mode before performing checks.
-     */
+    Verify that "jobj" is a valid object, and that it's an object that JNI
+    is allowed to know about.  We allow NULL references.
+    
+    Switches to "running" mode before performing checks.
+    
+    校验“jobj”是否是有效对象，并且是JNI允许的已知对象。我们允许NULL引用。
+    
+    执行检查前切换到“running”模式。
+    */
     void checkObject(jobject jobj) {
         if (jobj == NULL) {
             return;
@@ -808,20 +898,30 @@ private:
     }
 
     /*
-     * Verify that the "mode" argument passed to a primitive array Release
-     * function is one of the valid values.
-     */
+    Verify that the "mode" argument passed to a primitive array Release
+    function is one of the valid values.
+    
+    检查释放函数
+    */
     void checkReleaseMode(jint mode) {
         if (mode != 0 && mode != JNI_COMMIT && mode != JNI_ABORT) {
             ALOGW("JNI WARNING: bad value for mode (%d) (%s)", mode, mFunctionName);
             abortMaybe();
         }
     }
-
+		
+		/*
+		检查字符串
+		*/
     void checkString(jstring s) {
         checkInstance(s, gDvm.classJavaLangString, "jstring");
     }
-
+    
+    /*
+    检查线程
+    
+    NOTE TODO：
+    */
     void checkThread(int flags) {
         // Get the *correct* JNIEnv by going through our TLS pointer.
         JNIEnvExt* threadEnv = dvmGetJNIEnvForThread();
@@ -913,8 +1013,10 @@ private:
     }
 
     /*
-     * Verify that "bytes" points to valid "modified UTF-8" data.
-     */
+    Verify that "bytes" points to valid "modified UTF-8" data.
+    
+    校验“bytes”指向“可变UTF-8”数据的有效性。
+    */
     void checkUtfString(const char* bytes, bool nullable) {
         if (bytes == NULL) {
             if (!nullable) {
@@ -936,12 +1038,14 @@ private:
     }
 
     /*
-     * Verify that "jobj" is a valid non-NULL object reference, and points to
-     * an instance of expectedClass.
-     *
-     * Because we're looking at an object on the GC heap, we have to switch
-     * to "running" mode before doing the checks.
-     */
+    Verify that "jobj" is a valid non-NULL object reference, and points to
+    an instance of expectedClass.
+    
+    Because we're looking at an object on the GC heap, we have to switch
+    to "running" mode before doing the checks.
+    
+    校验实例。
+    */
     void checkInstance(jobject jobj, ClassObject* expectedClass, const char* argName) {
         if (jobj == NULL) {
             ALOGW("JNI WARNING: received null %s", argName);
@@ -969,7 +1073,10 @@ private:
             abortMaybe();
         }
     }
-
+    
+    /*
+    检查Utf字节
+    */
     static u1 checkUtfBytes(const char* bytes, const char** errorKind) {
         while (*bytes != '\0') {
             u1 utf8 = *(bytes++);
@@ -1020,8 +1127,10 @@ private:
     }
 
     /**
-     * Returns a human-readable name for the given primitive type.
-     */
+    Returns a human-readable name for the given primitive type.
+    
+    给定原始类型，返回一个人可读的名字。
+    */
     static const char* primitiveTypeToName(PrimitiveType primType) {
         switch (primType) {
         case PRIM_VOID:    return "void";
@@ -1037,7 +1146,10 @@ private:
         default:           return "???";
         }
     }
-
+		
+		/*
+		显示位置
+		*/
     void showLocation() {
         const Method* method = dvmGetCurrentJNIMethod();
         char* desc = dexProtoCopyMethodDescriptor(&method->prototype);
@@ -1051,23 +1163,33 @@ private:
 };
 
 /*
- * ===========================================================================
- *      Guarded arrays
- * ===========================================================================
- */
+===========================================================================
+     Guarded arrays
 
+     保护数组
+===========================================================================
+*/
+
+/* 必须是2的倍数 */
 #define kGuardLen       512         /* must be multiple of 2 */
+/* 非通用值；d5e3d5e3有效地址 */
 #define kGuardPattern   0xd5e3      /* uncommon values; d5e3d5e3 invalid addr */
 #define kGuardMagic     0xffd5aa96
+ 
+/* 
+this gets tucked in at the start of the buffer; struct size must be even
 
-/* this gets tucked in at the start of the buffer; struct size must be even */
+NOTE TODO：
+*/
 struct GuardedCopy {
     u4          magic;
     uLong       adler;
     size_t      originalLen;
     const void* originalPtr;
 
-    /* find the GuardedCopy given the pointer into the "live" data */
+    /* 
+    find the GuardedCopy given the pointer into the "live" data 
+    */
     static inline const GuardedCopy* fromData(const void* dataBuf) {
         return reinterpret_cast<const GuardedCopy*>(actualBuffer(dataBuf));
     }
@@ -1233,8 +1355,10 @@ private:
 };
 
 /*
- * Return the width, in bytes, of a primitive type.
- */
+Return the width, in bytes, of a primitive type.
+
+返回一个原始类型的字节宽度
+*/
 static int dvmPrimitiveTypeWidth(PrimitiveType primType) {
     switch (primType) {
         case PRIM_BOOLEAN: return 1;
@@ -1254,9 +1378,12 @@ static int dvmPrimitiveTypeWidth(PrimitiveType primType) {
 }
 
 /*
- * Create a guarded copy of a primitive array.  Modifications to the copied
- * data are allowed.  Returns a pointer to the copied data.
- */
+Create a guarded copy of a primitive array.  Modifications to the copied
+data are allowed.  Returns a pointer to the copied data.
+
+创建一个原始数组的保护copy。要复制的数据的修改是允许的。返回一个指针指向
+被复制的数据。
+*/
 static void* createGuardedPACopy(JNIEnv* env, const jarray jarr, jboolean* isCopy) {
     ScopedCheckJniThreadState ts(env);
 
@@ -1271,9 +1398,12 @@ static void* createGuardedPACopy(JNIEnv* env, const jarray jarr, jboolean* isCop
 }
 
 /*
- * Perform the array "release" operation, which may or may not copy data
- * back into the VM, and may or may not release the underlying storage.
- */
+Perform the array "release" operation, which may or may not copy data
+back into the VM, and may or may not release the underlying storage.
+
+执行array数组“release”操作，这可能会也可能不会复制数据回到VM，并且可能会
+也可能不会释放底层存储。
+*/
 static void* releaseGuardedPACopy(JNIEnv* env, jarray jarr, void* dataBuf, int mode) {
     ScopedCheckJniThreadState ts(env);
     ArrayObject* arrObj = (ArrayObject*) dvmDecodeIndirectRef(dvmThreadSelf(), jarr);
@@ -1303,10 +1433,12 @@ static void* releaseGuardedPACopy(JNIEnv* env, jarray jarr, void* dataBuf, int m
 
 
 /*
- * ===========================================================================
- *      JNI functions
- * ===========================================================================
- */
+===========================================================================
+     JNI functions
+
+     JNI 函数
+===========================================================================
+*/
 
 #define CHECK_JNI_ENTRY(flags, types, args...) \
     ScopedCheck sc(env, flags, __FUNCTION__); \
@@ -1324,6 +1456,9 @@ static jint Check_GetVersion(JNIEnv* env) {
     return CHECK_JNI_EXIT("I", baseEnv(env)->GetVersion(env));
 }
 
+/*
+检查/定义类
+*/
 static jclass Check_DefineClass(JNIEnv* env, const char* name, jobject loader,
     const jbyte* buf, jsize bufLen)
 {
@@ -1332,34 +1467,51 @@ static jclass Check_DefineClass(JNIEnv* env, const char* name, jobject loader,
     return CHECK_JNI_EXIT("c", baseEnv(env)->DefineClass(env, name, loader, buf, bufLen));
 }
 
+/*
+检查/查找类
+*/
 static jclass Check_FindClass(JNIEnv* env, const char* name) {
     CHECK_JNI_ENTRY(kFlag_Default, "Eu", env, name);
     sc.checkClassName(name);
     return CHECK_JNI_EXIT("c", baseEnv(env)->FindClass(env, name));
 }
 
+/*
+检查/获取父类
+*/
 static jclass Check_GetSuperclass(JNIEnv* env, jclass clazz) {
     CHECK_JNI_ENTRY(kFlag_Default, "Ec", env, clazz);
     return CHECK_JNI_EXIT("c", baseEnv(env)->GetSuperclass(env, clazz));
 }
-
+/*
+NOTE TODO：
+*/
 static jboolean Check_IsAssignableFrom(JNIEnv* env, jclass clazz1, jclass clazz2) {
     CHECK_JNI_ENTRY(kFlag_Default, "Ecc", env, clazz1, clazz2);
     return CHECK_JNI_EXIT("b", baseEnv(env)->IsAssignableFrom(env, clazz1, clazz2));
 }
 
+/*
+检查/来自反射的方法
+*/
 static jmethodID Check_FromReflectedMethod(JNIEnv* env, jobject method) {
     CHECK_JNI_ENTRY(kFlag_Default, "EL", env, method);
     // TODO: check that 'field' is a java.lang.reflect.Method.
     return CHECK_JNI_EXIT("m", baseEnv(env)->FromReflectedMethod(env, method));
 }
 
+/*
+检查/来自反射的域
+*/
 static jfieldID Check_FromReflectedField(JNIEnv* env, jobject field) {
     CHECK_JNI_ENTRY(kFlag_Default, "EL", env, field);
     // TODO: check that 'field' is a java.lang.reflect.Field.
     return CHECK_JNI_EXIT("f", baseEnv(env)->FromReflectedField(env, field));
 }
 
+/*
+检查/转为反射的方法
+*/
 static jobject Check_ToReflectedMethod(JNIEnv* env, jclass cls,
         jmethodID methodID, jboolean isStatic)
 {
@@ -1367,6 +1519,9 @@ static jobject Check_ToReflectedMethod(JNIEnv* env, jclass cls,
     return CHECK_JNI_EXIT("L", baseEnv(env)->ToReflectedMethod(env, cls, methodID, isStatic));
 }
 
+/*
+检查/转为反射的域
+*/
 static jobject Check_ToReflectedField(JNIEnv* env, jclass cls,
         jfieldID fieldID, jboolean isStatic)
 {
@@ -1374,55 +1529,84 @@ static jobject Check_ToReflectedField(JNIEnv* env, jclass cls,
     return CHECK_JNI_EXIT("L", baseEnv(env)->ToReflectedField(env, cls, fieldID, isStatic));
 }
 
+/*
+检查/抛出
+*/
 static jint Check_Throw(JNIEnv* env, jthrowable obj) {
     CHECK_JNI_ENTRY(kFlag_Default, "EL", env, obj);
     // TODO: check that 'obj' is a java.lang.Throwable.
     return CHECK_JNI_EXIT("I", baseEnv(env)->Throw(env, obj));
 }
 
+/*
+检查/抛出new
+*/
 static jint Check_ThrowNew(JNIEnv* env, jclass clazz, const char* message) {
     CHECK_JNI_ENTRY(kFlag_NullableUtf, "Ecu", env, clazz, message);
     return CHECK_JNI_EXIT("I", baseEnv(env)->ThrowNew(env, clazz, message));
 }
 
+/*
+检查/发生的异常
+*/
 static jthrowable Check_ExceptionOccurred(JNIEnv* env) {
     CHECK_JNI_ENTRY(kFlag_ExcepOkay, "E", env);
     return CHECK_JNI_EXIT("L", baseEnv(env)->ExceptionOccurred(env));
 }
 
+/*
+检查/异常描述
+*/
 static void Check_ExceptionDescribe(JNIEnv* env) {
     CHECK_JNI_ENTRY(kFlag_ExcepOkay, "E", env);
     baseEnv(env)->ExceptionDescribe(env);
     CHECK_JNI_EXIT_VOID();
 }
 
+/*
+检查/异常清除
+*/
 static void Check_ExceptionClear(JNIEnv* env) {
     CHECK_JNI_ENTRY(kFlag_ExcepOkay, "E", env);
     baseEnv(env)->ExceptionClear(env);
     CHECK_JNI_EXIT_VOID();
 }
 
+/*
+检查/致命错误
+*/
 static void Check_FatalError(JNIEnv* env, const char* msg) {
     CHECK_JNI_ENTRY(kFlag_NullableUtf, "Eu", env, msg);
     baseEnv(env)->FatalError(env, msg);
     CHECK_JNI_EXIT_VOID();
 }
 
+/*
+NOTE TODO：
+*/
 static jint Check_PushLocalFrame(JNIEnv* env, jint capacity) {
     CHECK_JNI_ENTRY(kFlag_Default | kFlag_ExcepOkay, "EI", env, capacity);
     return CHECK_JNI_EXIT("I", baseEnv(env)->PushLocalFrame(env, capacity));
 }
 
+/*
+NOTE TODO：
+*/
 static jobject Check_PopLocalFrame(JNIEnv* env, jobject res) {
     CHECK_JNI_ENTRY(kFlag_Default | kFlag_ExcepOkay, "EL", env, res);
     return CHECK_JNI_EXIT("L", baseEnv(env)->PopLocalFrame(env, res));
 }
-
+/*
+检查/New全局引用
+*/
 static jobject Check_NewGlobalRef(JNIEnv* env, jobject obj) {
     CHECK_JNI_ENTRY(kFlag_Default, "EL", env, obj);
     return CHECK_JNI_EXIT("L", baseEnv(env)->NewGlobalRef(env, obj));
 }
 
+/*
+检查/删除全局引用
+*/
 static void Check_DeleteGlobalRef(JNIEnv* env, jobject globalRef) {
     CHECK_JNI_ENTRY(kFlag_Default | kFlag_ExcepOkay, "EL", env, globalRef);
     if (globalRef != NULL && dvmGetJNIRefType(sc.self(), globalRef) != JNIGlobalRefType) {
@@ -1435,11 +1619,17 @@ static void Check_DeleteGlobalRef(JNIEnv* env, jobject globalRef) {
     }
 }
 
+/*
+检查/New本地引用
+*/
 static jobject Check_NewLocalRef(JNIEnv* env, jobject ref) {
     CHECK_JNI_ENTRY(kFlag_Default, "EL", env, ref);
     return CHECK_JNI_EXIT("L", baseEnv(env)->NewLocalRef(env, ref));
 }
 
+/*
+检查/删除本地引用
+*/
 static void Check_DeleteLocalRef(JNIEnv* env, jobject localRef) {
     CHECK_JNI_ENTRY(kFlag_Default | kFlag_ExcepOkay, "EL", env, localRef);
     if (localRef != NULL && dvmGetJNIRefType(sc.self(), localRef) != JNILocalRefType) {
@@ -1452,21 +1642,33 @@ static void Check_DeleteLocalRef(JNIEnv* env, jobject localRef) {
     }
 }
 
+/*
+检查/确保本地性能
+*/
 static jint Check_EnsureLocalCapacity(JNIEnv *env, jint capacity) {
     CHECK_JNI_ENTRY(kFlag_Default, "EI", env, capacity);
     return CHECK_JNI_EXIT("I", baseEnv(env)->EnsureLocalCapacity(env, capacity));
 }
 
+/*
+检查/是否是相同对象
+*/
 static jboolean Check_IsSameObject(JNIEnv* env, jobject ref1, jobject ref2) {
     CHECK_JNI_ENTRY(kFlag_Default, "ELL", env, ref1, ref2);
     return CHECK_JNI_EXIT("b", baseEnv(env)->IsSameObject(env, ref1, ref2));
 }
 
+/*
+检查/Alloc对象
+*/
 static jobject Check_AllocObject(JNIEnv* env, jclass clazz) {
     CHECK_JNI_ENTRY(kFlag_Default, "Ec", env, clazz);
     return CHECK_JNI_EXIT("L", baseEnv(env)->AllocObject(env, clazz));
 }
 
+/*
+检查/New对象
+*/
 static jobject Check_NewObject(JNIEnv* env, jclass clazz, jmethodID methodID, ...) {
     CHECK_JNI_ENTRY(kFlag_Default, "Ecm.", env, clazz, methodID);
     va_list args;
@@ -1476,36 +1678,57 @@ static jobject Check_NewObject(JNIEnv* env, jclass clazz, jmethodID methodID, ..
     return CHECK_JNI_EXIT("L", result);
 }
 
+/*
+检查/NewObjectV
+*/
 static jobject Check_NewObjectV(JNIEnv* env, jclass clazz, jmethodID methodID, va_list args) {
     CHECK_JNI_ENTRY(kFlag_Default, "Ecm.", env, clazz, methodID);
     return CHECK_JNI_EXIT("L", baseEnv(env)->NewObjectV(env, clazz, methodID, args));
 }
 
+/*
+检查/NewObjectA
+*/
 static jobject Check_NewObjectA(JNIEnv* env, jclass clazz, jmethodID methodID, jvalue* args) {
     CHECK_JNI_ENTRY(kFlag_Default, "Ecm.", env, clazz, methodID);
     return CHECK_JNI_EXIT("L", baseEnv(env)->NewObjectA(env, clazz, methodID, args));
 }
 
+/*
+检查/获取对象类
+*/
 static jclass Check_GetObjectClass(JNIEnv* env, jobject obj) {
     CHECK_JNI_ENTRY(kFlag_Default, "EL", env, obj);
     return CHECK_JNI_EXIT("c", baseEnv(env)->GetObjectClass(env, obj));
 }
 
+/*
+检查/是否InstanceOf
+*/
 static jboolean Check_IsInstanceOf(JNIEnv* env, jobject obj, jclass clazz) {
     CHECK_JNI_ENTRY(kFlag_Default, "ELc", env, obj, clazz);
     return CHECK_JNI_EXIT("b", baseEnv(env)->IsInstanceOf(env, obj, clazz));
 }
 
+/*
+检查/获取方法ID
+*/
 static jmethodID Check_GetMethodID(JNIEnv* env, jclass clazz, const char* name, const char* sig) {
     CHECK_JNI_ENTRY(kFlag_Default, "Ecuu", env, clazz, name, sig);
     return CHECK_JNI_EXIT("m", baseEnv(env)->GetMethodID(env, clazz, name, sig));
 }
 
+/*
+检查/获取域ID
+*/
 static jfieldID Check_GetFieldID(JNIEnv* env, jclass clazz, const char* name, const char* sig) {
     CHECK_JNI_ENTRY(kFlag_Default, "Ecuu", env, clazz, name, sig);
     return CHECK_JNI_EXIT("f", baseEnv(env)->GetFieldID(env, clazz, name, sig));
 }
 
+/*
+检查/获取静态方法ID
+*/
 static jmethodID Check_GetStaticMethodID(JNIEnv* env, jclass clazz,
         const char* name, const char* sig)
 {
@@ -1513,6 +1736,9 @@ static jmethodID Check_GetStaticMethodID(JNIEnv* env, jclass clazz,
     return CHECK_JNI_EXIT("m", baseEnv(env)->GetStaticMethodID(env, clazz, name, sig));
 }
 
+/*
+检查/获取静态域ID
+*/
 static jfieldID Check_GetStaticFieldID(JNIEnv* env, jclass clazz,
         const char* name, const char* sig)
 {
@@ -1678,16 +1904,25 @@ CALL(jfloat, Float, jfloat result, result=, NON_VOID_RETURN("F", jfloat), "F");
 CALL(jdouble, Double, jdouble result, result=, NON_VOID_RETURN("D", jdouble), "D");
 CALL(void, Void, , , VOID_RETURN, "V");
 
+/*
+检查/New字符串
+*/
 static jstring Check_NewString(JNIEnv* env, const jchar* unicodeChars, jsize len) {
     CHECK_JNI_ENTRY(kFlag_Default, "Epz", env, unicodeChars, len);
     return CHECK_JNI_EXIT("s", baseEnv(env)->NewString(env, unicodeChars, len));
 }
 
+/*
+检查/获取字符串长度
+*/
 static jsize Check_GetStringLength(JNIEnv* env, jstring string) {
     CHECK_JNI_ENTRY(kFlag_CritOkay, "Es", env, string);
     return CHECK_JNI_EXIT("I", baseEnv(env)->GetStringLength(env, string));
 }
 
+/*
+检查/获取字符串ch(s)
+*/
 static const jchar* Check_GetStringChars(JNIEnv* env, jstring string, jboolean* isCopy) {
     CHECK_JNI_ENTRY(kFlag_CritOkay, "Esp", env, string, isCopy);
     const jchar* result = baseEnv(env)->GetStringChars(env, string, isCopy);
@@ -1703,6 +1938,9 @@ static const jchar* Check_GetStringChars(JNIEnv* env, jstring string, jboolean* 
     return CHECK_JNI_EXIT("p", result);
 }
 
+/*
+检查/是否字符串ch(s)
+*/
 static void Check_ReleaseStringChars(JNIEnv* env, jstring string, const jchar* chars) {
     CHECK_JNI_ENTRY(kFlag_Default | kFlag_ExcepOkay, "Esp", env, string, chars);
     sc.checkNonNull(chars);
@@ -1718,16 +1956,25 @@ static void Check_ReleaseStringChars(JNIEnv* env, jstring string, const jchar* c
     CHECK_JNI_EXIT_VOID();
 }
 
+/*
+检查/New一个UTF-8字符串
+*/
 static jstring Check_NewStringUTF(JNIEnv* env, const char* bytes) {
     CHECK_JNI_ENTRY(kFlag_NullableUtf, "Eu", env, bytes); // TODO: show pointer and truncate string.
     return CHECK_JNI_EXIT("s", baseEnv(env)->NewStringUTF(env, bytes));
 }
 
+/*
+检查/获取UTF-8字符串长度
+*/
 static jsize Check_GetStringUTFLength(JNIEnv* env, jstring string) {
     CHECK_JNI_ENTRY(kFlag_CritOkay, "Es", env, string);
     return CHECK_JNI_EXIT("I", baseEnv(env)->GetStringUTFLength(env, string));
 }
 
+/*
+检查/获取UTF-8字符串ch(s)
+*/
 static const char* Check_GetStringUTFChars(JNIEnv* env, jstring string, jboolean* isCopy) {
     CHECK_JNI_ENTRY(kFlag_CritOkay, "Esp", env, string, isCopy);
     const char* result = baseEnv(env)->GetStringUTFChars(env, string, isCopy);
@@ -1740,6 +1987,9 @@ static const char* Check_GetStringUTFChars(JNIEnv* env, jstring string, jboolean
     return CHECK_JNI_EXIT("u", result); // TODO: show pointer and truncate string.
 }
 
+/*
+检查/是否UTF-8字符串ch(s)
+*/
 static void Check_ReleaseStringUTFChars(JNIEnv* env, jstring string, const char* utf) {
     CHECK_JNI_ENTRY(kFlag_ExcepOkay | kFlag_Release, "Esu", env, string, utf); // TODO: show pointer and truncate string.
     if (gDvmJni.forceCopy) {
@@ -1754,11 +2004,17 @@ static void Check_ReleaseStringUTFChars(JNIEnv* env, jstring string, const char*
     CHECK_JNI_EXIT_VOID();
 }
 
+/*
+检查/获取数组长度
+*/
 static jsize Check_GetArrayLength(JNIEnv* env, jarray array) {
     CHECK_JNI_ENTRY(kFlag_CritOkay, "Ea", env, array);
     return CHECK_JNI_EXIT("I", baseEnv(env)->GetArrayLength(env, array));
 }
 
+/*
+检查/New对象数组
+*/
 static jobjectArray Check_NewObjectArray(JNIEnv* env, jsize length,
         jclass elementClass, jobject initialElement)
 {
@@ -1766,11 +2022,17 @@ static jobjectArray Check_NewObjectArray(JNIEnv* env, jsize length,
     return CHECK_JNI_EXIT("a", baseEnv(env)->NewObjectArray(env, length, elementClass, initialElement));
 }
 
+/*
+检查/获取对象数组元素
+*/
 static jobject Check_GetObjectArrayElement(JNIEnv* env, jobjectArray array, jsize index) {
     CHECK_JNI_ENTRY(kFlag_Default, "EaI", env, array, index);
     return CHECK_JNI_EXIT("L", baseEnv(env)->GetObjectArrayElement(env, array, index));
 }
 
+/*
+检查/设置对象数组元素
+*/
 static void Check_SetObjectArrayElement(JNIEnv* env, jobjectArray array, jsize index, jobject value)
 {
     CHECK_JNI_ENTRY(kFlag_Default, "EaIL", env, array, index, value);
@@ -1794,11 +2056,16 @@ NEW_PRIMITIVE_ARRAY(jdoubleArray, Double);
 
 
 /*
- * Hack to allow forcecopy to work with jniGetNonMovableArrayElements.
- * The code deliberately uses an invalid sequence of operations, so we
- * need to pass it through unmodified.  Review that code before making
- * any changes here.
- */
+Hack to allow forcecopy to work with jniGetNonMovableArrayElements.
+The code deliberately uses an invalid sequence of operations, so we
+need to pass it through unmodified.  Review that code before making
+any changes here.
+
+
+采用Hack方式允许使用jniGetNonMovableArrayElements强制拷贝工作。
+代码故意使用无效的操作序列，因此我们需要通过为改变性来通过它。在这里做任何
+改变前审查代码。
+*/
 #define kNoCopyMagic    0xd5aab57f
 
 #define GET_PRIMITIVE_ARRAY_ELEMENTS(_ctype, _jname) \
@@ -2008,10 +2275,12 @@ static jlong Check_GetDirectBufferCapacity(JNIEnv* env, jobject buf) {
 
 
 /*
- * ===========================================================================
- *      JNI invocation functions
- * ===========================================================================
- */
+===========================================================================
+     JNI invocation functions
+
+     JNI 反射函数
+===========================================================================
+*/
 
 static jint Check_DestroyJavaVM(JavaVM* vm) {
     ScopedCheck sc(false, __FUNCTION__);
@@ -2045,11 +2314,16 @@ static jint Check_GetEnv(JavaVM* vm, void** env, jint version) {
 
 
 /*
- * ===========================================================================
- *      Function tables
- * ===========================================================================
- */
+===========================================================================
+     Function tables
 
+     函数表
+===========================================================================
+*/
+
+/*
+本地接口
+*/
 static const struct JNINativeInterface gCheckNativeInterface = {
     NULL,
     NULL,
@@ -2339,8 +2613,10 @@ static const struct JNIInvokeInterface gCheckInvokeInterface = {
 };
 
 /*
- * Replace the normal table with the checked table.
- */
+Replace the normal table with the checked table.
+
+使用检查表替换正常表。
+*/
 void dvmUseCheckedJniEnv(JNIEnvExt* pEnv) {
     assert(pEnv->funcTable != &gCheckNativeInterface);
     pEnv->baseFuncTable = pEnv->funcTable;
@@ -2348,8 +2624,10 @@ void dvmUseCheckedJniEnv(JNIEnvExt* pEnv) {
 }
 
 /*
- * Replace the normal table with the checked table.
- */
+Replace the normal table with the checked table.
+
+使用检查表替换正常表。
+*/ 
 void dvmUseCheckedJniVm(JavaVMExt* pVm) {
     assert(pVm->funcTable != &gCheckInvokeInterface);
     pVm->baseFuncTable = pVm->funcTable;

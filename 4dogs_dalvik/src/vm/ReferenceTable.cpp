@@ -15,13 +15,17 @@
  */
 
 /*
- * Reference table management.
- */
+Reference table management.
+
+引用表管理。
+*/
 #include "Dalvik.h"
 
 /*
- * Initialize a ReferenceTable structure.
- */
+Initialize a ReferenceTable structure.
+
+初始化一个引用表结构。
+*/ 
 bool dvmInitReferenceTable(ReferenceTable* pRef, int initialCount,
     int maxCount)
 {
@@ -42,8 +46,10 @@ bool dvmInitReferenceTable(ReferenceTable* pRef, int initialCount,
 }
 
 /*
- * Clears out the contents of a ReferenceTable, freeing allocated storage.
- */
+Clears out the contents of a ReferenceTable, freeing allocated storage.
+
+清除引用表内容，释放存储的空间。
+*/
 void dvmClearReferenceTable(ReferenceTable* pRef)
 {
     free(pRef->table);
@@ -52,8 +58,10 @@ void dvmClearReferenceTable(ReferenceTable* pRef)
 }
 
 /*
- * Add "obj" to "pRef".
- */
+Add "obj" to "pRef".
+
+添加“obj”到“pRef”。
+*/
 bool dvmAddToReferenceTable(ReferenceTable* pRef, Object* obj)
 {
     assert(obj != NULL);
@@ -95,8 +103,10 @@ bool dvmAddToReferenceTable(ReferenceTable* pRef, Object* obj)
 }
 
 /*
- * Returns NULL if not found.
- */
+Returns NULL if not found.
+
+在引用表内查找obj，如果没有找到返回NULL。
+*/
 Object** dvmFindInReferenceTable(const ReferenceTable* pRef, Object** bottom,
     Object* obj)
 {
@@ -111,13 +121,17 @@ Object** dvmFindInReferenceTable(const ReferenceTable* pRef, Object** bottom,
 }
 
 /*
- * Remove "obj" from "pRef".  We start at the end of the list (where the
- * most-recently-added element is), and stop searching for a match after
- * examining the element at "bottom".
- *
- * Most of the time "obj" is at or near the end of the list.  If not, we
- * compact it down.
- */
+Remove "obj" from "pRef".  We start at the end of the list (where the
+most-recently-added element is), and stop searching for a match after
+examining the element at "bottom".
+
+Most of the time "obj" is at or near the end of the list.  If not, we
+compact it down.
+
+从“pRef”移除“obj”。从列表末端开始，检查底部元素后停止检索。
+
+大部分时候“obj”在lib底部附近，如果不是，做紧凑处理。
+*/
 bool dvmRemoveFromReferenceTable(ReferenceTable* pRef, Object** bottom,
     Object* obj)
 {
@@ -151,9 +165,12 @@ bool dvmRemoveFromReferenceTable(ReferenceTable* pRef, Object** bottom,
 }
 
 /*
- * If "obj" is an array, return the number of elements in the array.
- * Otherwise, return zero.
- */
+If "obj" is an array, return the number of elements in the array.
+Otherwise, return zero.
+
+如果“obj”是一个数组，返回数组元素数量。
+否则，返回0。
+*/
 static size_t getElementCount(const Object* obj)
 {
     const ArrayObject* arrayObj = (ArrayObject*) obj;
@@ -165,9 +182,11 @@ static size_t getElementCount(const Object* obj)
 }
 
 /*
- * This is a qsort() callback.  We sort Object* by class, allocation size,
- * and then by the Object* itself.
- */
+This is a qsort() callback.  We sort Object* by class, allocation size,
+and then by the Object* itself.
+
+这是一个qsort()毁掉。通过class，allocation size还有通过Object*自身进行Object*排序。
+*/
 static int compareObject(const void* vobj1, const void* vobj2)
 {
     const Object* obj1 = *((Object* const*) vobj1);
@@ -207,12 +226,16 @@ static int compareObject(const void* vobj1, const void* vobj2)
 }
 
 /*
- * Log an object with some additional info.
- *
- * Pass in the number of elements in the array (or 0 if this is not an
- * array object), and the number of additional objects that are identical
- * or equivalent to the original.
- */
+Log an object with some additional info.
+
+Pass in the number of elements in the array (or 0 if this is not an
+array object), and the number of additional objects that are identical
+or equivalent to the original.
+
+记录一个包含额外信息的对象
+
+NOTE TODO：
+*/
 static void logSummaryLine(const Object* obj, size_t elems, int identical, int equiv)
 {
     if (obj == NULL) {
@@ -243,11 +266,15 @@ static void logSummaryLine(const Object* obj, size_t elems, int identical, int e
 }
 
 /*
- * Dump a summary of an array of references to the log file.
- *
- * This is used to dump the contents of ReferenceTable and IndirectRefTable
- * structs.
- */
+Dump a summary of an array of references to the log file.
+
+This is used to dump the contents of ReferenceTable and IndirectRefTable
+structs.
+
+Dump一个引用数组的摘要到日志。
+
+这是用来转储ReferenceTable和IndirectRefTable内容的结构。
+*/
 void dvmDumpReferenceTableContents(Object* const* refs, size_t count,
     const char* descr)
 {
@@ -360,8 +387,10 @@ void dvmDumpReferenceTableContents(Object* const* refs, size_t count,
 }
 
 /*
- * Dump the contents of a ReferenceTable to the log.
- */
+Dump the contents of a ReferenceTable to the log.
+
+转储ReferenceTable内容到日志。
+*/
 void dvmDumpReferenceTable(const ReferenceTable* pRef, const char* descr)
 {
     dvmDumpReferenceTableContents(pRef->table, dvmReferenceTableEntries(pRef),
