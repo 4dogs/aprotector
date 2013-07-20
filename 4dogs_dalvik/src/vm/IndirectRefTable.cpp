@@ -17,8 +17,17 @@
 /*
  * Indirect reference table management.
  */
+
+/*
+ *breif:间接引用表管理.
+*/
+
 #include "Dalvik.h"
 
+
+/*
+ *breif:中断虚拟机.
+*/
 static void abortMaybe() {
     // If CheckJNI is on, it'll give a more detailed error before aborting.
     // Otherwise, we want to abort rather than hand back a bad reference.
@@ -27,6 +36,13 @@ static void abortMaybe() {
     }
 }
 
+
+/*
+ *breif:初始化间接引用表.
+ *param[initialCount]:初始化大小.
+ *param[maxCount]:最大大小.
+ *param[desiredKind]:枚举结构
+*/
 bool IndirectRefTable::init(size_t initialCount,
         size_t maxCount, IndirectRefKind desiredKind)
 {
@@ -51,6 +67,10 @@ bool IndirectRefTable::init(size_t initialCount,
 /*
  * Clears out the contents of a IndirectRefTable, freeing allocated storage.
  */
+
+/*
+ *breif:释放间接引用表的内存.
+*/
 void IndirectRefTable::destroy()
 {
     free(table_);
@@ -58,6 +78,11 @@ void IndirectRefTable::destroy()
     alloc_entries_ = max_entries_ = -1;
 }
 
+/*
+ *breif:添加一个新的条目.重新调整表大小.
+ *param[cookie]:
+ *param[obj]:要添加的条目.
+*/
 IndirectRef IndirectRefTable::add(u4 cookie, Object* obj)
 {
     IRTSegmentState prevState;
@@ -137,6 +162,11 @@ IndirectRef IndirectRefTable::add(u4 cookie, Object* obj)
  *
  * Returns kInvalidIndirectRefObject if iref is invalid.
  */
+
+/*
+ *breif:获取表的间接引用对象.
+ *param[iref]:间接引用表.
+*/
 Object* IndirectRefTable::get(IndirectRef iref) const {
     IndirectRefKind kind = indirectRefKind(iref);
     if (kind != kind_) {
@@ -183,6 +213,14 @@ Object* IndirectRefTable::get(IndirectRef iref) const {
     return obj;
 }
 
+
+/*
+ *breif:从表中查找对象.
+ *param[obj]:对象.
+ *param[bottomIndex]:底序.
+ *param[topIndex]:顶序.
+ *param[table]:表.
+*/
 static int findObject(const Object* obj, int bottomIndex, int topIndex,
         const IndirectRefSlot* table) {
     for (int i = bottomIndex; i < topIndex; ++i) {
@@ -193,6 +231,10 @@ static int findObject(const Object* obj, int bottomIndex, int topIndex,
     return -1;
 }
 
+/*
+ *breif:判断对象引用是否在表中.
+ *param[obj]:对象.
+*/
 bool IndirectRefTable::contains(const Object* obj) const {
     return findObject(obj, 0, segmentState.parts.topIndex, table_) >= 0;
 }
@@ -210,6 +252,10 @@ bool IndirectRefTable::contains(const Object* obj) const {
  *
  * Returns "false" if nothing was removed.
  */
+
+/*
+ *breif:从"pRef"删除 "obj".
+*/
 bool IndirectRefTable::remove(u4 cookie, IndirectRef iref)
 {
     IRTSegmentState prevState;
@@ -294,6 +340,9 @@ bool IndirectRefTable::remove(u4 cookie, IndirectRef iref)
     return true;
 }
 
+/*
+ *breif:kind 转 字符串.
+*/
 const char* indirectRefKindToString(IndirectRefKind kind)
 {
     switch (kind) {
@@ -305,6 +354,10 @@ const char* indirectRefKindToString(IndirectRefKind kind)
     }
 }
 
+
+/*
+ *breif:转储表中所有引用.
+*/
 void IndirectRefTable::dump(const char* descr) const
 {
     size_t count = capacity();

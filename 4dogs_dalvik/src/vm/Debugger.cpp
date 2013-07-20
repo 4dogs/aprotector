@@ -22,6 +22,10 @@
  * Collecting all debugger-related pieces here will also allow us to #ifdef
  * the JDWP code out of release builds.
  */
+
+/*
+ *在JDWP与VM之间建立联系.这里的代码只是调试器请求的结果，所以速度没要求.
+*/
 #include "Dalvik.h"
 
 /*
@@ -87,6 +91,12 @@ java/lang/Thread object, and ensuring that both are discarded at the
 same time.
 */
 
+/*
+vm有一个活动线程有关的结构,我们传递给调试器的ThreadId是java/lang/Thread 的ObjectId.所以要获取虚拟机线程的结构需要遍历链表查找匹配项.
+当线程结束时,将锁定链表并释放线程结构.我们需要维护一个线程链表锁来同步线程链表的更新与线程结构的释放.
+向java/lang/Thread 对象添加一个Thread struct的指针.
+*/
+
 #define THREAD_GROUP_ALL ((ObjectId) 0x12345)   // magic, internal-only value
 
 #define kSlot0Sub   1000    // Eclipse workaround
@@ -95,6 +105,10 @@ same time.
  * System init.  We don't allocate the registry until first use.
  * Make sure we do this before initializing JDWP.
  */
+
+/*
+ *breif:由系统初始化.直到第一次使用才分配一个哈希表注册调试器.初始化前要先初始化JDWP.
+*/
 bool dvmDebuggerStartup()
 {
     if (!dvmBreakpointStartup())
@@ -107,6 +121,10 @@ bool dvmDebuggerStartup()
 /*
  * Free registry storage.
  */
+
+/*
+ *breif:释放注册的哈希表.
+*/
 void dvmDebuggerShutdown()
 {
     dvmHashTableFree(gDvm.dbgRegistry);
@@ -119,6 +137,10 @@ void dvmDebuggerShutdown()
  * Pass these through to the VM functions.  Allows extended checking
  * (e.g. "errorcheck" mutexes).  If nothing else we can assert() success.
  */
+
+/*
+ *breif:一些调试相关函数.互斥操作,条件变量的同步操作进行调试.
+*/
 void dvmDbgInitMutex(pthread_mutex_t* pMutex)
 {
     dvmInitMutex(pMutex);
@@ -153,6 +175,10 @@ void dvmDbgCondBroadcast(pthread_cond_t* pCond)
 
 
 /* keep track of type, in case we need to distinguish them someday */
+
+/*
+跟踪的调试类型，留给以后用.
+*/
 enum RegistryType {
     kObjectId = 0xc1, kRefTypeId
 };
@@ -162,6 +188,12 @@ enum RegistryType {
  * could someday be allocated on 16-byte boundaries, we don't want to use
  * the low 4 bits in our hash.
  */
+
+/*
+ *breif:hash函数的对象id.低4字节不使用.
+ *param[val]:应该是hash id
+ *return:应该是对象id.
+*/
 static inline u4 registryHash(u4 val)
 {
     return val >> 4;
@@ -170,6 +202,12 @@ static inline u4 registryHash(u4 val)
 /*
  * (This is a dvmHashTableLookup() callback.)
  */
+
+/*
+ *breif:这是dvmHashTableLookup的回调函数.用于比较操作.
+ *param[obj1]:对象1.
+ *param[obj2]:对象2.
+*/
 static int registryCompare(const void* obj1, const void* obj2)
 {
     return (int) obj1 - (int) obj2;
@@ -183,6 +221,13 @@ static int registryCompare(const void* obj1, const void* obj2)
  *
  * Lock the registry before calling here.
  */
+
+/*
+ *breif:判断对象id是否已经在链表里.如果不存在，则创建.操作前应该锁定.
+ *param[id]:对象id.
+*/
+
+
 #ifndef NDEBUG
 static bool lookupId(ObjectId id)
 {
@@ -206,6 +251,14 @@ static bool lookupId(ObjectId id)
  * Null references must be represented as zero, or the debugger will get
  * very confused.
  */
+
+/*
+ *breif:如果对象不存在则注册对象.在注册的hash表中搜索对象,若hash表中没有对象则添加.
+ *param[obj]:对象.
+ *param[type]:注册类型.
+ *param[reg]:是否注册.
+ *return:返回对象id.
+*/
 static ObjectId registerObject(const Object* obj, RegistryType type, bool reg)
 {
     ObjectId id;
@@ -247,6 +300,12 @@ bail:
  *
  * Note this actually takes both ObjectId and RefTypeId.
  */
+
+/*
+ *breif:验证对象是否注册.
+ *param[id]:对象id.
+ *param[type]:注册类型.
+*/
 #ifndef NDEBUG
 static bool objectIsRegistered(ObjectId id, RegistryType type)
 {
@@ -267,6 +326,10 @@ static bool objectIsRegistered(ObjectId id, RegistryType type)
  *
  * These are rarely NULL, but can be (e.g. java/lang/Object's superclass).
  */
+
+/*
+ *breif:RefTypeId 与 ClassObject的相互转换.
+*/
 static RefTypeId classObjectToRefTypeId(ClassObject* clazz)
 {
     return (RefTypeId) registerObject((Object*) clazz, kRefTypeId, true);
@@ -286,6 +349,10 @@ static ClassObject* refTypeIdToClassObject(RefTypeId id)
 /*
  * Convert to/from an ObjectId.
  */
+
+/*
+ *breif:Object 与 ObjectId之间转换.
+*/
 static ObjectId objectToObjectId(const Object* obj)
 {
     return registerObject(obj, kObjectId, true);
@@ -307,6 +374,10 @@ static Object* objectIdToObject(ObjectId id)
  * have added the object to the registry -- but in some cases (e.g.
  * throwing exceptions) we really want to do the registration late.
  */
+
+/*
+ *breif:注册先前没有注册过的对象.通常是不会发生的，除非有类似异常的情况导致我们推迟注册.
+*/
 void dvmDbgRegisterObjectId(ObjectId id)
 {
     Object* obj = (Object*)(u4) id;
@@ -320,6 +391,10 @@ void dvmDbgRegisterObjectId(ObjectId id)
  * These IDs are only guaranteed unique within a class, so they could be
  * an enumeration index.  For now we just use the Method*.
  */
+
+/*
+ *breif:Method 与 MethodId之间的转换.
+*/
 static MethodId methodToMethodId(const Method* meth)
 {
     return (MethodId)(u4) meth;
@@ -336,6 +411,10 @@ static Method* methodIdToMethod(RefTypeId refTypeId, MethodId id)
  * These IDs are only guaranteed unique within a class, so they could be
  * an enumeration index.  For now we just use the Field*.
  */
+
+/*
+ *breif: FieldId 与 field之间的转换.
+*/
 static FieldId fieldToFieldId(const Field* field)
 {
     return (FieldId)(u4) field;
@@ -351,6 +430,10 @@ static Field* fieldIdToField(RefTypeId refTypeId, FieldId id)
  *
  * We just return a pointer to the stack frame.
  */
+
+/*
+ *breif: FrameId 与 frame之间的转换.
+*/
 static FrameId frameToFrameId(const void* frame)
 {
     return (FrameId)(u4) frame;
@@ -364,6 +447,10 @@ static u4* frameIdToFrame(FrameId id)
 /*
  * Get the invocation request state.
  */
+
+/*
+ *breif:获取调用请求状态.实际是Thread结构里的invokeReq成员.
+*/
 DebugInvokeReq* dvmDbgGetInvokeReq()
 {
     return &dvmThreadSelf()->invokeReq;
@@ -374,6 +461,10 @@ DebugInvokeReq* dvmDbgGetInvokeReq()
  *
  * Only called from the JDWP handler thread.
  */
+
+/*
+ *breif:有JDWP线程调用,启用对象注册,但不启用调试功能.
+*/
 void dvmDbgConnected()
 {
     assert(!gDvm.debuggerConnected);
@@ -390,6 +481,10 @@ void dvmDbgConnected()
  *
  * Only called from the JDWP handler thread.
  */
+
+/*
+ *breif:JDWP线程调用.启用所有调试功能,包括断点扫描.
+*/
 void dvmDbgActive()
 {
     if (gDvm.debuggerActive)
@@ -412,6 +507,10 @@ void dvmDbgActive()
  *
  * Only called from the JDWP handler thread.
  */
+
+/*
+ *breif:由JDWP线程调用.禁用所有调试功能.并禁用注册功能.
+*/
 void dvmDbgDisconnected()
 {
     assert(gDvm.debuggerConnected);
@@ -440,6 +539,10 @@ void dvmDbgDisconnected()
  *
  * Does not return "true" if it's just a DDM server.
  */
+
+/*
+ *breif:如果调试器已经链接则返回true.相反情况是一个ddm服务.
+*/
 bool dvmDbgIsDebuggerConnected()
 {
     return gDvm.debuggerActive;
@@ -449,6 +552,10 @@ bool dvmDbgIsDebuggerConnected()
  * Get time since last debugger activity.  Used when figuring out if the
  * debugger has finished configuring us.
  */
+
+/*
+ *breif:获取活动调试器的最后时间.
+*/
 s8 dvmDbgLastDebuggerActivity()
 {
     return dvmJdwpLastDebuggerActivity(gDvm.jdwpState);
@@ -457,6 +564,10 @@ s8 dvmDbgLastDebuggerActivity()
 /*
  * JDWP thread is running, don't allow GC.
  */
+
+/*
+ *breif:JDWP线程正在运行.禁用GC(内存回收).
+*/
 int dvmDbgThreadRunning()
 {
     ThreadStatus oldStatus = dvmChangeStatus(NULL, THREAD_RUNNING);
@@ -466,6 +577,10 @@ int dvmDbgThreadRunning()
 /*
  * JDWP thread is idle, allow GC.
  */
+
+/*
+ *breif:JDWP线程空闲时,允许GC.
+*/
 int dvmDbgThreadWaiting()
 {
     ThreadStatus oldStatus = dvmChangeStatus(NULL, THREAD_VMWAIT);
@@ -475,6 +590,11 @@ int dvmDbgThreadWaiting()
 /*
  * Restore state returned by Running/Waiting calls.
  */
+
+/*
+ *breif:更改线程状态.
+ *param[status]:线程状态.
+*/
 int dvmDbgThreadContinuing(int status)
 {
     ThreadStatus newStatus = static_cast<ThreadStatus>(status);
@@ -485,6 +605,11 @@ int dvmDbgThreadContinuing(int status)
 /*
  * The debugger wants us to exit.
  */
+
+/*
+ *breif:调试器退出.
+ *param[status]:系统退出代码.
+*/
 void dvmDbgExit(int status)
 {
     // TODO? invoke System.exit() to perform exit processing; ends up
@@ -507,6 +632,11 @@ void dvmDbgExit(int status)
 /*
  * Get the class's type descriptor from a reference type ID.
  */
+
+/*
+ *breif:从引用类型ID获取类的描述.
+ *param[id]:引用类型ID.
+*/
 const char* dvmDbgGetClassDescriptor(RefTypeId id)
 {
     ClassObject* clazz;
@@ -518,6 +648,10 @@ const char* dvmDbgGetClassDescriptor(RefTypeId id)
 /*
  * Convert a RefTypeId to an ObjectId.
  */
+
+/*
+ *breif:将RefTypeId转化为ObjectId.
+*/
 ObjectId dvmDbgGetClassObject(RefTypeId id)
 {
     ClassObject* clazz = refTypeIdToClassObject(id);
@@ -527,6 +661,11 @@ ObjectId dvmDbgGetClassObject(RefTypeId id)
 /*
  * Return the superclass of a class (will be NULL for java/lang/Object).
  */
+
+/*
+ *breif:获取一个类的超类类型ID.
+ *param[id]:类型ID.
+*/
 RefTypeId dvmDbgGetSuperclass(RefTypeId id)
 {
     ClassObject* clazz = refTypeIdToClassObject(id);
@@ -536,6 +675,11 @@ RefTypeId dvmDbgGetSuperclass(RefTypeId id)
 /*
  * Return a class's defining class loader.
  */
+
+/*
+ *breif:返回类的类加载器的类型ID.
+ *param[id]:类型ID.
+*/
 RefTypeId dvmDbgGetClassLoader(RefTypeId id)
 {
     ClassObject* clazz = refTypeIdToClassObject(id);
@@ -545,6 +689,10 @@ RefTypeId dvmDbgGetClassLoader(RefTypeId id)
 /*
  * Return a class's access flags.
  */
+
+/*
+ *breif:获取类的访问标志.
+*/
 u4 dvmDbgGetAccessFlags(RefTypeId id)
 {
     ClassObject* clazz = refTypeIdToClassObject(id);
@@ -554,6 +702,10 @@ u4 dvmDbgGetAccessFlags(RefTypeId id)
 /*
  * Is this class an interface?
  */
+
+/*
+ *breif:判断类是否是接口.
+*/
 bool dvmDbgIsInterface(RefTypeId id)
 {
     ClassObject* clazz = refTypeIdToClassObject(id);
@@ -563,6 +715,12 @@ bool dvmDbgIsInterface(RefTypeId id)
 /*
  * dvmHashForeach callback
  */
+
+/*
+ *breif:dvmHashForeach的回调函数.
+ *param[vclazz]:类对象.
+ *param[varg]:参数.
+*/
 static int copyRefType(void* vclazz, void* varg)
 {
     RefTypeId** pRefType = (RefTypeId**)varg;
@@ -577,6 +735,10 @@ static int copyRefType(void* vclazz, void* varg)
  *
  * Returns a newly-allocated buffer full of RefTypeId values.
  */
+
+/*
+ *breif:获取参考类的完整列表.
+*/
 void dvmDbgGetClassList(u4* pNumClasses, RefTypeId** pClassRefBuf)
 {
     RefTypeId* pRefType;
@@ -603,6 +765,13 @@ void dvmDbgGetClassList(u4* pNumClasses, RefTypeId** pClassRefBuf)
  *
  * Returns a newly-allocated buffer full of RefTypeId values.
  */
+
+/*
+ *breif:获取指定的类加载器的类列表.
+ *param[classLoaderId]:类加载器ID
+ *param[pNumClasses]:输出参数类数目.
+ *param[pClassRefBuf]:输出参数.    
+*/
 void dvmDbgGetVisibleClassList(ObjectId classLoaderId, u4* pNumClasses,
     RefTypeId** pClassRefBuf)
 {
@@ -646,6 +815,12 @@ void dvmDbgGetVisibleClassList(ObjectId classLoaderId, u4* pNumClasses,
  *
  * Our class descriptors are in the correct format, so we just return that.
  */
+
+/*
+ *breif:返回类的"JNI signature".
+ *param[clazz]:类对象.
+ *return:返回类表述.
+*/
 static const char* jniSignature(ClassObject* clazz)
 {
     return clazz->descriptor;
@@ -657,6 +832,14 @@ static const char* jniSignature(ClassObject* clazz)
  * If "pSignature" is not NULL, *pSignature gets the "JNI signature" of
  * the class.
  */
+
+/*
+ *breif:获取类的信息.
+ *param[classId]:(in)类ID.
+ *param[pTypeTag]:(out)类是数组还是接口还是类等信息.
+ *param[pStatus]:(out)类是否初始化了等信息.
+ *param[pSignature]:(out)若内存不为空则返回类描述.
+*/
 void dvmDbgGetClassInfo(RefTypeId classId, u1* pTypeTag, u4* pStatus,
     const char** pSignature)
 {
@@ -683,6 +866,12 @@ void dvmDbgGetClassInfo(RefTypeId classId, u1* pTypeTag, u4* pStatus,
 /*
  * Search the list of loaded classes for a match.
  */
+
+/*
+ *breif:搜索匹配列表的加载类.
+ *param[classDescriptor]:类描述.
+ *param[pRefTypeId]:引用类型ID.
+*/
 bool dvmDbgFindLoadedClassBySignature(const char* classDescriptor,
         RefTypeId* pRefTypeId)
 {
@@ -700,6 +889,13 @@ bool dvmDbgFindLoadedClassBySignature(const char* classDescriptor,
 /*
  * Get an object's class and "type tag".
  */
+
+/*
+ *breif:获取对象的类与类型标记.
+ *param[objectId]:对象ID.
+ *param[pRefTypeTag]:类型标记.
+ *param[pRefTypeId]:类型引用ID.
+*/
 void dvmDbgGetObjectType(ObjectId objectId, u1* pRefTypeTag,
     RefTypeId* pRefTypeId)
 {
@@ -717,6 +913,10 @@ void dvmDbgGetObjectType(ObjectId objectId, u1* pRefTypeTag,
 /*
  * Get a class object's "type tag".
  */
+
+/*
+ *breif:获取类的类型.
+*/
 u1 dvmDbgGetClassObjectType(RefTypeId refTypeId)
 {
     ClassObject* clazz = refTypeIdToClassObject(refTypeId);
@@ -732,6 +932,10 @@ u1 dvmDbgGetClassObjectType(RefTypeId refTypeId)
 /*
  * Get a class' signature.
  */
+
+/*
+ *breif:获取类的描述信息.
+*/
 const char* dvmDbgGetSignature(RefTypeId refTypeId)
 {
     ClassObject* clazz;
@@ -747,6 +951,10 @@ const char* dvmDbgGetSignature(RefTypeId refTypeId)
  *
  * Returns a newly-allocated string.
  */
+
+/*
+ *breif:获取类的源文件.返回字符串是重新分配的内存.
+*/
 const char* dvmDbgGetSourceFile(RefTypeId refTypeId)
 {
     ClassObject* clazz;
@@ -760,6 +968,10 @@ const char* dvmDbgGetSourceFile(RefTypeId refTypeId)
 /*
  * Get an object's type name.  (For log message display only.)
  */
+
+/*
+ *breif:获取对象的类型名称.
+*/
 const char* dvmDbgGetObjectTypeName(ObjectId objectId)
 {
     if (objectId == 0)
@@ -772,6 +984,10 @@ const char* dvmDbgGetObjectTypeName(ObjectId objectId)
 /*
  * Determine whether or not a tag represents a primitive type.
  */
+
+/*
+ *breif:确定一个标签是否代表一个原始类型.
+*/
 static bool isTagPrimitive(u1 tag)
 {
     switch (tag) {
@@ -803,6 +1019,10 @@ static bool isTagPrimitive(u1 tag)
 /*
  * Determine the best tag type given an object's class.
  */
+
+/*
+ *breif:获取类的标签.
+*/
 static u1 tagFromClass(ClassObject* clazz)
 {
     if (dvmIsArrayClass(clazz))
@@ -830,6 +1050,10 @@ static u1 tagFromClass(ClassObject* clazz)
  * need to do much here.  This does not return the fancier tags like
  * JT_THREAD.
  */
+
+/*
+ *breif:从类型描述中获取标记.
+*/
 static u1 basicTagFromDescriptor(const char* descriptor)
 {
     return descriptor[0];
@@ -843,6 +1067,10 @@ static u1 basicTagFromDescriptor(const char* descriptor)
  *
  * Null objects are tagged JT_OBJECT.
  */
+
+/*
+ *breif:从对象返回类标记.
+*/
 static u1 tagFromObject(const Object* obj)
 {
     if (obj == NULL)
@@ -855,6 +1083,10 @@ static u1 tagFromObject(const Object* obj)
  *
  * "objectId" may be 0 (i.e. NULL reference).
  */
+
+/*
+ *breif:确定一个对象的标签.
+*/
 u1 dvmDbgGetObjectTag(ObjectId objectId)
 {
     return tagFromObject(objectIdToObject(objectId));
@@ -863,6 +1095,10 @@ u1 dvmDbgGetObjectTag(ObjectId objectId)
 /*
  * Get the widths of the specified JDWP.Tag value.
  */
+
+/*
+ *breif:获取JDWP类型标签的长度.
+*/
 int dvmDbgGetTagWidth(int tag)
 {
     switch (tag) {
@@ -899,6 +1135,10 @@ int dvmDbgGetTagWidth(int tag)
 /*
  * Return the length of the specified array.
  */
+
+/*
+ *breif:获取指定数组的长度.
+*/
 int dvmDbgGetArrayLength(ObjectId arrayId)
 {
     ArrayObject* arrayObj = (ArrayObject*) objectIdToObject(arrayId);
@@ -909,6 +1149,10 @@ int dvmDbgGetArrayLength(ObjectId arrayId)
 /*
  * Return a tag indicating the general type of elements in the array.
  */
+
+/*
+ *breif:从数组中获取标记.
+*/
 u1 dvmDbgGetArrayElementTag(ObjectId arrayId)
 {
     ArrayObject* arrayObj = (ArrayObject*) objectIdToObject(arrayId);
@@ -927,6 +1171,10 @@ u1 dvmDbgGetArrayElementTag(ObjectId arrayId)
  * Copy a series of values with the specified width, changing the byte
  * ordering to big-endian.
  */
+
+/*
+ *breif:复制值，并改变为大端方式存储.
+*/
 static void copyValuesToBE(u1* out, const u1* in, int count, int width)
 {
     int i;
@@ -956,6 +1204,10 @@ static void copyValuesToBE(u1* out, const u1* in, int count, int width)
  * Copy a series of values with the specified width, changing the
  * byte order from big-endian.
  */
+
+/*
+ *breif:复制值，并改变其为大端.
+*/
 static void copyValuesFromBE(u1* out, const u1* in, int count, int width)
 {
     int i;
@@ -986,6 +1238,10 @@ static void copyValuesFromBE(u1* out, const u1* in, int count, int width)
  *
  * Returns "false" if something looks fishy.
  */
+
+/*
+ *breif:将数组输出到reply缓存.
+*/
 bool dvmDbgOutputArray(ObjectId arrayId, int firstIndex, int count,
     ExpandBuf* pReply)
 {
@@ -1037,6 +1293,10 @@ bool dvmDbgOutputArray(ObjectId arrayId, int firstIndex, int count,
 /*
  * Set a range of elements in an array from the data in "buf".
  */
+
+/*
+ *breif:从"buf"中读取元素到"arrayId"的数组.
+*/
 bool dvmDbgSetArrayElements(ObjectId arrayId, int firstIndex, int count,
     const u1* buf)
 {
@@ -1084,6 +1344,10 @@ bool dvmDbgSetArrayElements(ObjectId arrayId, int firstIndex, int count,
  *
  * The only place the reference will be held in the VM is in our registry.
  */
+
+/*
+ *breif:创建一个字符串.
+*/
 ObjectId dvmDbgCreateString(const char* str)
 {
     StringObject* strObj;
@@ -1098,6 +1362,10 @@ ObjectId dvmDbgCreateString(const char* str)
  *
  * Add it to the registry to prevent it from being GCed.
  */
+
+/*
+ *breif:按指定的类型分配一个对象.
+*/
 ObjectId dvmDbgCreateObject(RefTypeId classId)
 {
     ClassObject* clazz = refTypeIdToClassObject(classId);
@@ -1112,6 +1380,10 @@ ObjectId dvmDbgCreateObject(RefTypeId classId)
  *
  * Add it to the registry to prevent it from being GCed.
  */
+
+/*
+ *breif:按指定的类型与长度分配一个对象数组.
+*/
 ObjectId dvmDbgCreateArrayObject(RefTypeId arrayTypeId, u4 length)
 {
     ClassObject* clazz = refTypeIdToClassObject(arrayTypeId);
@@ -1123,6 +1395,10 @@ ObjectId dvmDbgCreateArrayObject(RefTypeId arrayTypeId, u4 length)
 /*
  * Determine if "instClassId" is an instance of "classId".
  */
+
+/*
+ *breif:判断"instClassId"是不是"classId"的一个实力.
+*/
 bool dvmDbgMatchType(RefTypeId instClassId, RefTypeId classId)
 {
     ClassObject* instClazz = refTypeIdToClassObject(instClassId);
@@ -1141,6 +1417,10 @@ bool dvmDbgMatchType(RefTypeId instClassId, RefTypeId classId)
 /*
  * Get the method name from a MethodId.
  */
+
+/*
+ *breif:通过方法ID获取方法名.
+*/
 const char* dvmDbgGetMethodName(RefTypeId refTypeId, MethodId id)
 {
     Method* meth;
@@ -1154,6 +1434,10 @@ const char* dvmDbgGetMethodName(RefTypeId refTypeId, MethodId id)
  * the (as described by the spec) "0xf0000000 bit".  Also, strip out any
  * flags not specified by the Java programming language.
  */
+
+/*
+ *breif:设置访问标志.
+*/
 static u4 augmentedAccessFlags(u4 accessFlags)
 {
     accessFlags &= JAVA_FLAGS_MASK;
@@ -1170,6 +1454,10 @@ static u4 augmentedAccessFlags(u4 accessFlags)
  * output all fields declared by the class.  Inherited fields are
  * not included.
  */
+
+/*
+ *breif:将ClassObject内的所有sField 与 iField内容输出到"pReply".
+*/
 void dvmDbgOutputAllFields(RefTypeId refTypeId, bool withGeneric,
     ExpandBuf* pReply)
 {
@@ -1208,6 +1496,10 @@ void dvmDbgOutputAllFields(RefTypeId refTypeId, bool withGeneric,
  * output all methods declared by the class.  Inherited methods are
  * not included.
  */
+
+/*
+ *breif:将class里的directMethod与virtualMethod输出到pReply里.
+*/
 void dvmDbgOutputAllMethods(RefTypeId refTypeId, bool withGeneric,
     ExpandBuf* pReply)
 {
@@ -1261,6 +1553,10 @@ void dvmDbgOutputAllMethods(RefTypeId refTypeId, bool withGeneric,
 /*
  * Output all interfaces directly implemented by the class.
  */
+
+/*
+ *breif:输出接口实现类.
+*/
 void dvmDbgOutputAllInterfaces(RefTypeId refTypeId, ExpandBuf* pReply)
 {
     ClassObject* clazz;
@@ -1284,6 +1580,9 @@ struct DebugCallbackContext {
     bool withGeneric;
 };
 
+/*
+ *breif:将行号与地址存放到cnxt.
+*/
 static int lineTablePositionsCb(void *cnxt, u4 address, u4 lineNum)
 {
     DebugCallbackContext *pContext = (DebugCallbackContext *)cnxt;
@@ -1300,6 +1599,10 @@ static int lineTablePositionsCb(void *cnxt, u4 address, u4 lineNum)
  *
  * Note we operate in Dalvik's 16-bit units rather than bytes.
  */
+
+/*
+ *breif:输出线性表.
+*/
 void dvmDbgOutputLineTable(RefTypeId refTypeId, MethodId methodId,
     ExpandBuf* pReply)
 {
@@ -1346,6 +1649,10 @@ void dvmDbgOutputLineTable(RefTypeId refTypeId, MethodId methodId,
  * So, we remap the item in slot 0 to 1000, and remap "this" to zero.  On
  * SF.GetValues / SF.SetValues we map them back.
  */
+
+/*
+ *breif:Eclipse相关.
+*/
 static int tweakSlot(int slot, const char* name)
 {
     int newSlot = slot;
@@ -1362,6 +1669,10 @@ static int tweakSlot(int slot, const char* name)
 /*
  * Reverse Eclipse hack.
  */
+
+/*
+ *breif:eclipse相关.
+*/
 static int untweakSlot(int slot, const void* framePtr)
 {
     int newSlot = slot;
@@ -1378,6 +1689,10 @@ static int untweakSlot(int slot, const void* framePtr)
     return newSlot;
 }
 
+
+/*
+ *breif:变量表.
+*/
 static void variableTableCb (void *cnxt, u2 reg, u4 startAddress,
         u4 endAddress, const char *name, const char *descriptor,
         const char *signature)
@@ -1406,6 +1721,10 @@ static void variableTableCb (void *cnxt, u2 reg, u4 startAddress,
  * For Method.VariableTable[WithGeneric]: output information about local
  * variables for the specified method.
  */
+
+/*
+ *breif:输出有关本地变量指定的方法.
+*/
 void dvmDbgOutputVariableTable(RefTypeId refTypeId, MethodId methodId,
     bool withGeneric, ExpandBuf* pReply)
 {
@@ -1437,6 +1756,10 @@ void dvmDbgOutputVariableTable(RefTypeId refTypeId, MethodId methodId,
 /*
  * Get the basic tag for an instance field.
  */
+
+/*
+ *breif:获取一个实例字段的标签.
+*/
 u1 dvmDbgGetFieldBasicTag(ObjectId objId, FieldId fieldId)
 {
     Object* obj = objectIdToObject(objId);
@@ -1448,6 +1771,10 @@ u1 dvmDbgGetFieldBasicTag(ObjectId objId, FieldId fieldId)
 /*
  * Get the basic tag for a static field.
  */
+
+/*
+ *breif:获取静态字段的基本标签.
+*/
 u1 dvmDbgGetStaticFieldBasicTag(RefTypeId refTypeId, FieldId fieldId)
 {
     const Field* field = fieldIdToField(refTypeId, fieldId);
@@ -1460,6 +1787,10 @@ u1 dvmDbgGetStaticFieldBasicTag(RefTypeId refTypeId, FieldId fieldId)
  * by an appropriate tag.  The tag is based on the value held by the
  * field, not the field's type.
  */
+
+/*
+ *breif:获取字段的值.
+*/
 void dvmDbgGetFieldValue(ObjectId objectId, FieldId fieldId, ExpandBuf* pReply)
 {
     Object* obj = objectIdToObject(objectId);
@@ -1509,6 +1840,10 @@ void dvmDbgGetFieldValue(ObjectId objectId, FieldId fieldId, ExpandBuf* pReply)
 /*
  * Set the value of the specified field.
  */
+
+/*
+ *breif:向特定的字段设置值.
+*/
 void dvmDbgSetFieldValue(ObjectId objectId, FieldId fieldId, u8 value,
     int width)
 {
@@ -1557,6 +1892,10 @@ void dvmDbgSetFieldValue(ObjectId objectId, FieldId fieldId, u8 value,
  * by an appropriate tag.  The tag is based on the value held by the
  * field, not the field's type.
  */
+
+/*
+ *breif:获取静态字段的值.
+*/
 void dvmDbgGetStaticFieldValue(RefTypeId refTypeId, FieldId fieldId,
     ExpandBuf* pReply)
 {
@@ -1613,6 +1952,10 @@ void dvmDbgGetStaticFieldValue(RefTypeId refTypeId, FieldId fieldId,
 /*
  * Set the value of a static field.
  */
+
+/*
+ *breif:向静态字段设置值.
+*/
 void dvmDbgSetStaticFieldValue(RefTypeId refTypeId, FieldId fieldId,
     u8 rawValue, int width)
 {
@@ -1673,6 +2016,10 @@ void dvmDbgSetStaticFieldValue(RefTypeId refTypeId, FieldId fieldId,
  *
  * Returns a newly-allocated string.
  */
+
+/*
+ *breif:返回一个新分配的字符串.
+*/
 char* dvmDbgStringToUtf8(ObjectId strId)
 {
     StringObject* strObj = (StringObject*) objectIdToObject(strId);
@@ -1695,6 +2042,10 @@ char* dvmDbgStringToUtf8(ObjectId strId)
  *
  * IMPORTANT: grab gDvm.threadListLock before calling here.
  */
+
+/*
+ *breif:将线程对象设置为线程指针.需要遍历线程对象表.
+*/
 static Thread* threadObjToThread(Object* threadObj)
 {
     Thread* thread;
@@ -1710,6 +2061,10 @@ static Thread* threadObjToThread(Object* threadObj)
 /*
  * Get the status and suspend state of a thread.
  */
+
+/*
+ *breif:获取线程状态并且挂起线程.
+*/
 bool dvmDbgGetThreadStatus(ObjectId threadId, u4* pThreadStatus,
     u4* pSuspendStatus)
 {
@@ -1759,6 +2114,10 @@ bail:
 /*
  * Get the thread's suspend count.
  */
+
+/*
+ *breif:获取线程的挂起计数.
+*/
 u4 dvmDbgGetThreadSuspendCount(ObjectId threadId)
 {
     Object* threadObj;
@@ -1787,6 +2146,10 @@ bail:
  *
  * Returns "true" if the thread exists.
  */
+
+/*
+ *breif:判断指定线程ID的线程是否在虚拟机的线程链表里.
+*/
 bool dvmDbgThreadExists(ObjectId threadId)
 {
     Object* threadObj;
@@ -1814,6 +2177,10 @@ bool dvmDbgThreadExists(ObjectId threadId)
  *
  * Returns "false" if the thread is running or doesn't exist.
  */
+
+/*
+ *breif:判断线程是否挂起.
+*/
 bool dvmDbgIsSuspended(ObjectId threadId)
 {
     Object* threadObj;
@@ -1840,6 +2207,10 @@ bail:
 /*
  * Return the ObjectId for the "system" thread group.
  */
+
+/*
+ *breif:获取 "system"组的线程对象ID.
+*/
 ObjectId dvmDbgGetSystemThreadGroupId()
 {
     Object* groupObj = dvmGetSystemThreadGroup();
@@ -1849,6 +2220,10 @@ ObjectId dvmDbgGetSystemThreadGroupId()
 /*
  * Return the ObjectId for the "main" thread group.
  */
+
+/*
+ *breif:获取组为"main"的线程对象.
+*/
 ObjectId dvmDbgGetMainThreadGroupId()
 {
     Object* groupObj = dvmGetMainThreadGroup();
@@ -1860,6 +2235,10 @@ ObjectId dvmDbgGetMainThreadGroupId()
  *
  * Returns a newly-allocated string.
  */
+
+/*
+ *breif:返回一个新分配的字符串存储线程名字.
+*/
 char* dvmDbgGetThreadName(ObjectId threadId)
 {
     Object* threadObj;
@@ -1891,6 +2270,10 @@ char* dvmDbgGetThreadName(ObjectId threadId)
 /*
  * Get a thread's group.
  */
+
+/*
+ *breif:获取一个线程的组.
+*/
 ObjectId dvmDbgGetThreadGroup(ObjectId threadId)
 {
     Object* threadObj;
@@ -1909,6 +2292,10 @@ ObjectId dvmDbgGetThreadGroup(ObjectId threadId)
  *
  * Returns a newly-allocated string.
  */
+
+/*
+ *breif:通过线程组ID获取线程组名称.
+*/
 char* dvmDbgGetThreadGroupName(ObjectId threadGroupId)
 {
     Object* threadGroup;
@@ -1927,6 +2314,10 @@ char* dvmDbgGetThreadGroupName(ObjectId threadGroupId)
  *
  * Returns a newly-allocated string.
  */
+
+/*
+ *breif:获取线程组的父组.
+*/
 ObjectId dvmDbgGetThreadGroupParent(ObjectId threadGroupId)
 {
     Object* threadGroup;
@@ -1950,6 +2341,10 @@ ObjectId dvmDbgGetThreadGroupParent(ObjectId threadGroupId)
  *
  * The caller must free "*ppThreadIds".
  */
+
+/*
+ *breif:获取线程组的所有线程.
+*/
 void dvmDbgGetThreadGroupThreads(ObjectId threadGroupId,
     ObjectId** ppThreadIds, u4* pThreadCount)
 {
@@ -2034,6 +2429,10 @@ void dvmDbgGetThreadGroupThreads(ObjectId threadGroupId,
  *
  * The caller must free "*ppThreadIds".
  */
+
+/*
+ *breif:获取所有线程.
+*/
 void dvmDbgGetAllThreads(ObjectId** ppThreadIds, u4* pThreadCount)
 {
     dvmDbgGetThreadGroupThreads(THREAD_GROUP_ALL, ppThreadIds, pThreadCount);
@@ -2045,6 +2444,10 @@ void dvmDbgGetAllThreads(ObjectId** ppThreadIds, u4* pThreadCount)
  *
  * Returns -1 on failure.
  */
+
+/*
+ *breif:获取线程堆栈侦.
+*/
 int dvmDbgGetThreadFrameCount(ObjectId threadId)
 {
     Object* threadObj;
@@ -2066,6 +2469,10 @@ int dvmDbgGetThreadFrameCount(ObjectId threadId)
 /*
  * Get info for frame N from the specified thread's stack.
  */
+
+/*
+ *breif:从指定的线程帧获取信息.
+*/
 bool dvmDbgGetThreadFrame(ObjectId threadId, int num, FrameId* pFrameId,
     JdwpLocation* pLoc)
 {
@@ -2119,6 +2526,10 @@ bail:
 /*
  * Get the ThreadId for the current thread.
  */
+
+/*
+ *breif:获取当前线程的ID.
+*/
 ObjectId dvmDbgGetThreadSelfId()
 {
     Thread* self = dvmThreadSelf();
@@ -2128,6 +2539,10 @@ ObjectId dvmDbgGetThreadSelfId()
 /*
  * Suspend the VM.
  */
+
+/*
+ *breif:将虚拟机所有线程挂起.
+*/
 void dvmDbgSuspendVM(bool isEvent)
 {
     dvmSuspendAllThreads(isEvent ? SUSPEND_FOR_DEBUG_EVENT : SUSPEND_FOR_DEBUG);
@@ -2136,6 +2551,10 @@ void dvmDbgSuspendVM(bool isEvent)
 /*
  * Resume the VM.
  */
+
+/*
+ *breif:恢复虚拟机.
+*/
 void dvmDbgResumeVM()
 {
     dvmResumeAllThreads(SUSPEND_FOR_DEBUG);
@@ -2144,6 +2563,10 @@ void dvmDbgResumeVM()
 /*
  * Suspend one thread (not ourselves).
  */
+
+/*
+ *breif:挂起一个线程.
+*/
 void dvmDbgSuspendThread(ObjectId threadId)
 {
     Object* threadObj = objectIdToObject(threadId);
@@ -2165,6 +2588,10 @@ void dvmDbgSuspendThread(ObjectId threadId)
 /*
  * Resume one thread (not ourselves).
  */
+
+/*
+ *breif:恢复一个线程.
+*/
 void dvmDbgResumeThread(ObjectId threadId)
 {
     Object* threadObj = objectIdToObject(threadId);
@@ -2185,6 +2612,10 @@ void dvmDbgResumeThread(ObjectId threadId)
 /*
  * Suspend ourselves after sending an event to the debugger.
  */
+
+/*
+ *breif:挂起自身线程并向调试器发送事件.
+*/
 void dvmDbgSuspendSelf()
 {
     dvmSuspendSelf(true);
@@ -2193,6 +2624,10 @@ void dvmDbgSuspendSelf()
 /*
  * Get the "this" object for the specified frame.
  */
+
+/*
+ *breif:从指定的帧获取对象.
+*/
 static Object* getThisObject(const u4* framePtr)
 {
     const StackSaveArea* saveArea = SAVEAREA_FROM_FP(framePtr);
@@ -2233,6 +2668,10 @@ static Object* getThisObject(const u4* framePtr)
  * Return the "this" object for the specified frame.  The thread must be
  * suspended.
  */
+
+/*
+ *breif:挂起线程,然后从指定的帧获取对象.
+*/
 bool dvmDbgGetThisObject(ObjectId threadId, FrameId frameId, ObjectId* pThisId)
 {
     const u4* framePtr = frameIdToFrame(frameId);
@@ -2253,6 +2692,10 @@ bool dvmDbgGetThisObject(ObjectId threadId, FrameId frameId, ObjectId* pThisId)
  * The debugger includes the tags in the request.  Object tags may
  * be updated with a more refined type.
  */
+
+/*
+ *breif:获取方法参数或者局部变量的值.
+*/
 void dvmDbgGetLocalValue(ObjectId threadId, FrameId frameId, int slot,
     u1 tag, u1* buf, int expectedLen)
 {
@@ -2338,6 +2781,10 @@ void dvmDbgGetLocalValue(ObjectId threadId, FrameId frameId, int slot,
 /*
  * Copy a new value into an argument or local variable.
  */
+
+/*
+ *breif:复制一个新的值到参数或局部变量.
+*/
 void dvmDbgSetLocalValue(ObjectId threadId, FrameId frameId, int slot, u1 tag,
     u8 value, int width)
 {
@@ -2406,6 +2853,10 @@ void dvmDbgSetLocalValue(ObjectId threadId, FrameId frameId, int slot, u1 tag,
  * "pcOffset" will be -1 for native methods.
  * "thisPtr" will be NULL for static methods.
  */
+
+/*
+ *breif:告诉JDWP已经到了一个断点地址.
+*/
 void dvmDbgPostLocationEvent(const Method* method, int pcOffset,
     Object* thisPtr, int eventFlags)
 {
@@ -2436,6 +2887,10 @@ void dvmDbgPostLocationEvent(const Method* method, int pcOffset,
 /*
  * Tell JDWP that an exception has occurred.
  */
+
+/*
+ *breif:告诉JDWP产生异常.
+*/
 void dvmDbgPostException(void* throwFp, int throwRelPc, void* catchFp,
     int catchRelPc, Object* exception)
 {
@@ -2486,6 +2941,10 @@ void dvmDbgPostException(void* throwFp, int throwRelPc, void* catchFp,
 /*
  * Tell JDWP and/or DDMS that a thread has started.
  */
+
+/*
+ *breif:告诉JDWP或DDMS有线程启动.
+*/
 void dvmDbgPostThreadStart(Thread* thread)
 {
     if (gDvm.debuggerActive) {
@@ -2499,6 +2958,10 @@ void dvmDbgPostThreadStart(Thread* thread)
 /*
  * Tell JDWP and/or DDMS that a thread has gone away.
  */
+
+/*
+ *breif:通知JDWP或者DDMS线程结束.
+*/
 void dvmDbgPostThreadDeath(Thread* thread)
 {
     if (gDvm.debuggerActive) {
@@ -2512,6 +2975,10 @@ void dvmDbgPostThreadDeath(Thread* thread)
 /*
  * Tell JDWP that a new class has been prepared.
  */
+
+/*
+ *breif:通知JDWP新的类构造.
+*/
 void dvmDbgPostClassPrepare(ClassObject* clazz)
 {
     const char* signature;
@@ -2535,6 +3002,10 @@ void dvmDbgPostClassPrepare(ClassObject* clazz)
  * mod.  Tell the interpreter to call us if we hit the specified
  * address.
  */
+
+/*
+ *breif:JDWP事件机制注册的本地事件
+*/
 bool dvmDbgWatchLocation(const JdwpLocation* pLoc)
 {
     Method* method = methodIdToMethod(pLoc->classId, pLoc->methodId);
@@ -2546,6 +3017,10 @@ bool dvmDbgWatchLocation(const JdwpLocation* pLoc)
 /*
  * An event with a LocationOnly mod has been removed.
  */
+
+/*
+ *breif:LocationOnly mod 事件移除.
+*/
 void dvmDbgUnwatchLocation(const JdwpLocation* pLoc)
 {
     Method* method = methodIdToMethod(pLoc->classId, pLoc->methodId);
@@ -2557,6 +3032,10 @@ void dvmDbgUnwatchLocation(const JdwpLocation* pLoc)
  * The JDWP event mechanism has registered a single-step event.  Tell
  * the interpreter about it.
  */
+
+/*
+ *breif:JDWP注册的单步事件.
+*/
 bool dvmDbgConfigureStep(ObjectId threadId, JdwpStepSize size,
     JdwpStepDepth depth)
 {
@@ -2599,6 +3078,10 @@ bail:
 /*
  * A single-step event has been removed.
  */
+
+/*
+ *breif:单步事件移除.
+*/
 void dvmDbgUnconfigureStep(ObjectId threadId)
 {
     UNUSED_PARAMETER(threadId);
@@ -2613,6 +3096,10 @@ void dvmDbgUnconfigureStep(ObjectId threadId)
  *
  * Note that access control is not enforced, per spec.
  */
+
+/*
+ *breif:处理一个断点中断或者调试事件触发的方法.
+*/
 JdwpError dvmDbgInvokeMethod(ObjectId threadId, ObjectId objectId,
     RefTypeId classId, MethodId methodId, u4 numArgs, ObjectId* argArray,
     u4 options, u1* pResultTag, u8* pResultValue, ObjectId* pExceptObj)
@@ -2744,6 +3231,10 @@ JdwpError dvmDbgInvokeMethod(ObjectId threadId, ObjectId objectId,
 /*
  * Return a basic tag value for the return type.
  */
+
+/*
+ *breif:返回一个类型的标签.
+*/
 static u1 getReturnTypeBasicTag(const Method* method)
 {
     const char* descriptor = dexProtoGetReturnType(&method->prototype);
@@ -2756,6 +3247,10 @@ static u1 getReturnTypeBasicTag(const Method* method)
  * We're currently in VMWAIT, because we're stopped on a breakpoint.  We
  * want to switch to RUNNING while we execute.
  */
+
+/*
+ *breif:执行 pReq 指向的方法.
+*/
 void dvmDbgExecuteMethod(DebugInvokeReq* pReq)
 {
     Thread* self = dvmThreadSelf();
@@ -2849,6 +3344,10 @@ struct AddressSetContext {
 };
 
 // for dvmAddressSetForLine
+
+/*
+ *breif:dvmAddressSetForLine相关.
+*/
 static int addressSetCb (void *cnxt, u4 address, u4 lineNum)
 {
     AddressSetContext *pContext = (AddressSetContext *)cnxt;
@@ -2877,6 +3376,10 @@ static int addressSetCb (void *cnxt, u4 address, u4 lineNum)
 /*
  * Build up a set of bytecode addresses associated with a line number
  */
+
+/*
+ *breif:建立字节码地址关联的行号.
+*/
 const AddressSet *dvmAddressSetForLine(const Method* method, int line)
 {
     AddressSet *result;
@@ -2919,6 +3422,10 @@ const AddressSet *dvmAddressSetForLine(const Method* method, int line)
 /*
  * We have received a DDM packet over JDWP.  Hand it off to the VM.
  */
+
+/*
+ *breif:受到DDM发送的包.
+*/
 bool dvmDbgDdmHandlePacket(const u1* buf, int dataLen, u1** pReplyBuf,
     int* pReplyLen)
 {
@@ -2928,6 +3435,10 @@ bool dvmDbgDdmHandlePacket(const u1* buf, int dataLen, u1** pReplyBuf,
 /*
  * First DDM packet has arrived over JDWP.  Notify the press.
  */
+
+/*
+ *breif:第一个DDM包到达JDWP.
+*/
 void dvmDbgDdmConnected()
 {
     dvmDdmConnected();
@@ -2936,6 +3447,10 @@ void dvmDbgDdmConnected()
 /*
  * JDWP connection has dropped.
  */
+
+/*
+ *breif:中断JDWP.
+*/
 void dvmDbgDdmDisconnected()
 {
     dvmDdmDisconnected();
@@ -2944,6 +3459,10 @@ void dvmDbgDdmDisconnected()
 /*
  * Send up a JDWP event packet with a DDM chunk in it.
  */
+
+/*
+ *breif:发送包含DDM块的JDWP事件包.
+*/
 void dvmDbgDdmSendChunk(int type, size_t len, const u1* buf)
 {
     assert(buf != NULL);
@@ -2955,6 +3474,10 @@ void dvmDbgDdmSendChunk(int type, size_t len, const u1* buf)
  * Send up a JDWP event packet with a DDM chunk in it.  The chunk is
  * concatenated from multiple source buffers.
  */
+
+/*
+ *breif:发送包含DDM块的JDWP事件包.发自多个源.
+*/
 void dvmDbgDdmSendChunkV(int type, const struct iovec* iov, int iovcnt)
 {
     if (gDvm.jdwpState == NULL) {

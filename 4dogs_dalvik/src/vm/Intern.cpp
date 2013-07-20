@@ -23,6 +23,10 @@
 /*
  * Prep string interning.
  */
+
+/*
+ *breif:初始化 string interning.就是创建两个哈希表存储gDvm里两个相关变量.
+*/
 bool dvmStringInternStartup()
 {
     dvmInitMutex(&gDvm.internLock);
@@ -40,6 +44,10 @@ bool dvmStringInternStartup()
  *
  * The contents of the list are StringObjects that live on the GC heap.
  */
+
+/*
+ *breif:释放string interning.
+*/
 void dvmStringInternShutdown()
 {
     if (gDvm.internedStrings != NULL || gDvm.literalStrings != NULL) {
@@ -51,6 +59,9 @@ void dvmStringInternShutdown()
     gDvm.literalStrings = NULL;
 }
 
+/*
+ *breif:从表中通过key搜索字符串对象.
+*/
 static StringObject* lookupString(HashTable* table, u4 key, StringObject* value)
 {
     void* entry = dvmHashTableLookup(table, key, (void*)value,
@@ -58,6 +69,9 @@ static StringObject* lookupString(HashTable* table, u4 key, StringObject* value)
     return (StringObject*)entry;
 }
 
+/*
+ *breif:向哈希表中插入字符串对象.
+*/
 static StringObject* insertString(HashTable* table, u4 key, StringObject* value)
 {
     if (dvmIsNonMovingObject(value) == false) {
@@ -68,6 +82,9 @@ static StringObject* insertString(HashTable* table, u4 key, StringObject* value)
     return (StringObject*)entry;
 }
 
+/*
+ *breif:遍历搜索字符串对象.
+*/
 static StringObject* lookupInternedString(StringObject* strObj, bool isLiteral)
 {
     StringObject* found;
@@ -132,6 +149,10 @@ static StringObject* lookupInternedString(StringObject* strObj, bool isLiteral)
  * If the string doesn't already exist, the StringObject is added to
  * the table.  Otherwise, the existing entry is returned.
  */
+
+/*
+ *breif:在interned string表中搜索一个条目.
+*/
 StringObject* dvmLookupInternedString(StringObject* strObj)
 {
     return lookupInternedString(strObj, false);
@@ -141,6 +162,10 @@ StringObject* dvmLookupInternedString(StringObject* strObj)
  * Same as dvmLookupInternedString(), but guarantees that the
  * returned string is a literal.
  */
+
+/*
+ *breif:搜索字符串对象.
+*/
 StringObject* dvmLookupImmortalInternedString(StringObject* strObj)
 {
     return lookupInternedString(strObj, true);
@@ -150,6 +175,10 @@ StringObject* dvmLookupImmortalInternedString(StringObject* strObj)
  * Returns true if the object is a weak interned string.  Any string
  * interned by the user is weak.
  */
+
+/*
+ *breif:判断字符串是否在gDvm的internedStrings中.
+*/
 bool dvmIsWeakInternedString(StringObject* strObj)
 {
     assert(strObj != NULL);
@@ -166,6 +195,10 @@ bool dvmIsWeakInternedString(StringObject* strObj)
 /*
  * Clear white references from the intern table.
  */
+
+/*
+ *breif:清理白色引用.
+*/
 void dvmGcDetachDeadInternedStrings(int (*isUnmarkedObject)(void *))
 {
     /* It's possible for a GC to happen before dvmStringInternStartup()

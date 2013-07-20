@@ -96,9 +96,16 @@ the way the stack works.
 */
 
 /* fwd */
+
+/*
+ *breif:初始化异常.只是接口.
+*/
 static bool initException(Object* exception, const char* msg, Object* cause,
     Thread* self);
 
+/*
+ *breif:跑出带有参数的异常.
+*/
 void dvmThrowExceptionFmtV(ClassObject* exceptionClass,
     const char* fmt, va_list args)
 {
@@ -108,6 +115,9 @@ void dvmThrowExceptionFmtV(ClassObject* exceptionClass,
     dvmThrowChainedException(exceptionClass, msgBuf, NULL);
 }
 
+/*
+ *breif:向异常链表抛出异常.
+*/
 void dvmThrowChainedException(ClassObject* excepClass, const char* msg,
     Object* cause)
 {
@@ -184,6 +194,9 @@ bail:
     dvmReleaseTrackedAlloc(exception, self);
 }
 
+/*
+ *breif:处理异常链表消息.
+*/
 void dvmThrowChainedExceptionWithClassMessage(
     ClassObject* exceptionClass, const char* messageDescriptor,
     Object* cause)
@@ -198,6 +211,10 @@ void dvmThrowChainedExceptionWithClassMessage(
  * Find and return an exception constructor method that can take the
  * indicated parameters, or return NULL if no such constructor exists.
  */
+
+/*
+ *breif:查找并返回一个异常构造方法.
+*/
 static Method* findExceptionInitMethod(ClassObject* excepClass,
     bool hasMessage, bool hasCause)
 {
@@ -244,6 +261,10 @@ static Method* findExceptionInitMethod(ClassObject* excepClass,
  * exception (e.g., OutOfMemoryError) to be thrown, return an error
  * and leave self->exception intact.
  */
+
+/*
+ *breif:用适当的构造函数初始化一个异常.
+*/
 static bool initException(Object* exception, const char* msg, Object* cause,
     Thread* self)
 {
@@ -457,6 +478,10 @@ bail:
  * This can also be called when the VM is in a "normal" state, e.g. when
  * verifying classes that couldn't be verified at optimization time.
  */
+
+/*
+ *breif:清理挂起的异常.
+*/
 void dvmClearOptException(Thread* self)
 {
     self->exception = NULL;
@@ -466,6 +491,10 @@ void dvmClearOptException(Thread* self)
  * Returns "true" if this is a "checked" exception, i.e. it's a subclass
  * of Throwable (assumed) but not a subclass of RuntimeException or Error.
  */
+
+/*
+ *breif:若是选中的异常返回true.
+*/
 bool dvmIsCheckedException(const Object* exception)
 {
     if (dvmInstanceof(exception->clazz, gDvm.exError) ||
@@ -485,6 +514,10 @@ bool dvmIsCheckedException(const Object* exception)
  * If something fails, an (unchecked) exception related to that failure
  * will be pending instead.
  */
+
+/*
+ *breif:包装一个异常.
+*/
 void dvmWrapException(const char* newExcepStr)
 {
     Thread* self = dvmThreadSelf();
@@ -536,6 +569,10 @@ void dvmWrapException(const char* newExcepStr)
  * differentiate between being initialized to null and never being
  * initialized.  We check for that here and convert it to NULL.
  */
+
+/*
+ *breif:获取异常的触发字段.
+*/
 Object* dvmGetExceptionCause(const Object* exception)
 {
     if (!dvmInstanceof(exception->clazz, gDvm.exThrowable)) {
@@ -561,6 +598,10 @@ Object* dvmGetExceptionCause(const Object* exception)
  * Exceptions thrown during the course of printing the stack trace are
  * ignored.
  */
+
+/*
+ *breif:打印跟踪栈上的当前异常.被JNI ExceptionDescribe调用.
+*/
 void dvmPrintExceptionStackTrace()
 {
     Thread* self = dvmThreadSelf();
@@ -597,6 +638,10 @@ void dvmPrintExceptionStackTrace()
  *
  * Returns the offset of the catch block on success, or -1 on failure.
  */
+
+/*
+ *breif:搜索匹配的异常的方法链表.
+*/
 static int findCatchInMethod(Thread* self, const Method* method, int relPc,
     ClassObject* excepClass)
 {
@@ -712,6 +757,10 @@ static int findCatchInMethod(Thread* self, const Method* method, int relPc,
  * Sets *newFrame to the frame pointer of the frame with the catch block.
  * If "scanOnly" is false, self->interpSave.curFrame is also set to this value.
  */
+
+/*
+ *breif:查找匹配的catch块.
+*/
 int dvmFindCatchBlock(Thread* self, int relPc, Object* exception,
     bool scanOnly, void** newFrame)
 {
@@ -820,6 +869,10 @@ int dvmFindCatchBlock(Thread* self, int relPc, Object* exception,
  * NOTE: if we support class unloading, we will need to scan the class
  * object references out of these arrays.
  */
+
+/*
+ *breif:填充异常堆栈跟踪栈.
+*/
 void* dvmFillInStackTraceInternal(Thread* thread, bool wantObject, size_t* pCount)
 {
     ArrayObject* stackData = NULL;
@@ -946,6 +999,10 @@ bail:
  *
  * The returned array is not added to the "local refs" list.
  */
+
+/*
+ *breif:将跟踪战的内容生成数组.
+*/
 ArrayObject* dvmGetStackTrace(const Object* ostackData)
 {
     const ArrayObject* stackData = (const ArrayObject*) ostackData;
@@ -962,6 +1019,10 @@ ArrayObject* dvmGetStackTrace(const Object* ostackData)
  *
  * The returned array is not added to the "local refs" list.
  */
+
+/*
+ *breif:获取跟踪栈的原始数据.
+*/
 ArrayObject* dvmGetStackTraceRaw(const int* intVals, size_t stackDepth)
 {
     /* allocate a StackTraceElement array */
@@ -980,6 +1041,10 @@ ArrayObject* dvmGetStackTraceRaw(const int* intVals, size_t stackDepth)
  *
  * "intVals" points to the first {method,pc} pair.
  */
+
+/*
+ *breif:填充跟踪栈的元素.
+*/
 void dvmFillStackTraceElements(const int* intVals, size_t stackDepth, ArrayObject* steArray)
 {
     unsigned int i;
@@ -1041,6 +1106,10 @@ void dvmFillStackTraceElements(const int* intVals, size_t stackDepth, ArrayObjec
 /*
  * Dump the contents of a raw stack trace to the log.
  */
+
+/*
+ *breif:原始堆栈跟踪的转储日志.
+*/
 void dvmLogRawStackTrace(const int* intVals, int stackDepth) {
     /*
      * Run through the array of stack frame data.
@@ -1069,6 +1138,10 @@ void dvmLogRawStackTrace(const int* intVals, int stackDepth) {
  * we encountered a failure trying to retrieve it.  The string will
  * be added to the tracked references table.
  */
+
+/*
+ *breif:获取异常的消息字符串.
+*/
 static StringObject* getExceptionMessage(Object* exception)
 {
     Thread* self = dvmThreadSelf();
@@ -1120,6 +1193,10 @@ static StringObject* getExceptionMessage(Object* exception)
 /*
  * Print the direct stack trace of the given exception to the log.
  */
+
+/*
+ *breif:直接打印跟踪栈给定的异常日志.
+*/
 static void logStackTraceOf(Object* exception) {
     std::string className(dvmHumanReadableDescriptor(exception->clazz->descriptor));
     StringObject* messageStr = getExceptionMessage(exception);
@@ -1159,6 +1236,10 @@ static void logStackTraceOf(Object* exception) {
  * the stored stack trace and process it internally instead of calling
  * interpreted code.
  */
+
+/*
+ *breif:打印当前线程跟踪栈信息，以及任何异常链的跟踪信息.
+*/
 void dvmLogExceptionStackTrace()
 {
     Object* exception = dvmThreadSelf()->exception;
@@ -1186,6 +1267,10 @@ void dvmLogExceptionStackTrace()
  * "%s" is used exactly twice, first for a received class and second
  * for the expected class.
  */
+
+/*
+ *breif:抛出类型异常.
+*/
 static void throwTypeError(ClassObject* exceptionClass, const char* fmt,
     ClassObject* actual, ClassObject* desired)
 {
