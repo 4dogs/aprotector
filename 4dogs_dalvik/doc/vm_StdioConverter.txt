@@ -1,4 +1,4 @@
-[�������]
-��ģ��ʵ��Ϊһ���������̣߳���ȡstdout/stderr����������ҽ���ת��Ϊ��־��Ϣ��
-�Ƿ�Ҫ��������߳���ͨ��ȫ������������е�һ���ֶΣ�gDvm.logStdio�������Ƶġ�
-����ֶε��ж�����dvmInitAfterZygote���жϵġ�
+[整体介绍]
+该模块实现为一个单独的线程，读取stdout/stderr的输出，并且将其转换为日志消息。
+是否要开启这个线程是通过全局虚拟机对象中的一个字段（gDvm.logStdio）来控制的。
+这个字段的判断是在dvmInitAfterZygote中判断的。

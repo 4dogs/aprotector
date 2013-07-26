@@ -1,118 +1,118 @@
-[�������]
-analysisģ����dalvik�������һ�����ɻ�ȱ��ģ�飬��VM���ص�DEX�ļ���Jar����ش���������Ԥ������У�飬�Ż�����Ҫ���ܡ��漰��libdex�������ĵ��á�
-analysisģ��������Ҫ����ڲ�����bootClassPathStr(�����в����򻷾�����)��ͨ��������ϵͳ�����DEX�ļ���Jar�ļ������������н�����ģ��ļ������ǣ�
-VM����DEX/Jar->����DEX/Jar->У��/�Ż���
+[整体介绍]
+analysis模块是dalvik虚拟机下一个不可或缺的模块，对VM加载的DEX文件和Jar做相关处理，包括预处理，校验，优化等重要功能。涉及到libdex核心类库的调用。
+analysis模块上游重要的入口参数是bootClassPathStr(命令行参数或环境变量)，通过它查找系统所需的DEX文件和Jar文件，并在随后进行解析。模块的简单流程是：
+VM加载DEX/Jar->解析DEX/Jar->校验/优化。
  
-[���豸DEX]
-���Ѵ����ڵ��豸DEX��Ϊ�����������ʼ����ͬʱͨ����������cmd�����кͻ������������DEX�ļ���Jar�ļ���
-dalvik\vm\Init.cpp->if (!dvmClassStartup()) {return "dvmClassStartup failed";} /* �������������ʼ����� */
-dalvik\vm\oo\Class.cpp->processClassPath(gDvm.bootClassPathStr, true); /* ����������·��ֵ */
-dalvik\vm\oo\Class.cpp->static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap) /* ׼����·��ʵ��ṹ */
-Func1():dalvik\vm\JarFile.cpp->dvmJarFileOpen(cpe->fileName, NULL, &pJarFile, isBootstrap) /* �����෽�� */
-Func2():dalvik\vm\JarFile.cpp->dvmRawDexFileOpen(cpe->fileName, NULL, &pRawDexFile, isBootstrap) /* �����෽�� */
-����2�������෽����DEX�ļ�/Jar�ļ���
-dalvik\vm\RawDexFile.cpp->if (verifyMagicAndGetAdler32(dexFd, &adler32) < 0) /* У��magicֵ */
+[打开设备DEX]
+打开已存在于的设备DEX是为了在虚拟机初始化的同时通过加载来自cmd命令行和环境变量定义的DEX文件和Jar文件。
+dalvik\vm\Init.cpp->if (!dvmClassStartup()) {return "dvmClassStartup failed";} /* 引导类加载器初始化入口 */
+dalvik\vm\oo\Class.cpp->processClassPath(gDvm.bootClassPathStr, true); /* 传入引导类路径值 */
+dalvik\vm\oo\Class.cpp->static bool prepareCpe(ClassPathEntry* cpe, bool isBootstrap) /* 准备类路径实体结构 */
+Func1():dalvik\vm\JarFile.cpp->dvmJarFileOpen(cpe->fileName, NULL, &pJarFile, isBootstrap) /* 工具类方法 */
+Func2():dalvik\vm\JarFile.cpp->dvmRawDexFileOpen(cpe->fileName, NULL, &pRawDexFile, isBootstrap) /* 工具类方法 */
+以上2个工具类方法打开DEX文件/Jar文件。
+dalvik\vm\RawDexFile.cpp->if (verifyMagicAndGetAdler32(dexFd, &adler32) < 0) /* 校验magic值 */
 optFd = dvmOpenCachedDexFile(fileName, cachedName, modTime,
-        adler32, isBootstrap, &newFile, /*createIfMissing=*/true); /* �򿪻���DEX�ļ���У����¾��ļ����� */
+        adler32, isBootstrap, &newFile, /*createIfMissing=*/true); /* 打开缓存DEX文件；校验后新旧文件更替 */
 result = dvmOptimizeDexFile(optFd, dexOffset, fileSize,
-         fileName, modTime, adler32, isBootstrap); /* ��������ļ������DEX�ļ��Ż� */
-dvmOptimizeDexFile()�����ⲿ��������DEX�ʼ۽����Ż��������ڴ������й¶�ȴ�����
-����1:static const char* kDexOptBin = "/bin/dexopt"; /* dexopt�Ż�����/���� */
-����2:static const char* kValgrinder = "/usr/bin/valgrind"; /* �ڴ����/й¶�ȼ�鹤�� */
-�Ż�����Ϊ������в����ͽ������㣬�Ե�ǰ���̽���fork(),�����в���ѡ��׼����Ϻ�ִ��execv(kValgrinder, const_cast<char**>(argv));
-dalvik\vm\RawDexFile.cpp->if (dvmDexFileOpenFromFd(optFd, &pDvmDex) != 0) /* ���Ż�����DEX�ļ�ӳ�䵽�����ڴ沢�ҽ������� */
-���豸�ļ���ϡ�
+         fileName, modTime, adler32, isBootstrap); /* 如果是新文件，则对DEX文件优化 */
+dvmOptimizeDexFile()调用外部工具来对DEX问价进行优化并进行内存分析、泄露等处理。
+工具1:static const char* kDexOptBin = "/bin/dexopt"; /* dexopt优化工具/命令 */
+工具2:static const char* kValgrinder = "/usr/bin/valgrind"; /* 内存分析/泄露等检查工具 */
+优化方法为方便进行操作和交互方便，对当前进程进行fork(),将所有参数选项准备完毕后，执行execv(kValgrinder, const_cast<char**>(argv));
+dalvik\vm\RawDexFile.cpp->if (dvmDexFileOpenFromFd(optFd, &pDvmDex) != 0) /* 将优化过的DEX文件映射到共享内存并且解析内容 */
+打开设备文件完毕。
 
-[dexopt�Ż�����]
-����������Ż�DEX�е����ļ��Ļ�������ȫ�İ취���ǰ���������ص�VM��Ȼ������һ�飬����ʧ�ܵľ���û��verification��optimization�ġ����ǣ����������һЩ�����ͷŵ���Դ�����磬���ر��ؿ�ʱ�����ԣ�����ʹ�����г�����Ǹ�VM������
-���ǵĽ����������ʹ��dexopt������������ʼ��һ��VM������DEX�ļ���ִ��verification��optimization���̡���ɺ󣬽����˳����ͷ�������Դ����������У�Ҳ���Զ��VMʹ��ͬһ��DEX��file lock����dexoptֻ����һ�Ρ�
+[dexopt优化工具]
+如果我们想优化DEX中的类文件的话，最简单最安全的办法就是把所有类加载到VM中然后运行一遍，运行失败的就是没有verification和optimization的。但是，这样会分配一些很难释放的资源。比如，加载本地库时。所以，不能使用运行程序的那个VM来做。
+我们的解决方案就是使用dexopt这个程序，它会初始化一个VM，加载DEX文件并执行verification和optimization过程。完成后，进程退出，释放所有资源。这个过程中，也可以多个VM使用同一个DEX。file lock会让dexopt只运行一次。
 
-[׼��DEX]
-DEX׼����Ϊ�˽���VM�ܹ������������ڴ�DEX��������̶������DEX�ļ��ṹ�ĳ�ʼ���͸�ֵ��
-dalvik\vm\native\Dalvik_system_Dexfile.cpp->dvmRawDexFileOpenArray(pBytes, length, &pRawDexFile) /* ���ֽ�����DexFile�ļ� */
-dalvik\vm\analysis\DexPrepare.cpp->dvmPrepareDexInMemory(u1* addr, size_t len, DvmDex** ppDvmDex) /* ׼���ڴ�DEX�ڴ�ӳ���ļ� */
-��׼��DEX�ڴ�ӳ��ʱ�������ܶ��޸���У�鴦����������DEX�ļ��ṹ�����ԡ�
-���磺dalvik\libdex\DexSwapVerify.cpp->dexHasValidMagic(pHeader) /* У��magicħ���ֶΣ�magic 0x0 8 'Magic'ֵ����ħ���ֶΣ���ʽ�硱dex/n035/0�������е�035��ʾ�ṹ�İ汾�� 
+[准备DEX]
+DEX准备是为了交给VM能够真正处理的内存DEX，这个工程对完成了DEX文件结构的初始化和赋值。
+dalvik\vm\native\Dalvik_system_Dexfile.cpp->dvmRawDexFileOpenArray(pBytes, length, &pRawDexFile) /* 打开字节数组DexFile文件 */
+dalvik\vm\analysis\DexPrepare.cpp->dvmPrepareDexInMemory(u1* addr, size_t len, DvmDex** ppDvmDex) /* 准备内存DEX内存映射文件 */
+在准备DEX内存映射时，会做很多修复和校验处理，必须检查DEX文件结构完整性。
+例如：dalvik\libdex\DexSwapVerify.cpp->dexHasValidMagic(pHeader) /* 校验magic魔术字段；magic 0x0 8 'Magic'值，即魔数字段，格式如”dex/n035/0”，其中的035表示结构的版本。 
 */
 if (adler != expectedChecksum) {
     ALOGE("ERROR: bad checksum (%08lx, expected %08x)",
         adler, expectedChecksum);
     okay = false;
-} /* ����checksum�����ֵ��ƥ�䣬�쳣 */
-dalvik\vm\analysis\DexPrepare.cpp->dvmDexFileOpenPartial(addr, len, &pDvmDex) /* ����DEX�ļ����ݽṹ�� */
-dalvik\vm\analysis\DexPrepare.cpp->Ϊ����ṹ���ʼ������pClassLookup = dexCreateClassLookup(pDvmDex->pDexFile)�������������б���
-����ο���dalvik\libdex\DexFile.h->struct DexClassLookup���ݽṹ��
-dalvik\vm\analysis\DexPrepare.cpp->if (!loadAllClasses(pDvmDex)) goto bail; /* ��������DEX�ļ��е��ࣻ�������ʧ������ȥУ�� */
-dalvik\vm\analysis\DexPrepare.cpp->static bool loadAllClasses(DvmDex* pDvmDex)�÷���ͨ��dvmFindRequiredClassesAndMembers()���VM������Ҫ�����������ݽṹ��Ա�ĳ�ʼ�������磺���͡����췽�������õȵȡ�
-dalvik\vm\analysis\DexPrepare.cpp->dvmInitClass(gDvm.classJavaLangClass))�����Ϲ���׼�������󣬿�ʼ��ʼ�����ԭ��classJavaLangClass�����ҽ���class�ļ�У�顣
-dalvik\vm\analysis\DexPrepare.cpp->verifyAndOptimizeClasses(pDvmDex->pDexFile, doVerify, doOpt); /* �������У����Ż� */
-���ˣ�DEX׼����ϡ�
+} /* 计算checksum，如果值不匹配，异常 */
+dalvik\vm\analysis\DexPrepare.cpp->dvmDexFileOpenPartial(addr, len, &pDvmDex) /* 生成DEX文件数据结构体 */
+dalvik\vm\analysis\DexPrepare.cpp->为方便结构体初始化调用pClassLookup = dexCreateClassLookup(pDvmDex->pDexFile)，创建类索引列表。
+具体参考：dalvik\libdex\DexFile.h->struct DexClassLookup数据结构。
+dalvik\vm\analysis\DexPrepare.cpp->if (!loadAllClasses(pDvmDex)) goto bail; /* 加载所有DEX文件中的类；如果加载失败则不再去校验 */
+dalvik\vm\analysis\DexPrepare.cpp->static bool loadAllClasses(DvmDex* pDvmDex)该方法通过dvmFindRequiredClassesAndMembers()完成VM必须需要的类的相关数据结构成员的初始化，比如：类型、构造方法、引用等等。
+dalvik\vm\analysis\DexPrepare.cpp->dvmInitClass(gDvm.classJavaLangClass))当以上工作准备就绪后，开始初始化类的原型classJavaLangClass，并且进行class文件校验。
+dalvik\vm\analysis\DexPrepare.cpp->verifyAndOptimizeClasses(pDvmDex->pDexFile, doVerify, doOpt); /* 进行类的校验和优化 */
+至此，DEX准备完毕。
 
-[ָ�̬У��]
+[指令静态校验]
 dalvik\vm\analysis\DexVerify.cpp->verifyInstructions()
-�ֽ����verification�����漰��ÿ��DEX�ļ��е�����������е����з����е�ָ�Ŀ����Ǽ��Ƿ�ָ�����У����������Ժ����е�ʱ��Ͳ��ع��ˡ�����������漰�����������Ҳ������GC�����С�
-����Ч���ϵĿ��ǣ�optimization�����verification�Ѿ��ɹ�����ͨ����Ĭ������£�dalvik������������verification����ֻ��verification�ɹ�����ִ��optimization���ڽ���verification�����г���ʧ��ʱ�����ǲ�һ���ᱨ�棨�����ڲ�ͬ�İ��е���һ�����÷�ΧΪ���ڵ��ࣩ�����ǻ���ִ��ʱ�׳�һ���쳣����Ϊ���ÿ�������ķ���Ȩ�޺�����
-ִ��verification�ɹ�������ODEX�ļ�����һ��flag set�������Ǳ�����ʱ���Ͳ����ٽ���verification��linuxϵͳ�İ�ȫ���ƻ��ֹ����ļ����ƻ�������������ƹ�ȥ��������ȥ�ƻ����ġ�ODEX�ļ���һ��32-bit��checksum����ֻ����һ�����ټ�顣
+字节码的verification过程涉及到每个DEX文件中的所有类和类中的所有方法中的指令。目标就是检查非法指令序列，这样做完以后，运行的时候就不必管了。这个过程中涉及到的许多计算也存在于GC过程中。
+出于效率上的考虑，optimization会假设verification已经成功运行通过。默认情况下，dalvik会对所有类进行verification，而只对verification成功的类执行optimization。在进行verification过程中出现失败时，我们不一定会报告（比如在不同的包中调用一个作用范围为包内的类），我们会在执行时抛出一个异常。因为检查每个方法的访问权限很慢。
+执行verification成功的类在ODEX文件中有一个flag set，当它们被加载时，就不会再进行verification。linux系统的安全机制会防止这个文件被破坏，但如果你能绕过去，还是能去破坏它的。ODEX文件有一个32-bit的checksum，但只能做一个快速检查。
 
-[������ָ��У��]
+[代码流指令校验]
 dalvik\vm\analysis\CodeVerify.cpp->doCodeVerification()
 
-[��������]
+[生命周期]
 
 <dalvik\vm\analysis\DexPrepare.cpp>
-    Dexprepare.cpp�ļ���һ����Ԥ�������ࡣVM����bootClassPathStr(�����в����򻷾�����)��Dexprepare.cppͨ��dvmJarFileOpen()��dvmRawDexFileOpen()����׼��������·���µ�DEX�ļ���Jar�ļ���dvmOptimizeDexFile()ִ��У����Ż���ͬʱ���ļ��ĸ�������������������DexVerify.cpp��������class�ļ���У��ǰ׼������ǰ�������ͻ�����
-/dalvik/vm/oo/class.cpp->dvmClassStartup()->processClassPath()->prepareCpe()������һ����ڵ㡣
+    Dexprepare.cpp文件是一个“预处理”类。VM加载bootClassPathStr(命令行参数或环境变量)，Dexprepare.cpp通过dvmJarFileOpen()和dvmRawDexFileOpen()函数准备引导类路径下的DEX文件和Jar文件，dvmOptimizeDexFile()执行校验或优化；同时对文件的各种依赖做处理。它在DexVerify.cpp对真正的class文件做校验前准备好其前置条件和环境。
+/dalvik/vm/oo/class.cpp->dvmClassStartup()->processClassPath()->prepareCpe()是其中一个入口点。
 
 <dalvik\vm\analysis\DexVerify.cpp>
-    DexVerify.cpp��һ��У���ࣻУ��Dalvik�ࣨclassfile���ļ����ṩ���ࣨclass��У�顢����(method)У�顢ָ�instruction����̬У���static(δ����)������
-��Ҫ�����ο����£�
+    DexVerify.cpp是一个校验类；校验Dalvik类（classfile）文件，提供了类（class）校验、方法(method)校验、指令（instruction）静态校验等static(未导出)函数。
+重要方法参考如下：
 /* 
-У�鵥������ 
-У���3�δ�����
-(1) �������д��뵥Ԫ��ȷ��ָ��λ�ã����ȣ�������������
-(2) �������д��뵥Ԫ���Բ�����ִ�о�̬��顣
-(3) ͨ������������������Ͱ�ȫ����Ѱ�Ҵ����������⡣
+校验单个方法 
+校验分3次处理：
+(1) 遍历所有代码单元，确定指令位置，宽度，和其它特征。
+(2) 遍历所有代码单元，对操作码执行静态检查。
+(3) 通过方法迭代，检查类型安全并且寻找代码流的问题。
 */
 static bool verifyMethod(Method* meth); 
 /* 
-��̬У��ָ��
-��������������ֵָ���ָ��ָ������飻����̬���ֻ������޵�ָ����ָ�
+静态校验指令
+遍历方法中所有值指令，对指定指令做检查；即静态检查只检查有限的指定的指令。
 */
 static bool verifyInstructions(VerifierData* vdata); 
-    dvmVerifyClass()�Ǹ�����ڵ㣬�����ClassObject* clazz(�����ָ��)��ΪverifyMethod()��verifyInstructions()�Ĳ����ṩ�����á���ֵ�ͳ�ʼ�����Ƿǳ���Ҫ�ķ���������
-    һ��������У��ĵ��ô����ǣ�/* У���� */dvmVerifyClass()->/* У�鷽�� */verifyMethod()->/* ȡָ����Ⱥͼ��� */computeWidthsAndCountOps()->/* ����δ��ʼ��ʵ������ */dvmCreateUninitInstanceMap()->/* ɨ��try...catch�� */scanTryCatchBlocks()->/* У��ָ�� */verifyInstructions()->/* У������� */dvmVerifyCodeFlow()->(... �ͷ�/���� ...)������һ����������
+    dvmVerifyClass()是该类入口点，其参数ClassObject* clazz(类对象指针)，为verifyMethod()和verifyInstructions()的参数提供了引用、赋值和初始化；是非常重要的方法参数。
+    一个完整类校验的调用次序是：/* 校验类 */dvmVerifyClass()->/* 校验方法 */verifyMethod()->/* 取指令宽度和计数 */computeWidthsAndCountOps()->/* 创建未初始化实例集合 */dvmCreateUninitInstanceMap()->/* 扫描try...catch块 */scanTryCatchBlocks()->/* 校验指令 */verifyInstructions()->/* 校验代码流 */dvmVerifyCodeFlow()->(... 释放/销毁 ...)；这是一条方法链。
 
 <dalvik\vm\analysis\CodeVerify.cpp>
-    CodeVerify.cpp�����VM���ֽ���У�鹦�ܣ����ݲ�ͬ��У��ģʽ���ֽ�����code�����﷨��������ÿһ��ָ��չ������У�飻У�����ǩ������������������ȵȣ��ṩ�ܶ๤�ߺ�������
+    CodeVerify.cpp完成了VM的字节码校验功能，根据不同的校验模式对字节流中code做简单语法分析，对每一条指令按照规则进行校验；校验包括签名、参数、代码流向等等，提供很多工具函数；。
 bool dvmVerifyCodeFlow(VerifierData* vdata) 
-    һ�������Ĵ�����У��ĵ��ô����ǣ�/* ������ͺϲ��� */verifyPrep()->/* ��ʼ���Ĵ����� */initRegisterTable()->/* ���㷽����������� */dvmComputeVfyBasicBlocks()->/* ������������ */dvmComputeLiveness()->/* ���÷���ǩ���Ĵ������� */setTypesFromSignature()->/* ����У�� */doCodeVerification()->/* ���ɼĴ���map */dvmGenerateRegisterMapV()
-doCodeVerification()�����Ƿǳ���Ҫ�ĺ���������ָ����룬��ÿ��ָ������ϸ������ָ��У��Ĺ��������У����䷱�� ..
+    一个完整的代码流校验的调用次序是：/* 检查类型合并表 */verifyPrep()->/* 初始化寄存器表 */initRegisterTable()->/* 计算方法基本程序块 */dvmComputeVfyBasicBlocks()->/* 计算生命周期 */dvmComputeLiveness()->/* 设置方法签名寄存器类型 */setTypesFromSignature()->/* 代码校验 */doCodeVerification()->/* 生成寄存器map */dvmGenerateRegisterMapV()
+doCodeVerification()函数是非常重要的函数，它将指令解码，对每条指令做详细处理，指令校验的规则都在其中，及其繁琐 ..
 
 <dalvik\vm\analysis\VfyBasicBlock.cpp>
-VfyBasicBlock.cpp����CodeVerify.cpp��ɴ���У�鹦�ܣ����ڴӴ���������ȡ���������ṹBasicBlock(���BB)�����﷨���˼򵥽���������һЩ��ʼ���ͱ�ʶ������
+VfyBasicBlock.cpp辅助CodeVerify.cpp完成代码校验功能，用于从代码流中提取基本程序块结构BasicBlock(简称BB)，对语法做了简单解析，并作一些初始化和标识操作。
 
 <dalvik\vm\analysis\Optimize.cpp>
-Optimize.cpp��class�ļ��ֽ������Ż���
-VM�������ڵ�һ������һ�δ���ʱ����һЩoptimization�����磬�ѳ����������滻��ָ���ڲ����ݽṹ��ָ�룬һЩ��Զ�ɹ��Ĳ�����̶��Ĵ��뱻�滻�ɸ��򵥵���ʽ������Щoptimization��Ҫ����Ϣ�е�ֻ��������ʱ�õ����еĿ����ƶϳ�����
-�μ�dalvik\vm\analysis\Optimize.cpp->static void optimizeMethod(Method* method, bool essentialOnly)
-dalvik�����Ż������¼��㣺
-1.�����鷽���ĵ��ã��ѷ��������޸ĳ�vtable������
-2.��field��get/put�޸ĳ��ֽ�ƫ��������boolean/byte/char/short�����͵ı����ϲ���һ��32-bit����ʽ�����ٵĴ�����Ը���Ч������CPU��I-cache��
-3.��һЩ����ʹ�õļ򵥷�������inline������String.length()�������ܼ��ٷ������õĿ�����
-4.ɾ���շ�����
-5.����һЩ����õ����ݡ����磬VM��Ҫһ��hash table�����������֣����ǾͿ�����Optimization�׶ν��м��㣬���÷ŵ�DEX���ص�ʱ���ˡ����е�ָ���޸Ķ���ʹ��һ��Dalvik��׼û�ж����ָ��ȥ�滻ԭ��ָ����������ǾͿ������Ż���û���Ż���ָ�����ɴ��䡣����Ĳ�����VM�汾�йء�
-Optimization�����������ط���Ҫ����ע�⣺
-1.VM������µĻ���vtable�������ֽ�ƫ�������ܻ���¡�
-2.�������DEX����������������һ��DEX���µĻ���ȷ���Ż����������ƫ������Ч��
+Optimize.cpp对class文件字节码做优化。
+VM解释器在第一次运行一段代码时会做一些optimization。比如，把常量池引用替换成指向内部数据结构的指针，一些永远成功的操作或固定的代码被替换成更简单的形式。做这些optimization需要的信息有的只能在运行时得到，有的可以推断出来。
+参见dalvik\vm\analysis\Optimize.cpp->static void optimizeMethod(Method* method, bool essentialOnly)
+dalvik代码优化有以下几点：
+1.对于虚方法的调用，把方法索引修改成vtable索引。
+2.把field的get/put修改成字节偏移量。把boolean/byte/char/short等类型的变量合并到一个32-bit的形式，更少的代码可以更有效地利用CPU的I-cache。
+3.把一些大量使用的简单方法进行inline，比如String.length()。这样能减少方法调用的开销。
+4.删除空方法。
+5.加入一些计算好的数据。比如，VM需要一个hash table来查找类名字，我们就可以在Optimization阶段进行计算，不用放到DEX加载的时候了。所有的指令修改都是使用一个Dalvik标准没有定义的指令去替换原有指令。这样，我们就可以让优化和没有优化的指令自由搭配。具体的操作与VM版本有关。
+Optimization过程有两个地方需要我们注意：
+1.VM如果更新的话，vtable索引和字节偏移量可能会更新。
+2.如果两个DEX互相信赖，而其中一个DEX更新的话，确保优化后的索引和偏移量有效。
 
 <dalvik\vm\analysis\Liveness.cpp>
-Liveness.cpp�ڴ�����У������ɶ�ָ��Ĵ����������ڵļ�⣬����GC������������Ծ�ȱ�־��
+Liveness.cpp在代码流校验中完成对指令寄存器生命周期的检测，辅助GC垃圾回收做活跃度标志。
 
 <dalvik\vm\analysis\RegisterMap.cpp>
     ...    
 
 <dalvik\vm\analysis\VerifySubs.cpp>
-һ����У������ṩ����У�鹦�ܣ��ṩ��ʽ���ͼ����֧ƫ�Ƶȹ��ܡ�
+一个子校验程序，提供辅助校验功能；提供格式化和计算分支偏移等功能。
 
 
 

@@ -1,63 +1,63 @@
-[ÕûÌå½éÉÜ]
-ÊµÏÖÁËAndroidÏµÍ³APIµÄJNI·½·¨
+[æ•´ä½“ä»‹ç»]
+å®žçŽ°äº†Androidç³»ç»ŸAPIçš„JNIæ–¹æ³•
 
-[JNI×¢²á¹ý³Ì]
+[JNIæ³¨å†Œè¿‡ç¨‹]
 
-1.¸ÅÊö
-¸ù¾ÝDalvikÐéÄâ»úµÄÔËÐÐ¹ý³Ì,´ÓÖÐ¿ÉÒÔÖªµÀ£¬DalvikÐéÄâ»úÔÚµ÷ÓÃÒ»¸ö³ÉÔ±º¯ÊýµÄÊ±ºò£¬Èç¹û·¢ÏÖ¸Ã³ÉÔ±º¯ÊýÊÇÒ»¸öJNI·½·¨£¬ÄÇÃ´¾Í»áÖ±½ÓÌøµ½ËüµÄµØÖ·È¥Ö´ÐÐ¡£Ò²¾ÍÊÇËµ£¬JNI·½·¨ÊÇÖ±½ÓÔÚ±¾µØ²Ù×÷ÏµÍ³ÉÏÖ´ÐÐµÄ£¬¶ø²»ÊÇÓÉDalvikÐéÄâ»ú½âÊÍÆ÷Ö´ÐÐ¡£ÓÉ´ËÒ²¿É¿´³ö£¬JNI·½·¨ÊÇAndroidÓ¦ÓÃ³ÌÐòÓë±¾µØ²Ù×÷ÏµÍ³Ö±½Ó½øÐÐÍ¨ÐÅµÄÒ»¸öÊÖ¶Î£¬ÔÚAndroidÏµÍ³ÖÐ£¬JNI·½·¨ÊÇÒÔC/C++ÓïÑÔÀ´ÊµÏÖµÄ£¬È»ºó±àÒëÔÚÒ»¸öSOÎÄ¼þÀïÃæ¡£Õâ¸öJNI·½·¨ÔÚÄÜ¹»±»µ÷ÓÃÖ®Ç°£¬Ê×ÏÈÒª¼ÓÔØµ½µ±Ç°Ó¦ÓÃ³ÌÐò½ø³ÌµÄµØÖ·¿Õ¼äÀ´
+1.æ¦‚è¿°
+æ ¹æ®Dalvikè™šæ‹Ÿæœºçš„è¿è¡Œè¿‡ç¨‹,ä»Žä¸­å¯ä»¥çŸ¥é“ï¼ŒDalvikè™šæ‹Ÿæœºåœ¨è°ƒç”¨ä¸€ä¸ªæˆå‘˜å‡½æ•°çš„æ—¶å€™ï¼Œå¦‚æžœå‘çŽ°è¯¥æˆå‘˜å‡½æ•°æ˜¯ä¸€ä¸ªJNIæ–¹æ³•ï¼Œé‚£ä¹ˆå°±ä¼šç›´æŽ¥è·³åˆ°å®ƒçš„åœ°å€åŽ»æ‰§è¡Œã€‚ä¹Ÿå°±æ˜¯è¯´ï¼ŒJNIæ–¹æ³•æ˜¯ç›´æŽ¥åœ¨æœ¬åœ°æ“ä½œç³»ç»Ÿä¸Šæ‰§è¡Œçš„ï¼Œè€Œä¸æ˜¯ç”±Dalvikè™šæ‹Ÿæœºè§£é‡Šå™¨æ‰§è¡Œã€‚ç”±æ­¤ä¹Ÿå¯çœ‹å‡ºï¼ŒJNIæ–¹æ³•æ˜¯Androidåº”ç”¨ç¨‹åºä¸Žæœ¬åœ°æ“ä½œç³»ç»Ÿç›´æŽ¥è¿›è¡Œé€šä¿¡çš„ä¸€ä¸ªæ‰‹æ®µï¼Œåœ¨Androidç³»ç»Ÿä¸­ï¼ŒJNIæ–¹æ³•æ˜¯ä»¥C/C++è¯­è¨€æ¥å®žçŽ°çš„ï¼Œç„¶åŽç¼–è¯‘åœ¨ä¸€ä¸ªSOæ–‡ä»¶é‡Œé¢ã€‚è¿™ä¸ªJNIæ–¹æ³•åœ¨èƒ½å¤Ÿè¢«è°ƒç”¨ä¹‹å‰ï¼Œé¦–å…ˆè¦åŠ è½½åˆ°å½“å‰åº”ç”¨ç¨‹åºè¿›ç¨‹çš„åœ°å€ç©ºé—´æ¥
 
-2.×¢²áÁ÷³Ì
+2.æ³¨å†Œæµç¨‹
 2.1 System.loadLibrary(String libraryName) [java/lang/System.java]   
-SystemÀàµÄ³ÉÔ±º¯ÊýloadLibraryÊ×ÏÈµ÷ÓÃSecurityManagerÀàµÄ³ÉÔ±º¯ÊýcheckLinkÀ´½øÐÐ°²È«¼ì²é£¬¼´¼ì²éÃû³ÆÎªlibNameµÄsoÎÄ¼þÊÇ·ñÔÊÐí¼ÓÔØ¡£×¢Òâ£¬ÕâÊÇJavaµÄ°²È«´úÂë¼ì²é»úÖÆ£¬¶ø²»ÊÇAndroidÏµÍ³µÄ°²È«¼ì²é»úÖÆ£¬¶øÇÒAndroidÏµÍ³Ã»ÓÐÊ¹ÓÃËüÀ´½øÐÐ°²È«¼ì²é¡£Òò´Ë£¬Õâ¸ö¼ì²é×ÜÊÇÄÜÍ¨¹ýµÄ£¬½ÓÏÂÀ´µ÷ÓÃ2.2
+Systemç±»çš„æˆå‘˜å‡½æ•°loadLibraryé¦–å…ˆè°ƒç”¨SecurityManagerç±»çš„æˆå‘˜å‡½æ•°checkLinkæ¥è¿›è¡Œå®‰å…¨æ£€æŸ¥ï¼Œå³æ£€æŸ¥åç§°ä¸ºlibNameçš„soæ–‡ä»¶æ˜¯å¦å…è®¸åŠ è½½ã€‚æ³¨æ„ï¼Œè¿™æ˜¯Javaçš„å®‰å…¨ä»£ç æ£€æŸ¥æœºåˆ¶ï¼Œè€Œä¸æ˜¯Androidç³»ç»Ÿçš„å®‰å…¨æ£€æŸ¥æœºåˆ¶ï¼Œè€Œä¸”Androidç³»ç»Ÿæ²¡æœ‰ä½¿ç”¨å®ƒæ¥è¿›è¡Œå®‰å…¨æ£€æŸ¥ã€‚å› æ­¤ï¼Œè¿™ä¸ªæ£€æŸ¥æ€»æ˜¯èƒ½é€šè¿‡çš„ï¼ŒæŽ¥ä¸‹æ¥è°ƒç”¨2.2
 
 2.2 Runtime.loadLibrary(String libraryName, ClassLoader loader) [java/lang/Runtime.java]
 
 2.3 Runtime.nativeLoad(String filename, ClassLoader loader) [java/lang/Runtime.java] 
-ËüÊÇÒ»¸öJNI·½·¨£¬ÓÉÓÚ¸ÃJNI·½·¨ÊÇÊôÓÚJavaºËÐÄÀàRuntimeµÄ£¬Ò²¾ÍÊÇËµ£¬ËüÔÚDalvikÐéÄâ»úÆô¶¯µÄÊ±ºò¾ÍÒÑ¾­ÔÚÄÚ²¿×¢²á¹ýÁË£¬Òò´Ë£¬ÕâÊ±ºòÎÒÃÇ¿ÉÒÔÖ±½Óµ÷ÓÃËü×¢²áÆäËüµÄJNI·½·¨¡£ËüµÄÊµÏÖÊÇÔÚdalvik/vm/native/java_lang_Runtime.cppÖÐÍê³ÉµÄ
-	2.3.1 dvmCreateCstrFromString() ½«Ëü×ª»»³ÉÒ»¸öC++²ãµÄ×Ö·û´®fileName,½ÓÏÂÀ´µ÷ÓÃ2.4Ö´ÐÐ¼ÓÔØsoÎÄ¼þµÄ²Ù×÷
+å®ƒæ˜¯ä¸€ä¸ªJNIæ–¹æ³•ï¼Œç”±äºŽè¯¥JNIæ–¹æ³•æ˜¯å±žäºŽJavaæ ¸å¿ƒç±»Runtimeçš„ï¼Œä¹Ÿå°±æ˜¯è¯´ï¼Œå®ƒåœ¨Dalvikè™šæ‹Ÿæœºå¯åŠ¨çš„æ—¶å€™å°±å·²ç»åœ¨å†…éƒ¨æ³¨å†Œè¿‡äº†ï¼Œå› æ­¤ï¼Œè¿™æ—¶å€™æˆ‘ä»¬å¯ä»¥ç›´æŽ¥è°ƒç”¨å®ƒæ³¨å†Œå…¶å®ƒçš„JNIæ–¹æ³•ã€‚å®ƒçš„å®žçŽ°æ˜¯åœ¨dalvik/vm/native/java_lang_Runtime.cppä¸­å®Œæˆçš„
+	2.3.1 dvmCreateCstrFromString() å°†å®ƒè½¬æ¢æˆä¸€ä¸ªC++å±‚çš„å­—ç¬¦ä¸²fileName,æŽ¥ä¸‹æ¥è°ƒç”¨2.4æ‰§è¡ŒåŠ è½½soæ–‡ä»¶çš„æ“ä½œ
 
-2.4 dvmLoadNativeCode£¨£©[dalvik/vm/Native.cpp]  
-	2.4.1 findSharedLibEntry() ¼ì²é²ÎÊýpathNameËùÖ¸¶¨µÄsoÎÄ¼þÊÇ·ñÒÑ¾­¼ÓÔØ¹ýÁË
+2.4 dvmLoadNativeCodeï¼ˆï¼‰[dalvik/vm/Native.cpp]  
+	2.4.1 findSharedLibEntry() æ£€æŸ¥å‚æ•°pathNameæ‰€æŒ‡å®šçš„soæ–‡ä»¶æ˜¯å¦å·²ç»åŠ è½½è¿‡äº†
 
-2.5 JNI_OnLoad(JavaVM* vm, void* reserved);  Ã¿Ò»¸öÓÃÀ´ÊµÏÖJNI·½·¨µÄsoÎÄ¼þ¶¼Ó¦¸Ã¶¨ÒåÓÐÒ»¸öÃû³ÆÎª¡°JNI_OnLoad¡±µÄº¯Êý
+2.5 JNI_OnLoad(JavaVM* vm, void* reserved);  æ¯ä¸€ä¸ªç”¨æ¥å®žçŽ°JNIæ–¹æ³•çš„soæ–‡ä»¶éƒ½åº”è¯¥å®šä¹‰æœ‰ä¸€ä¸ªåç§°ä¸ºâ€œJNI_OnLoadâ€çš„å‡½æ•°
 
 2.6 jniRegisterNativeMethods(jniRegisterNativeMethods(JNIEnv* env, const char* className,  const JNINativeMethod* gMethods, int numMethods) [JNIHelp.c]
-²ÎÊýenvËùÖ¸ÏòµÄÒ»¸öJNIEnv½á¹¹Ìå£¬Í¨¹ýµ÷ÓÃÕâ¸öJNIEnv½á¹¹Ìå¿ÉÒÔ»ñµÃ²ÎÊýclassNameËùÃèÊöµÄÒ»¸öÀà¡£Õâ¸öÀà¾ÍÊÇÒª×¢²áJNIµÄÀà£¬¶øËüËùÒª×¢²áµÄJNI¾ÍÊÇÓÉ²ÎÊýgMethodsÀ´ÃèÊöµÄ
+å‚æ•°envæ‰€æŒ‡å‘çš„ä¸€ä¸ªJNIEnvç»“æž„ä½“ï¼Œé€šè¿‡è°ƒç”¨è¿™ä¸ªJNIEnvç»“æž„ä½“å¯ä»¥èŽ·å¾—å‚æ•°classNameæ‰€æè¿°çš„ä¸€ä¸ªç±»ã€‚è¿™ä¸ªç±»å°±æ˜¯è¦æ³¨å†ŒJNIçš„ç±»ï¼Œè€Œå®ƒæ‰€è¦æ³¨å†Œçš„JNIå°±æ˜¯ç”±å‚æ•°gMethodsæ¥æè¿°çš„
 	2.6.1 RegisterNatives()[struct _JNIEnv ]
 
 2.7 RegisterNatives(JNIEnv* env, jclass jclazz, const JNINativeMethod* methods, jint nMethods) 
-²ÎÊýjclazzÃèÊöµÄÊÇÒª×¢²áJNI·½·¨µÄÀà£¬¶ø²ÎÊýmethodsÃèÊöµÄÊÇÒª×¢²áµÄÒ»×éJNI·½·¨£¬Õâ¸ö×éJNI·½·¨µÄ¸öÊýÓÉ²ÎÊýnMethodsÀ´ÃèÊö
-	2.7.1 dvmDecodeIndirectRef() »ñµÃÒª×¢²áJNI·½·¨µÄÀà¶ÔÏó,½ÓÏÂÀ´µ÷ÓÃ2.8
+å‚æ•°jclazzæè¿°çš„æ˜¯è¦æ³¨å†ŒJNIæ–¹æ³•çš„ç±»ï¼Œè€Œå‚æ•°methodsæè¿°çš„æ˜¯è¦æ³¨å†Œçš„ä¸€ç»„JNIæ–¹æ³•ï¼Œè¿™ä¸ªç»„JNIæ–¹æ³•çš„ä¸ªæ•°ç”±å‚æ•°nMethodsæ¥æè¿°
+	2.7.1 dvmDecodeIndirectRef() èŽ·å¾—è¦æ³¨å†ŒJNIæ–¹æ³•çš„ç±»å¯¹è±¡,æŽ¥ä¸‹æ¥è°ƒç”¨2.8
 
 2.8 dvmRegisterJNIMethod(ClassObject* clazz, const char* methodName,  const char* signature, void* fnPtr) [dalvik/vm/Jni.cpp]
-Í¨¹ýÒ»¸öforÑ­»·À´ÒÀ´Îµ÷ÓÃº¯ÊýdvmRegisterJNIMethod×¢²á²ÎÊýmethodsÃèÊöËùÃèÊöµÄÃ¿Ò»¸öJNI·½·¨¡£×¢Òâ£¬Ã¿Ò»¸öJNI·½·¨¶¼ÓÉÃû³Æ¡¢Ç©ÃûºÍµØÖ·À´ÃèÊö¡£
-	2.8.1 dvmFindDirectMethodByDescriptor() À´¼ì²émethodNameÊÇ·ñÊÇclazzµÄÒ»¸ö·ÇÐé³ÉÔ±º¯Êý
-	2.8.2 dvmFindVirtualMethodByDescriptor() À´¼ì²émethodNameÊÇ·ñÊÇclazzµÄÒ»¸öÐé³ÉÔ±º¯Êý
+é€šè¿‡ä¸€ä¸ªforå¾ªçŽ¯æ¥ä¾æ¬¡è°ƒç”¨å‡½æ•°dvmRegisterJNIMethodæ³¨å†Œå‚æ•°methodsæè¿°æ‰€æè¿°çš„æ¯ä¸€ä¸ªJNIæ–¹æ³•ã€‚æ³¨æ„ï¼Œæ¯ä¸€ä¸ªJNIæ–¹æ³•éƒ½ç”±åç§°ã€ç­¾åå’Œåœ°å€æ¥æè¿°ã€‚
+	2.8.1 dvmFindDirectMethodByDescriptor() æ¥æ£€æŸ¥methodNameæ˜¯å¦æ˜¯clazzçš„ä¸€ä¸ªéžè™šæˆå‘˜å‡½æ•°
+	2.8.2 dvmFindVirtualMethodByDescriptor() æ¥æ£€æŸ¥methodNameæ˜¯å¦æ˜¯clazzçš„ä¸€ä¸ªè™šæˆå‘˜å‡½æ•°
 
 2.9 dvmUseJNIBridge() [dalvik/vm/Jni.cpp] 
-Ö´ÐÐ×¢²áJNIµÄ²Ù×÷,Ò»¸öJNI·½·¨²¢²»ÊÇÖ±½Ó±»µ÷ÓÃµÄ£¬¶øÊÇÍ¨¹ýÓÉDalvikÐéÄâ»ú¼ä½ÓµØµ÷ÓÃ,Õâ¸öÓÃÀ´¼ä½Óµ÷ÓÃJNI·½·¨µÄº¯Êý¾Í³ÆÎªÒ»¸öBridge
+æ‰§è¡Œæ³¨å†ŒJNIçš„æ“ä½œ,ä¸€ä¸ªJNIæ–¹æ³•å¹¶ä¸æ˜¯ç›´æŽ¥è¢«è°ƒç”¨çš„ï¼Œè€Œæ˜¯é€šè¿‡ç”±Dalvikè™šæ‹Ÿæœºé—´æŽ¥åœ°è°ƒç”¨,è¿™ä¸ªç”¨æ¥é—´æŽ¥è°ƒç”¨JNIæ–¹æ³•çš„å‡½æ•°å°±ç§°ä¸ºä¸€ä¸ªBridge
 
-2.10 dvmSelectJNIBridge(const Method* method) [dalvik/vm/Jni.cpp] Ñ¡ÔñÒ»¸öºÏÊÊµÄBridgeº¯Êý
+2.10 dvmSelectJNIBridge(const Method* method) [dalvik/vm/Jni.cpp] é€‰æ‹©ä¸€ä¸ªåˆé€‚çš„Bridgeå‡½æ•°
 
-2.11 dvmSetNativeFunc() [dalvik/vm/oo/Class.cpp] Ö´ÐÐÕæÕýµÄJNI·½·¨×¢²á²Ù×÷
+2.11 dvmSetNativeFunc() [dalvik/vm/oo/Class.cpp] æ‰§è¡ŒçœŸæ­£çš„JNIæ–¹æ³•æ³¨å†Œæ“ä½œ
 
 [dalvik\vm\native\InternalNative.cpp]
-±¾µØº¯ÊýµÄÀà¿âµÄ³õÊ¼»¯ºÍÒ»Ð©³£ÓÃµÄ¹¦ÄÜº¯Êý
+æœ¬åœ°å‡½æ•°çš„ç±»åº“çš„åˆå§‹åŒ–å’Œä¸€äº›å¸¸ç”¨çš„åŠŸèƒ½å‡½æ•°
 
 [dalvik\vm\native\dalvik_system_DexFile.cpp]
-´¦ÀídexÎÄ¼þ£¬È¥´ò¿ªdexÎÄ¼þ£¬»ò´ò¿ª×Ö½ÚÊý×éËù´ú±íµÄdexÎÄ¼þµÈ
+å¤„ç†dexæ–‡ä»¶ï¼ŒåŽ»æ‰“å¼€dexæ–‡ä»¶ï¼Œæˆ–æ‰“å¼€å­—èŠ‚æ•°ç»„æ‰€ä»£è¡¨çš„dexæ–‡ä»¶ç­‰
 
 [dalvik\vm\native\dalvik_system_Zygote.cpp]
-´´½¨Ò»¸öDalvikÐéÄâ»ú½ø³ÌµÈ
+åˆ›å»ºä¸€ä¸ªDalvikè™šæ‹Ÿæœºè¿›ç¨‹ç­‰
 
 [dalvik\vm\java_lang_Runtime.cpp]
-¼ÓÔØsoÎÄ¼þ´úÂëµ÷ÓÃ£¬¹ØÓÚGC¶ÑµÄ²Ù×÷(eg.·µ»ØGC¶Ñ×ÜµÄÄÚ´æ×Ö½ÚÊý,...)
+åŠ è½½soæ–‡ä»¶ä»£ç è°ƒç”¨ï¼Œå…³äºŽGCå †çš„æ“ä½œ(eg.è¿”å›žGCå †æ€»çš„å†…å­˜å­—èŠ‚æ•°,...)
 
 [dalvik\vm\native\java_lang_VMThread.cpp]
-´´½¨Ò»¸öÏß³Ì,ÅÐ¶ÏÏß³ÌµÄÒ»Ð©×´Ì¬£¬ÉèÖÃÏß³ÌµÄÓÅÏÈ¼¶£¬ÅÐ¶ÏÏß³Ì¶ÔÏóÊÇ·ñÉÏËø
+åˆ›å»ºä¸€ä¸ªçº¿ç¨‹,åˆ¤æ–­çº¿ç¨‹çš„ä¸€äº›çŠ¶æ€ï¼Œè®¾ç½®çº¿ç¨‹çš„ä¼˜å…ˆçº§ï¼Œåˆ¤æ–­çº¿ç¨‹å¯¹è±¡æ˜¯å¦ä¸Šé”
 
 [dalvik\vm\native\java_lang_VMClassLoader.cpp]
-¼ÓÔØÀàµÄÏà¹Ø²Ù×÷£¬ÀýÈçÍ¨¹ýÀà¼ÓÔØÆ÷²éÕÒ²¢¼ÓÔØÒ»¸öÀà
+åŠ è½½ç±»çš„ç›¸å…³æ“ä½œï¼Œä¾‹å¦‚é€šè¿‡ç±»åŠ è½½å™¨æŸ¥æ‰¾å¹¶åŠ è½½ä¸€ä¸ªç±»
 
 
 

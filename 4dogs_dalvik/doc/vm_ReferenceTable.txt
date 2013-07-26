@@ -1,9 +1,9 @@
-ReferenceTable.h¶¨ÒåÁËReferenceTableµ¥ÏòÁ´±íÒýÓÃ½á¹¹£¬³ÖÓÐÒýÓÃ¶ÔÏóobjµÄpRef¡£
-ÒÑÖªµÄ3¸öÒýÓÃ±í½á¹¹·Ö±ðÊÇ£º
+ReferenceTable.hå®šä¹‰äº†ReferenceTableå•å‘é“¾è¡¨å¼•ç”¨ç»“æž„ï¼ŒæŒæœ‰å¼•ç”¨å¯¹è±¡objçš„pRefã€‚
+å·²çŸ¥çš„3ä¸ªå¼•ç”¨è¡¨ç»“æž„åˆ†åˆ«æ˜¯ï¼š
 dalvik/vm/Globals.h->ReferenceTable  jniPinRefTable; 
-dalvik/vm/Thread.h->ReferenceTable  internalLocalRefTable; /* ÓÃÓÚÄÚ²¿ÒýÓÃ¸ú×Ù */
-dalvik/vm/Thread.h->ReferenceTable  jniMonitorRefTable; /* JNI±¾µØ¼à¿ØÒýÓÃ£¬µÚÒ»´ÎÊ¹ÓÃÒÑ³õÊ¼»¯ */
-ÒýÓÃ±í³õÊ¼»¯£º
+dalvik/vm/Thread.h->ReferenceTable  internalLocalRefTable; /* ç”¨äºŽå†…éƒ¨å¼•ç”¨è·Ÿè¸ª */
+dalvik/vm/Thread.h->ReferenceTable  jniMonitorRefTable; /* JNIæœ¬åœ°ç›‘æŽ§å¼•ç”¨ï¼Œç¬¬ä¸€æ¬¡ä½¿ç”¨å·²åˆå§‹åŒ– */
+å¼•ç”¨è¡¨åˆå§‹åŒ–ï¼š
 dalvik/vm/Jni.cpp->dvmJniStartup() {
     ...
     if (!dvmInitReferenceTable(&gDvm.jniPinRefTable, kPinTableInitialSize, kPinTableMaxSize)) {
@@ -12,4 +12,4 @@ dalvik/vm/Jni.cpp->dvmJniStartup() {
     ...
 }
 
-NOTE_TO£º
+NOTE_TOï¼š

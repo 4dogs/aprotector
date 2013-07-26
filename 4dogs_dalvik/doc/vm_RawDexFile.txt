@@ -1,11 +1,11 @@
-RawDexFile.cppÖĞÓĞ2¸ö·Ç³£ÖØÒªµÄ·½·¨£º
+RawDexFile.cppä¸­æœ‰2ä¸ªéå¸¸é‡è¦çš„æ–¹æ³•ï¼š
 int dvmRawDexFileOpen(const char* fileName, const char* odexOutputName, 
-    RawDexFile** ppRawDexFile, bool isBootstrap); /* È«Â·¾¶´ò¿ªDEXÎÄ¼ş */
-int dvmRawDexFileOpenArray(u1* pBytes, u4 length, RawDexFile** ppRawDexFile); /* ÄÚ´æ´ò¿ªDEXÎÄ¼ş */
-[°ğ°ğ²Î¿¼]
-¿´Ñ©¶Ô°ğ°ğÕâ¸öÈí¼şÓĞÕâÑùÍÆ²â·ÖÎö£º
-1.¶ÁÈ¡dexFileNameÎÄ¼şÄÚÈİ²¢½âÃÜµ½byteÊı×é¡£
-2.µ÷ÓÃdexFileParseº¯Êı½âÎöbyteÊı×éÎªDexFile(´Ë´¦»áµ÷ÓÃµ½dvmRawDexFileOpenArray())
-3.µ÷ÓÃallocateAuxStructures(Õâ¸ö·½·¨À´×ÔÓÚdalvik/vm/DvmDex.cpp)×ª»»DexFileÎªDvmDex¡£
-4.Ìí¼ÓDvmDexµ½gDvm.userDexFiles¡£
-5.ĞŞ¸ÄMyDexClassLoaderÖĞµÄmDexs¶ÔÏóµÄmCookieÖµ£¬mCookieÖ÷ÒªÓÃÓÚÓ³Éäµ×²ãDvmDexÊı¾İDexClassLoader.mDexs[0].mCookieÖµ¡£
+    RawDexFile** ppRawDexFile, bool isBootstrap); /* å…¨è·¯å¾„æ‰“å¼€DEXæ–‡ä»¶ */
+int dvmRawDexFileOpenArray(u1* pBytes, u4 length, RawDexFile** ppRawDexFile); /* å†…å­˜æ‰“å¼€DEXæ–‡ä»¶ */
+[æ¢†æ¢†å‚è€ƒ]
+çœ‹é›ªå¯¹æ¢†æ¢†è¿™ä¸ªè½¯ä»¶æœ‰è¿™æ ·æ¨æµ‹åˆ†æï¼š
+1.è¯»å–dexFileNameæ–‡ä»¶å†…å®¹å¹¶è§£å¯†åˆ°byteæ•°ç»„ã€‚
+2.è°ƒç”¨dexFileParseå‡½æ•°è§£æbyteæ•°ç»„ä¸ºDexFile(æ­¤å¤„ä¼šè°ƒç”¨åˆ°dvmRawDexFileOpenArray())
+3.è°ƒç”¨allocateAuxStructures(è¿™ä¸ªæ–¹æ³•æ¥è‡ªäºdalvik/vm/DvmDex.cpp)è½¬æ¢DexFileä¸ºDvmDexã€‚
+4.æ·»åŠ DvmDexåˆ°gDvm.userDexFilesã€‚
+5.ä¿®æ”¹MyDexClassLoaderä¸­çš„mDexså¯¹è±¡çš„mCookieå€¼ï¼ŒmCookieä¸»è¦ç”¨äºæ˜ å°„åº•å±‚DvmDexæ•°æ®DexClassLoader.mDexs[0].mCookieå€¼ã€‚

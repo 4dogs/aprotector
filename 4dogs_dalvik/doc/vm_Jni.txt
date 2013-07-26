@@ -1,26 +1,26 @@
-Õâ¸ö²¿·Ö¿ÉÒÔÏÈ²Î¿¼ÏÂÀÏÂÞ²©¿Í£ºhttp://blog.csdn.net/luoshengyang/article/details/8885792
-ÎÒÃÇÖ÷Òª¹Ø×¢JNIÏà¹Ø²¿·Ö£»×ÜÌåÀ´Ëµ£¬JNIÊÇÒ»¸öÌá¹©¸öC£¬C++ºÍJAVA½»»¥µÄ»·¾³ÇÅÁº¡£
+è¿™ä¸ªéƒ¨åˆ†å¯ä»¥å…ˆå‚è€ƒä¸‹è€ç½—åšå®¢ï¼šhttp://blog.csdn.net/luoshengyang/article/details/8885792
+æˆ‘ä»¬ä¸»è¦å…³æ³¨JNIç›¸å…³éƒ¨åˆ†ï¼›æ€»ä½“æ¥è¯´ï¼ŒJNIæ˜¯ä¸€ä¸ªæä¾›ä¸ªCï¼ŒC++å’ŒJAVAäº¤äº’çš„çŽ¯å¢ƒæ¡¥æ¢ã€‚
 [JNIEnv]
-[1]dalvik/libnativehelper/include/nativehelper/jni.h->struct _JNIEnv->void CallStaticVoidMethod(jclass clazz, jmethodID methodID, ...) /* Í¨¹ýJNINativeInterface»Øµ÷º¯Êý±í
-ÖÐµÄCallStaticVoidMethodV()Ö´ÐÐJÀ´Ö´ÐÐ²ÎÊýclazzºÍmethodIDËùÃèÊöµÄJava´úÂë */
+[1]dalvik/libnativehelper/include/nativehelper/jni.h->struct _JNIEnv->void CallStaticVoidMethod(jclass clazz, jmethodID methodID, ...) /* é€šè¿‡JNINativeInterfaceå›žè°ƒå‡½æ•°è¡¨
+ä¸­çš„CallStaticVoidMethodV()æ‰§è¡ŒJæ¥æ‰§è¡Œå‚æ•°clazzå’ŒmethodIDæ‰€æè¿°çš„Javaä»£ç  */
 [2]dalvik/vm/Jni.c->static const struct JNINativeInterface gNativeInterface = {  
     ...  
-    CallStaticVoidMethodV, /* ·½·¨Ö¸Ïòdalvik/vm/Stack.cpp->dvmCallMethodV()È¥Ö´ÐÐJava´úÂë */
+    CallStaticVoidMethodV, /* æ–¹æ³•æŒ‡å‘dalvik/vm/Stack.cpp->dvmCallMethodV()åŽ»æ‰§è¡ŒJavaä»£ç  */
     ...  
 };  
-[3]dalvik/vm/Stack.cpp->dvmCallMethodV() /* ÅÐ¶ÏÊÇ·ñÎªnatvie·½·¨£»Èç¹ûÊÇJAVA·½·¨£¬µ÷ÓÃdvmInterpret()Ö´ÐÐ */
-³ÉÔ±º¯ÊýÈç¹ûÊÇÒ»¸öJNI·½·¨£¬Ö±½ÓÌøµ½ËüµÄµØÖ·È¥Ö´ÐÐ¡£Ò²¾ÍÊÇËµ£¬JNI·½·¨ÊÇÖ±½ÓÔÚ±¾µØ²Ù×÷ÏµÍ³ÉÏÖ´ÐÐµÄ£¬¶ø²»ÊÇÓÉDalvikÐéÄâ»ú½âÊÍÆ÷Ö´ÐÐ¡£
-[4]¼ÓÔØ¶¯Ì¬Á´½Ó¿â
-->System.loadLibrary("xxxx") /* Ê×ÏÈ¼ÓÔØso¶¯Ì¬Á´½Ó¿â£»ÔÚapkÄ¿Â¼ºÍÏµÍ³Ä¿Â¼½øÐÐ¾ø¶ÔÂ·¾¶²éÕÒ¡£ */
-->JNI_OnLoad(JavaVM* vm, void* reserved) /* ¶¯Ì¬Á´½Ó¿â¼ÓÔØºó£¬µ÷ÓÃJNI_Onload() */
-dalvik/vm/native/java_lang_Runtime.cpp->nativeLoad(String filename, ClassLoader loader) /* ÕæÕýÖ´ÐÐ¿â¼ÓÔØµÄÊÇnativeLoad()º¯Êý,Õâ¸ö·½·¨ÒÑÔÚVMÄÚ²¿×¢²á¹ý¡£ */
+[3]dalvik/vm/Stack.cpp->dvmCallMethodV() /* åˆ¤æ–­æ˜¯å¦ä¸ºnatvieæ–¹æ³•ï¼›å¦‚æžœæ˜¯JAVAæ–¹æ³•ï¼Œè°ƒç”¨dvmInterpret()æ‰§è¡Œ */
+æˆå‘˜å‡½æ•°å¦‚æžœæ˜¯ä¸€ä¸ªJNIæ–¹æ³•ï¼Œç›´æŽ¥è·³åˆ°å®ƒçš„åœ°å€åŽ»æ‰§è¡Œã€‚ä¹Ÿå°±æ˜¯è¯´ï¼ŒJNIæ–¹æ³•æ˜¯ç›´æŽ¥åœ¨æœ¬åœ°æ“ä½œç³»ç»Ÿä¸Šæ‰§è¡Œçš„ï¼Œè€Œä¸æ˜¯ç”±Dalvikè™šæ‹Ÿæœºè§£é‡Šå™¨æ‰§è¡Œã€‚
+[4]åŠ è½½åŠ¨æ€é“¾æŽ¥åº“
+->System.loadLibrary("xxxx") /* é¦–å…ˆåŠ è½½soåŠ¨æ€é“¾æŽ¥åº“ï¼›åœ¨apkç›®å½•å’Œç³»ç»Ÿç›®å½•è¿›è¡Œç»å¯¹è·¯å¾„æŸ¥æ‰¾ã€‚ */
+->JNI_OnLoad(JavaVM* vm, void* reserved) /* åŠ¨æ€é“¾æŽ¥åº“åŠ è½½åŽï¼Œè°ƒç”¨JNI_Onload() */
+dalvik/vm/native/java_lang_Runtime.cpp->nativeLoad(String filename, ClassLoader loader) /* çœŸæ­£æ‰§è¡Œåº“åŠ è½½çš„æ˜¯nativeLoad()å‡½æ•°,è¿™ä¸ªæ–¹æ³•å·²åœ¨VMå†…éƒ¨æ³¨å†Œè¿‡ã€‚ */
 [5]dalvik/vm/natvie/Native.cpp->dvmLoadNativeCode(const char* pathName, Object* classLoader,
-        char** detail) /* ×öÏà¹ØÏß³Ì´¦Àí£»µ÷ÓÃdlopen()´ò¿ªÁ´½Ó¿â£¬·µ»Ø¾ä±ú£¬»ñµÃ¿âµØÖ·£¬»ñÈ¡¿âÖÐÌØ¶¨º¯ÊýµÄÖ¸Õë£¬²¢ÇÒµ÷ÓÃ×°ÔØ¿âÖÐµÄÏàÓ¦º¯Êý */
-[6]¶¯Ì¬Á´½Ó¿â±»¼ÓÔØºó£¬Í¨¹ýdlsym(handle, "JNI_OnLoad")µ÷ÓÃJNI_Onload()->jniRegisterNativeMethods()±¾µØ×¢²á·½·¨¡£
-[7]jniRegisterNativeMethods()->(*env)->RegisterNatives(env, clazz, gMethods, numMethods) /* ²ÎÊýenvËùÖ¸ÏòµÄÒ»¸öJNIEnv½á¹¹Ìå£¬Í¨¹ýµ÷ÓÃÕâ¸öJNIEnv½á¹¹Ìå¿ÉÒÔ»ñµÃ²ÎÊýclassNameËùÃèÊöµÄÒ»¸öÀà¡£Õâ¸öÀà¾ÍÊÇÒª×¢²áJNIµÄÀà£¬¶øËüËùÒª×¢²áµÄJNI¾ÍÊÇÓÉ²ÎÊýgMethodsÀ´ÃèÊöµÄ */
-[8]RegisterNatives()->dvmRegisterJNIMethod() /* ½øÐÐÏà¹ØJNI¼ì²é */->dvmUseJNIBridge(method, fnPtr) /* BridageÊ¹ÓÃlibffi¿â½øÐÐÐ­µ÷ */
-²Î¿¼£ºlibffi¿âÊÇÒ»¸ö¿ªÔ´ÏîÄ¿£¬ÓÃÓÚ¸ß¼¶ÓïÑÔÖ®¼äµÄÏà»¥µ÷ÓÃµÄ´¦Àí£¬ËüµÄÔ´´úÂëÎ»ÓÚexternal/libffi http://www.sourceware.org/libffi/¡£
-[9]¸ù¾Ý²»Í¬µÄº¯ÊýÀàÐÍ£¬Ñ¡ÔñBridgeº¯Êý£ºGenernal¡¢Sync¡¢VirtualNoRefºÍStaticNoRef¡£ÒÔdvmPlatformInvoke·½Ê½µ÷ÓÃ¶ÔÓ¦µÄJNI·½·¨£¬Í¨¹ýlibffi¿âÀ´µ÷ÓÃ¶ÔÓ¦µÄJNI·½·¨£¬ÒÔÆÁ±ÎDalvikÐéÄâ»úÔËÐÐÔÚ²»Í¬Ä¿±êÆ½Ì¨µÄÏ¸½Ú¡£
+        char** detail) /* åšç›¸å…³çº¿ç¨‹å¤„ç†ï¼›è°ƒç”¨dlopen()æ‰“å¼€é“¾æŽ¥åº“ï¼Œè¿”å›žå¥æŸ„ï¼ŒèŽ·å¾—åº“åœ°å€ï¼ŒèŽ·å–åº“ä¸­ç‰¹å®šå‡½æ•°çš„æŒ‡é’ˆï¼Œå¹¶ä¸”è°ƒç”¨è£…è½½åº“ä¸­çš„ç›¸åº”å‡½æ•° */
+[6]åŠ¨æ€é“¾æŽ¥åº“è¢«åŠ è½½åŽï¼Œé€šè¿‡dlsym(handle, "JNI_OnLoad")è°ƒç”¨JNI_Onload()->jniRegisterNativeMethods()æœ¬åœ°æ³¨å†Œæ–¹æ³•ã€‚
+[7]jniRegisterNativeMethods()->(*env)->RegisterNatives(env, clazz, gMethods, numMethods) /* å‚æ•°envæ‰€æŒ‡å‘çš„ä¸€ä¸ªJNIEnvç»“æž„ä½“ï¼Œé€šè¿‡è°ƒç”¨è¿™ä¸ªJNIEnvç»“æž„ä½“å¯ä»¥èŽ·å¾—å‚æ•°classNameæ‰€æè¿°çš„ä¸€ä¸ªç±»ã€‚è¿™ä¸ªç±»å°±æ˜¯è¦æ³¨å†ŒJNIçš„ç±»ï¼Œè€Œå®ƒæ‰€è¦æ³¨å†Œçš„JNIå°±æ˜¯ç”±å‚æ•°gMethodsæ¥æè¿°çš„ */
+[8]RegisterNatives()->dvmRegisterJNIMethod() /* è¿›è¡Œç›¸å…³JNIæ£€æŸ¥ */->dvmUseJNIBridge(method, fnPtr) /* Bridageä½¿ç”¨libffiåº“è¿›è¡Œåè°ƒ */
+å‚è€ƒï¼šlibffiåº“æ˜¯ä¸€ä¸ªå¼€æºé¡¹ç›®ï¼Œç”¨äºŽé«˜çº§è¯­è¨€ä¹‹é—´çš„ç›¸äº’è°ƒç”¨çš„å¤„ç†ï¼Œå®ƒçš„æºä»£ç ä½äºŽexternal/libffi http://www.sourceware.org/libffi/ã€‚
+[9]æ ¹æ®ä¸åŒçš„å‡½æ•°ç±»åž‹ï¼Œé€‰æ‹©Bridgeå‡½æ•°ï¼šGenernalã€Syncã€VirtualNoRefå’ŒStaticNoRefã€‚ä»¥dvmPlatformInvokeæ–¹å¼è°ƒç”¨å¯¹åº”çš„JNIæ–¹æ³•ï¼Œé€šè¿‡libffiåº“æ¥è°ƒç”¨å¯¹åº”çš„JNIæ–¹æ³•ï¼Œä»¥å±è”½Dalvikè™šæ‹Ÿæœºè¿è¡Œåœ¨ä¸åŒç›®æ ‡å¹³å°çš„ç»†èŠ‚ã€‚
 
 
 
