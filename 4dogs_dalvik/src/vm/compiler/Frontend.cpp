@@ -1839,7 +1839,7 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 		}
 
 		/* If the work order is stale, discard it */
-		/* 如果订单是之前的订单则丢弃它 */
+		/* 结构缓冲区的版本必须与当前缓冲区的版本对应 */
 		if (info->cacheVersion != gDvmJit.cacheVersion) {
 			return false;
 		}
@@ -2047,7 +2047,7 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 		while (1) {
 			MIR *insn;
 			int width;
-			insn = (MIR *)dvmCompilerNew(sizeof(MIR), true);
+			insn = (MIR *)dvmCompilerNew(sizeof(MIR), true);	/* 分配一个MIR结构内存 */
 			insn->offset = curOffset;
 			/* 返回指令长度 */
 			width = parseInsn(codePtr, &insn->dalvikInsn, cUnit.printMe);
@@ -2079,7 +2079,7 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 				callsiteInfo->classLoader = (Object *)
 					currRun[JIT_TRACE_CLASS_LOADER].info.meta;
 				callsiteInfo->method = calleeMethod;
-				insn->meta.callsiteInfo = callsiteInfo;
+				insn->meta.callsiteInfo = callsiteInfo;			/* 在MIR结构中设定调用者的函数结构 */
 			}
 
 			/* Instruction limit reached - terminate the trace here */
@@ -2151,13 +2151,17 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 
 			/* 取出当前指令的偏移 */
 			curOffset = lastInsn->offset;												/* 当前指令的偏移 */
-			unsigned int targetOffset = curOffset;										/* 目标偏移，如果指令是分支指令 */
+			/* 
+			 * 如果当前指令是分支指令，则此值将会被下面findBlockBoundary函数更新
+			 * 如果非分支指令，则此值等于当前指令的值
+			 */
+			unsigned int targetOffset = curOffset;													
 			unsigned int fallThroughOffset = curOffset + lastInsn->width;				/* 顺序执行的下一条指令的偏移 */
 			bool isInvoke = false;
 			const Method *callee = NULL;
 
 			/* 
-			 * 这个函数用于更新targetOffset的值，
+			 * 这个函数用于更新targetOffset的值，以及isInvoke的值
 			 * 如果是一个跳转指令targetOffset将被更新
 			 * 并且callee函数结构会被更新
 			 */
@@ -2173,7 +2177,7 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 
 			/* 是否是调用指令 */
 			if (flags & kInstrInvoke) {
-				cUnit.hasInvoke = true;
+				cUnit.hasInvoke = true;	/* 标记当前编译单元存在调用指令CALL这种类型的 */
 			}
 
 			/* Backward branch seen */
@@ -2193,7 +2197,7 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 				(flags & kInstrCanBranch) != 0 &&
 				targetOffset < curOffset &&
 				(optHints & JIT_OPT_NO_LOOP) == 0) {
-				dvmCompilerArenaReset();				/* 重设所有Arena区域 */
+				dvmCompilerArenaReset();				/* 释放所有之前通过dvmCompilerNew分配的内存 */
 				/* 编译循环 */
 				return compileLoop(&cUnit, startOffset, desc, numMaxInsts,
 								   info, bailPtr, optHints);
@@ -2213,12 +2217,12 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 				searchBB = (BasicBlock *) dvmGrowableListGetElement(blockList,
 																	searchBlockId);
 				/* 
-				 * 如果目标的偏移 等于  下一条指令的偏移
-				 * 这应该是个向下的跳转
+				 * 目标点处于trace代码段内
+				 * 找到跳转目标的节点
 				 */
 				if (targetOffset == searchBB->startOffset) {
 					curBB->taken = searchBB;			/* 跳转就使用taken字段 */
-					dvmCompilerSetBit(searchBB->predecessors, curBB->id);
+					dvmCompilerSetBit(searchBB->predecessors, curBB->id);	/* 设置一个引用，执行到此指令处可以从哪里过来 */
 				}
 
 				/*
@@ -2241,7 +2245,7 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 						searchBB->isFallThroughFromInvoke = true;		/* 表明这个block之前的指令是一个调用指令 */
 					}
 					/* 优化：这里应该退出循环 */
-				}
+				}/* 顺序指令完毕 */
 			}/* 循环遍历下一条指令块 */
 
 			/*
@@ -2265,27 +2269,33 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 			if (lastInsn->dalvikInsn.opcode == OP_PACKED_SWITCH ||
 				lastInsn->dalvikInsn.opcode == OP_SPARSE_SWITCH) {
 				int i;
+				/* 取出当前指令跟随着SWITCH的数据 */
 				const u2 *switchData = desc->method->insns + lastInsn->offset +
 								 lastInsn->dalvikInsn.vB;
-				int size = switchData[1];
-				int maxChains = MIN(size, MAX_CHAINED_SWITCH_CASES);
+				int size = switchData[1];		/* 第一个2字节表示了有多少个CASE */
+				int maxChains = MIN(size, MAX_CHAINED_SWITCH_CASES);	/* 取一个最小的值，MAX_CHAINED_SWITCH_CASES表示CASE的最大数量 */
 
 				/*
 				 * Generate the landing pad for cases whose ranks are higher than
 				 * MAX_CHAINED_SWITCH_CASES. The code will re-enter the interpreter
 				 * through the NoChain point.
 				 */
+				/*
+				 * 如果最大的CASE数量不等于当前的长度则
+				 * 设定switch异常点
+				 */
 				if (maxChains != size) {
 					cUnit.switchOverflowPad =
-						desc->method->insns + lastInsn->offset;
+						desc->method->insns + lastInsn->offset;	/* 设定是哪个SWITCH指令超出了CASE范围 */
 				}
 
-				/* 取出目标的偏移 */
+				/* 取出目标的偏移队列地址 */
 				s4 *targets = (s4 *) (switchData + 2 +
 						(lastInsn->dalvikInsn.opcode == OP_PACKED_SWITCH ?
 						 2 : size * 2));
 
 				/* One chaining cell for the first MAX_CHAINED_SWITCH_CASES cases */
+				/* 记录所有CASE节点 */
 				for (i = 0; i < maxChains; i++) {
 					BasicBlock *caseChain = dvmCompilerNewBB(kChainingCellNormal,
 															 numBlocks++);
@@ -2294,6 +2304,7 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 				}
 
 				/* One more chaining cell for the default case */
+				/* default case节点 */
 				BasicBlock *caseChain = dvmCompilerNewBB(kChainingCellNormal,
 														 numBlocks++);
 				dvmInsertGrowableList(blockList, (intptr_t) caseChain);
@@ -2326,7 +2337,7 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 				fallThroughBB->startOffset = fallThroughOffset;
 				curBB->fallThrough = fallThroughBB;
 				dvmCompilerSetBit(fallThroughBB->predecessors, curBB->id);
-			}
+			}/* end else if */
 			/* Target block not included in the trace */
 			/* 目标基本块不包含在trace中 */
 
@@ -2397,6 +2408,8 @@ static void processCanSwitch(CompilationUnit *cUnit, BasicBlock *curBlock,
 					newBB->startOffset = targetOffset;
 #endif
 				}/* 这里是处理无条件分支指令 */
+
+				/* 这里将这条指令归链 */
 				if (newBB) {
 					curBB->taken = newBB;
 					dvmCompilerSetBit(newBB->predecessors, curBB->id);

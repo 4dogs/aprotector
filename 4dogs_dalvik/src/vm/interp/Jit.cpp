@@ -487,8 +487,13 @@ void dvmJitStopTranslationRequests()
      * bytes, and no further attempt will be made to re-allocate it.  Can't
      * free it because some thread may be holding a reference.
      */
+	/*
+	 * 1:这个函数不能立即停止所有的编译请求。直到每条线程进行更新后发现pProfTable
+	 * 变量为NULL才会退出
+	 * 2:直接将pProfTable设定为NULL将会造成一些内存泄露
+	 */
     gDvmJit.pProfTable = NULL;
-    dvmJitUpdateThreadStateAll();
+    dvmJitUpdateThreadStateAll();	/* 更新所有的JIT线程状态 */
 }
 
 #if defined(WITH_JIT_TUNING)

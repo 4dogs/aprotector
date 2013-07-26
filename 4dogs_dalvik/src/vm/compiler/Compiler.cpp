@@ -380,6 +380,7 @@ static void resetCodeCache(void)
     dvmLockMutex(&gDvmJit.compilerLock);
 
     /* Update the translation cache version */
+	/* 每释放一次codeCache则此版本增加，编译一次也也对应的增加一此 */
     gDvmJit.cacheVersion++;
 
     /* Drain the work queue to free the work orders */
@@ -1008,7 +1009,7 @@ void dvmCompilerUpdateGlobalState()
          * installed while we are working.
          */
         dvmLockMutex(&gDvmJit.compilerLock);
-		/* 增加缓冲版本 */
+		/* 增加缓冲版本，无效编译 */
         gDvmJit.cacheVersion++; // invalidate compilations in flight
         gDvmJit.methodTraceSupport = true;	/* 开启 */
         resetRequired = (gDvmJit.numCompilations != 0);	/* 检测是否重设代码缓冲区*/

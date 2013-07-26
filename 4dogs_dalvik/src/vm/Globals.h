@@ -888,7 +888,10 @@ struct DvmJitGlobals {
     void *inflightBaseAddr;
 
     /* Translation cache version (protected by compilerLock */
-	/* 转换缓冲版本（被compilerLock所保护 */
+	/* 
+	 * 转换缓冲版本（被compilerLock所保护) 
+	 * 每调用一次resetCache函数此变量被
+	 */
     int cacheVersion;
 
     /* Bytes used by the code templates */
