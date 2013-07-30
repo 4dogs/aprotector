@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
 <title>Aprotector例会以及任务</title>
-<!-- 2013-07-14 日 15:54 -->
+<!-- 2013-07-26 五 20:12 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
 <meta name="generator" content="Org-mode"/>
 <meta name="author" content="四维创智"/>
@@ -145,6 +145,8 @@ for the JavaScript code in this tag.
 <li><a href="#sec-1-2">1.2. 6.24 - 6.30</a></li>
 <li><a href="#sec-1-3">1.3. 6.30 - 7.14</a></li>
 <li><a href="#sec-1-4">1.4. 7.15 - 7.21</a></li>
+<li><a href="#sec-1-5">1.5. 7.22 - 7.24</a></li>
+<li><a href="#sec-1-6">1.6. 7.24 - 7.28</a></li>
 </ul>
 </li>
 <li><a href="#sec-2">2. 任务</a>
@@ -227,6 +229,54 @@ for the JavaScript code in this tag.
 
 <p>
 3.确定方案可实施性 (彭州)
+</p>
+</div>
+</div>
+<div id="outline-container-1-5" class="outline-3">
+<h3 id="sec-1-5"><span class="section-number-3">1.5</span> 7.22 - 7.24</h3>
+<div class="outline-text-3" id="text-1-5">
+<p>
+1.调查android程序入口点技术（李晋飞）
+</p>
+
+<p>
+2.so文件在android程序的生命周期（李晋飞）
+</p>
+
+<p>
+3.入口函数最小大小（李晋飞）
+</p>
+
+<p>
+4.是否可以通过so文件修改DEX文件的映射内存（王一飞）
+</p>
+
+<p>
+5.对函数名称HASH库接口进行实现（王艳东）
+</p>
+
+<p>
+6.对chaosvm.so的整体流程进行设计(彭州）
+</p>
+</div>
+</div>
+<div id="outline-container-1-6" class="outline-3">
+<h3 id="sec-1-6"><span class="section-number-3">1.6</span> 7.24 - 7.28</h3>
+<div class="outline-text-3" id="text-1-6">
+<p>
+1.编写简易版本的chaosvm.so（彭州，王一飞）
+</p>
+
+<p>
+2.编写简易版本的SDK（李晋飞，王一飞）
+</p>
+
+<p>
+3.编写简易版本的chaosvmp.exe(王艳东)
+</p>
+
+<p>
+4.调查android上的感染方式(王艳东，彭州)
 </p>
 </div>
 </div>
@@ -376,6 +426,9 @@ Profile.h/cpp
 
 <p>
 6.30(13:40 - 17:00) 首先对飞哥进行了批评，提交文档格式不正确。飞哥对X1的设计延后。
+</p>
+
+<p>
 针对623任务的时间进行了规划，确定了代码分析的时间，重新划分了王一飞与李靖飞的工作。
 </p>
 
@@ -421,8 +474,43 @@ Profile.h/cpp
 </table>
 
 <p>
-7.14(14:30 - )飞哥缺席。彭提出了对现有项目实施方案的异议。分配了在vm目录下的源代码分析任务，让
-彭州负责整体设计。确定实施方案
+7.14(14:30 - 16:30) 飞哥缺席。彭提出了对现有项目实施方案的异议。分配了在vm目录下的源代码分析任务，确定实施方案
+</p>
+
+<p>
+并且确定了对于代码分析的完成最后期限。（仅这周）
+</p>
+
+<p>
+7.21(13:30 - 18:10) 本项目本来最初有一套方案（Y1 &lt;- 将PC上的虚拟机保护方案移植到此），由阎文斌提出，
+</p>
+
+<p>
+后来阎发现更加安全的方案（Y2 &lt;- 自己编译一套dalvik的虚拟机），经过1个月的dalvik代码分析，发现完全自己编译一套
+</p>
+
+<p>
+dalvik虚拟机，目前实现难度太大，这次会议否决了Y2方案，转而对Y1方案进行了详细的探讨。探讨出了对Y1的修改方案X1,
+</p>
+
+<p>
+修订完成后，发现彭州解释器这部分实现难度还是太大，具体难点有(1.入口点空间问题，2.感染后调用chaosvm.so调用函数
+</p>
+
+<p>
+JNI注册问题，3.当前线程在dalvik中的“Thread”结构指针的获取）所以由提出了对X1的简化方案X2,这个方案单一让用户使用
+</p>
+
+<p>
+我们提供的SDK来完成保护，在保护方面只是通过内存的复制来解决。4份方案可见目录下的X1,X2,Y1,Y2
+</p>
+
+<p>
+7.24(13:30 - 15:30) 这次会议在中心的办公室召开。解决了一些基本疑问，会议后，彭州提出了目前简化方案X2过于简单，提出
+</p>
+
+<p>
+了三种级别的解决。（1.采用PC上壳的思路来解决，2.X2，3.X1)。三种实施阶段。
 </p>
 </div>
 </div>
@@ -430,7 +518,7 @@ Profile.h/cpp
 <div id="postamble" class="status">
 <p class="date">Date: 13/6/2013</p>
 <p class="author">Author: 四维创智</p>
-<p class="date">Created: 2013-07-14 日 15:54</p>
+<p class="date">Created: 2013-07-26 五 20:12</p>
 <p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 23.4.1 (<a href="http://orgmode.org">Org</a> mode 8.0-pre)</p>
 <p class="xhtml-validation"><a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a></p>
 </div>

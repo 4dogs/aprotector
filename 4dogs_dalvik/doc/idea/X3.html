@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>混乱虚拟机雏形设计文档</title>
+<!-- 2013-07-30 二 23:42 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+<meta name="generator" content="Org-mode"/>
+<meta name="author" content="四维创智"/>
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012  Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">混乱虚拟机雏形设计文档</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1. 整体流程</a>
+<ul>
+<li><a href="#sec-1-1">1.1. SDK的使用</a></li>
+<li><a href="#sec-1-2">1.2. 混乱虚拟机雏形编译器</a></li>
+<li><a href="#sec-1-3">1.3. 混乱虚拟机雏形</a></li>
+<li><a href="#sec-1-4">1.4. 被保护函数的执行</a></li>
+<li><a href="#sec-1-5">1.5. 问题</a></li>
+</ul>
+</li>
+<li><a href="#sec-2">2. 类加载器流程</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> 整体流程</h2>
+<div class="outline-text-2" id="text-1">
+</div><div id="outline-container-1-1" class="outline-3">
+<h3 id="sec-1-1"><span class="section-number-3">1.1</span> SDK的使用</h3>
+<div class="outline-text-3" id="text-1-1">
+<p>
+例如：开发人员在开发过程中要保护A函数则使用chaosvmpProtect("A")在函数的最开头调用此语句。
+</p>
+
+<p>
+并在主MainActivity中继承类加载类。（类加载器负责启动"chaosvm.so"）。
+</p>
+</div>
+</div>
+<div id="outline-container-1-2" class="outline-3">
+<h3 id="sec-1-2"><span class="section-number-3">1.2</span> 混乱虚拟机雏形编译器</h3>
+<div class="outline-text-3" id="text-1-2">
+<p>
+1.读取被保护程序APK
+</p>
+
+<p>
+2.解包APK，提取出要保护的DEX文件
+</p>
+
+<p>
+3.读取DEX文件并将DEX所有的函数读入到HASH表中
+</p>
+
+<p>
+4.读取命令行读取要保护的函数
+</p>
+
+<p>
+5.从HASH表中通过函数名称取得对应的Method结构指针
+</p>
+
+<p>
+6.通过Method结构定位被保护函数在DEX文件中的位置
+</p>
+
+<p>
+7.跳过call chaosvmProtect函数，并且使用（函数大小 - 2) * 2 得到要保护的大小(YS)
+被保护的代码称之为Y
+</p>
+
+<p>
+8.计算 “密钥X1 = 非被保护函数的代码集合（顺序）的SHA1值
+</p>
+
+<p>
+9.对被保护的代码Y使用X1进行加密，写入到原先的位置
+</p>
+
+<p>
+10.计算 “X2 = (当前被保护函数保护后的DEX + 类加载器DEX函数代码)的SHA1值”
+</p>
+
+<p>
+11.使用X2对当前DEX进行加密
+</p>
+
+<p>
+12.将类加载器(E1) 混乱虚拟机(chaosvm<sub>x</sub>.so) 一同打包到新的APK中
+</p>
+</div>
+</div>
+
+<div id="outline-container-1-3" class="outline-3">
+<h3 id="sec-1-3"><span class="section-number-3">1.3</span> 混乱虚拟机雏形</h3>
+<div class="outline-text-3" id="text-1-3">
+<p>
+1.找到要保护的DEX文件:target.dex
+</p>
+
+<p>
+2.找到类加载的DEX文件:loader.dex
+</p>
+
+<p>
+3.计算X2
+</p>
+
+<p>
+4.通过X2解密target.dex
+</p>
+
+<p>
+5.遍历target.dex文件并且建立函数HASH表
+</p>
+
+<p>
+6.通过dlopen &amp; dlsym从libdvm.so中获取gDvm的指针
+</p>
+
+<p>
+7.建立函数引用计数队列
+</p>
+
+<p>
+8.返回
+</p>
+</div>
+</div>
+<div id="outline-container-1-4" class="outline-3">
+<h3 id="sec-1-4"><span class="section-number-3">1.4</span> 被保护函数的执行</h3>
+<div class="outline-text-3" id="text-1-4">
+<p>
+1.当执行到被保护函数，则第一条指令必为call chaosvmProtect
+</p>
+
+<p>
+2.chaosvmProtect是一个JNI的接口，直接跳入到chaosvm.so中
+</p>
+
+<p>
+3.chaosvm.so通过读取参数获取函数名，并从HASH表中获取当前函数的信息
+</p>
+
+<p>
+4.判断当前函数的引用计数是否为0，增加引用次数，如果为0则进入5，否则到6
+</p>
+
+<p>
+5.遍历整个DEX文件非被保护函数的代码区域并计算SHA1值得出X1，通过X1解密当前被保护的代码
+</p>
+
+<p>
+6.返回
+</p>
+</div>
+</div>
+<div id="outline-container-1-5" class="outline-3">
+<h3 id="sec-1-5"><span class="section-number-3">1.5</span> 问题</h3>
+<div class="outline-text-3" id="text-1-5">
+<p>
+1.在被保护函数中，无法判断函数合适运行完毕，则直接进行一次保护。无法再次进行加密（应该可以解决）
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> 类加载器流程</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+1.类加载器运行
+</p>
+
+<p>
+2.判断当前系统的体系结构，如果是X86则加载chaosvm<sub>x86</sub>.so否则加载chaosvm<sub>arm</sub>.so
+</p>
+
+<p>
+3.进入chaosvm.so初始化函数
+</p>
+
+<p>
+4.返回
+</p>
+
+<p>
+5.加载&#x2026;
+</p>
+
+<p>
+6&#x2026;..
+</p>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="date">Date: 30/7/2013</p>
+<p class="author">Author: 四维创智</p>
+<p class="date">Created: 2013-07-30 二 23:42</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 23.4.1 (<a href="http://orgmode.org">Org</a> mode 8.0-pre)</p>
+<p class="xhtml-validation"><a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a></p>
+</div>
+</body>
+</html>

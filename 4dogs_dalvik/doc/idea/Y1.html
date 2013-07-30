@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>Android应用程序逆向与保护系统设计文档</title>
+<!-- 2013-07-26 五 14:18 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+<meta name="generator" content="Org-mode"/>
+<meta name="author" content="四维创智"/>
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012  Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Android应用程序逆向与保护系统设计文档</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1. 混乱虚拟机编译器</a>
+<ul>
+<li><a href="#sec-1-1">1.1. 工作原理</a></li>
+<li><a href="#sec-1-2">1.2. 基本流程</a></li>
+</ul>
+</li>
+<li><a href="#sec-2">2. 混乱虚拟机</a>
+<ul>
+<li><a href="#sec-2-1">2.1. 工作原理</a></li>
+<li><a href="#sec-2-2">2.2. 基本流程</a>
+<ul>
+<li><a href="#sec-2-2-1">2.2.1. 被保护APK启动流程</a></li>
+<li><a href="#sec-2-2-2">2.2.2. 被保护函数的启动流程</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> 混乱虚拟机编译器</h2>
+<div class="outline-text-2" id="text-1">
+</div><div id="outline-container-1-1" class="outline-3">
+<h3 id="sec-1-1"><span class="section-number-3">1.1</span> 工作原理</h3>
+<div class="outline-text-3" id="text-1-1">
+<p>
+混乱虚拟机首先通过对读取DEX文件的汇编代码与文件头信息将要保护的代码转码成只有混乱虚拟机才可以识别的指令。并且将其加密存放入字节码文件内。随后将原始
+函数的汇编代码替换为进入混乱虚拟机的引导代码，这段代码通常是一个JNI接口函数。这样当程序执行到这个函数时则会进入JNI指向的存放于“chaosvm.so”中
+的代码。在“chaosvm.so”中再进行对原始函数的解码运行。而“chaosvm.so”的加载是由劫持原始DEX文件入口点的代码实现的。在初始化完毕之后便会将控制器交由
+原始入口点的函数。
+</p>
+</div>
+</div>
+
+<div id="outline-container-1-2" class="outline-3">
+<h3 id="sec-1-2"><span class="section-number-3">1.2</span> 基本流程</h3>
+<div class="outline-text-3" id="text-1-2">
+<p>
+<i>1.对APK解包</i>
+</p>
+
+<p>
+<i>2.反汇编DEX文件为smali文件</i>
+</p>
+
+<p>
+<i>3.对smali文件进行词语语法分析建立“程序流程树”与“符号表”</i>
+</p>
+
+<p>
+<i>4.寻找dex文件执行入口点函数</i>
+</p>
+
+<p>
+<i>5.释放“混乱虚拟机引导模块”的smali源文件与“libchaosvm.so”</i>
+</p>
+
+<p>
+<i>6.向源文件中添加“混乱虚拟机引导模块”源文件</i>
+</p>
+
+<p>
+<i>7.替换源文件的入口点函数为“混乱虚拟机初始化”函数</i>
+</p>
+
+<p>
+<i>8.寻找要保护的函数</i>
+</p>
+
+<p>
+<i>9.将要保护的函数替换为“混乱虚拟机被保护函数引导”函数</i>
+</p>
+
+<p>
+<i>10.将被保护函数的转换后的代码输出为“混乱字节码”文件到“bytecodes.bin”</i>
+</p>
+
+<p>
+<i>11.重新编译“smali”源文件为被保护的dex文件</i>
+</p>
+
+<p>
+<i>12.重新打包为新的APK</i>
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> 混乱虚拟机</h2>
+<div class="outline-text-2" id="text-2">
+</div><div id="outline-container-2-1" class="outline-3">
+<h3 id="sec-2-1"><span class="section-number-3">2.1</span> 工作原理</h3>
+<div class="outline-text-3" id="text-2-1">
+<p>
+混乱虚拟机是一个名为"chaosvm.so"的文件。使用C++语言进行开发，负责解密&amp;解码被保护函数。它是一台RISC编码的虚拟机，
+有一套完整并独立的体系结构。当被保护函数被执行，引导代码会为其做好引导准备并跳入到它的执行。它启动后会读取相应函数的
+字节码并执行。在执行完毕之后会再将控制权交还给dalvik虚拟机并执行。
+</p>
+</div>
+</div>
+
+<div id="outline-container-2-2" class="outline-3">
+<h3 id="sec-2-2"><span class="section-number-3">2.2</span> 基本流程</h3>
+<div class="outline-text-3" id="text-2-2">
+</div><div id="outline-container-2-2-1" class="outline-4">
+<h4 id="sec-2-2-1"><span class="section-number-4">2.2.1</span> 被保护APK启动流程</h4>
+<div class="outline-text-4" id="text-2-2-1">
+<p>
+<i>1.APK程序解包</i>
+</p>
+
+<p>
+<i>2.DEX文件以及资源被导入内存</i>
+</p>
+
+<p>
+<i>3.加载DEX文件并运行到入口点</i>
+</p>
+
+<p>
+<i>4.进入“混乱虚拟机初始化”函数，此函数是一个“JNI”接口会调用“libchaosvm.so”中的初始化函数</i>
+</p>
+
+<p>
+<i>5.“混乱虚拟机初始化”函数加载“bytecodes.bin”到内存</i>
+</p>
+
+<p>
+<i>6.调用原始DEX文件的入口点函数</i>
+</p>
+</div>
+</div>
+
+<div id="outline-container-2-2-2" class="outline-4">
+<h4 id="sec-2-2-2"><span class="section-number-4">2.2.2</span> 被保护函数的启动流程</h4>
+<div class="outline-text-4" id="text-2-2-2">
+<p>
+<i>1.执行到被保护函数</i>
+</p>
+
+<p>
+<i>2.进入“混乱虚拟机被保护函数引导”函数</i>
+</p>
+
+<p>
+<i>3.“混乱虚拟机被保护函数”寻找到自身被保护函数的字节码内存并执行</i>
+</p>
+
+<p>
+<i>4.函数执行完毕</i>
+</p>
+
+<p>
+<i>5.返回到真实的JAVA虚拟机中</i>
+</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="author">Author: 四维创智</p>
+<p class="date">Created: 2013-07-26 五 14:18</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 23.4.1 (<a href="http://orgmode.org">Org</a> mode 8.0-pre)</p>
+<p class="xhtml-validation"><a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a></p>
+</div>
+</body>
+</html>
